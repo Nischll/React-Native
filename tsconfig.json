@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["*"]
     }
@@ -14,6 +15,7 @@
     "expo-env.d.ts",
     "babel.config.js",
     "nativewind-env.d.ts",
-    "metro.config.js"
+    "metro.config.js",
+    "tailwind.config.js"
   ]
 }

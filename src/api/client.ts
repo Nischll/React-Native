@@ -1,94 +1,99 @@
-// import axios, { type InternalAxiosRequestConfig } from "axios";
-// import { startGlobalLoading, stopGlobalLoading } from "./utility/loadingBus";
+import { BASE_URL } from "@/src/constants/env";
+import axios, { InternalAxiosRequestConfig } from "axios";
+import { startGlobalLoading, stopGlobalLoading } from "../utils/loadingBus";
 
-// export const BASE_URL = import.meta.env.VITE_BASE_URL;
+export const apiService = axios.create({
+  baseURL: BASE_URL,
+  timeout: 15000,
+  headers: {
+    Accept: "application/json",
+  },
+});
 
-// export const api = axios.create({
-//   baseURL: BASE_URL,
-//   withCredentials: true,
-// });
+const MAX_AUTH_REFRESH_ATTEMPTS = 3;
 
-// /** After this many failed refresh calls, stop calling `auth/refresh` on 403 (until reset). */
-// const MAX_AUTH_REFRESH_ATTEMPTS = 3;
+let requestCount = 0;
+let failedAuthRefreshAttempts = 0;
 
-// let requestCount = 0;
-// let failedAuthRefreshAttempts = 0;
+type RequestConfigWithRetry = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
 
-// type RequestConfigWithRetry = InternalAxiosRequestConfig & { _retry?: boolean };
+function isAuthRefreshUrl(
+  config: InternalAxiosRequestConfig | undefined,
+): boolean {
+  const u = String(config?.url ?? "");
+  return u.includes("auth/refresh");
+}
 
-// function isAuthRefreshUrl(
-//   config: InternalAxiosRequestConfig | undefined,
-// ): boolean {
-//   const u = String(config?.url ?? "");
-//   return u.includes("auth/refresh");
-// }
+export function resetAuthRefreshAttempts(): void {
+  failedAuthRefreshAttempts = 0;
+}
 
-// /** Call after login so 403 handling can try refresh again. */
-// export function resetAuthRefreshAttempts(): void {
-//   failedAuthRefreshAttempts = 0;
-// }
+apiService.interceptors.request.use(
+  async (config) => {
+    requestCount++;
+    startGlobalLoading();
 
-// // Request Interceptor to Dynamically Set Content-Type
-// api.interceptors.request.use(
-//   (config) => {
-//     requestCount++;
-//     startGlobalLoading();
-//     if (config.data instanceof FormData) {
-//       // Don't set Content-Type for FormData - let browser set it with boundary
-//       delete config.headers["Content-Type"];
-//     } else {
-//       config.headers["Content-Type"] = "application/json";
-//     }
-//     return config;
-//   },
-//   (error) => {
-//     return Promise.reject(error);
-//   },
-// );
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    } else {
+      config.headers["Content-Type"] = "application/json";
+    }
 
-// api.interceptors.response.use(
-//   async (response) => {
-//     requestCount--;
-//     if (requestCount === 0) stopGlobalLoading();
+    // OPTIONAL: attach token if using JWT in storage
+    // const token = await AsyncStorage.getItem("accessToken");
+    // if (token) {
+    //   config.headers.Authorization = `Bearer ${token}`;
+    // }
 
-//     return response;
-//   },
-//   async (error) => {
-//     requestCount--;
-//     if (requestCount === 0) stopGlobalLoading();
-//     const originalRequest = error.config as RequestConfigWithRetry | undefined;
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
 
-//     if (error.response?.status !== 403 || !originalRequest) {
-//       return Promise.reject(error);
-//     }
+apiService.interceptors.response.use(
+  async (response) => {
+    requestCount--;
+    if (requestCount === 0) stopGlobalLoading();
+    return response;
+  },
+  async (error) => {
+    requestCount--;
+    if (requestCount === 0) stopGlobalLoading();
 
-//     // Never chain refresh on the refresh endpoint itself (403 here = no more refresh loop)
-//     if (isAuthRefreshUrl(originalRequest)) {
-//       return Promise.reject(error);
-//     }
+    const originalRequest = error.config as RequestConfigWithRetry | undefined;
 
-//     if (originalRequest._retry) {
-//       return Promise.reject(error);
-//     }
+    if (error.response?.status !== 403 || !originalRequest) {
+      return Promise.reject(error);
+    }
 
-//     if (failedAuthRefreshAttempts >= MAX_AUTH_REFRESH_ATTEMPTS) {
-//       return Promise.reject(error);
-//     }
+    if (isAuthRefreshUrl(originalRequest)) {
+      return Promise.reject(error);
+    }
 
-//     originalRequest._retry = true;
+    if (originalRequest._retry) {
+      return Promise.reject(error);
+    }
 
-//     try {
-//       await api.post("api/auth/refresh");
-//       failedAuthRefreshAttempts = 0;
-//       return api(originalRequest);
-//     } catch (refreshError) {
-//       failedAuthRefreshAttempts += 1;
-//       if (import.meta.env.DEV) {
-//         console.warn(
-//           `Refresh API failed (${failedAuthRefreshAttempts}/${MAX_AUTH_REFRESH_ATTEMPTS}); further 403s will not trigger refresh until reset or reload.`,
-//         );
-//       }
-//       return Promise.reject(refreshError);
-//     }
-//   },
-// );
+    if (failedAuthRefreshAttempts >= MAX_AUTH_REFRESH_ATTEMPTS) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    try {
+      await apiService.post("/api/auth/refresh");
+      failedAuthRefreshAttempts = 0;
+      return apiService(originalRequest);
+    } catch (refreshError) {
+      failedAuthRefreshAttempts += 1;
+      console.warn(
+        `Refresh failed (${failedAuthRefreshAttempts}/${MAX_AUTH_REFRESH_ATTEMPTS})`,
+      );
+      return Promise.reject(refreshError);
+    }
+  },
+);

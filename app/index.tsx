@@ -1,11 +1,5 @@
-import { Text, View } from "react-native";
+import { Redirect } from "expo-router";
 
 export default function Home() {
-  return (
-    <View className="flex-1 items-center justify-center bg-red-100">
-      <Text className="text-3xl font-bold text-blue-600">
-        NativeWind Working
-      </Text>
-    </View>
-  );
+  return <Redirect href="/auth/login" />;
 }
