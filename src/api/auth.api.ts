@@ -35,3 +35,9 @@ export const useLoginMutation = () => {
     showSuccessToast: true,
   });
 };
+
+export const useLogoutMutation = () => {
+  return useApiMutation("post", "/auth/logout", {
+    showSuccessToast: true,
+  });
+};

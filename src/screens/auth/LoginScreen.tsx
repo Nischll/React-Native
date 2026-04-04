@@ -1,5 +1,6 @@
 import { useLoginMutation } from "@/src/api/auth.api";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -20,27 +21,20 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  const loginMutation = useLoginMutation();
+  const { mutate: loginMutation, isPending } = useLoginMutation();
 
   const handleLogin = () => {
     Keyboard.dismiss();
-    setIsLoading(true);
     const payload = {
       password: password,
       username: email,
     };
-    loginMutation.mutate(payload, {
-      onSuccess: (res) => {
-        console.log("Login success:", res.data);
+    loginMutation(payload, {
+      onSuccess: () => {
         login();
         refetchInit();
-        setIsLoading(false);
-      },
-      onError: (err) => {
-        console.log("Login failed:", err);
-        setIsLoading(false);
+        router.replace("/(dashboard)/dashboard");
       },
     });
   };
@@ -106,7 +100,7 @@ export default function LoginScreen() {
                 onPress={handleLogin}
                 className="mt-4 items-center rounded-2xl bg-blue-600 py-4 active:opacity-80"
               >
-                {isLoading ? (
+                {isPending ? (
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text className="text-base font-semibold text-white">
