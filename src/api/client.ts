@@ -5,6 +5,7 @@ import { startGlobalLoading, stopGlobalLoading } from "../utils/loadingBus";
 export const apiService = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
+  withCredentials: true,
   headers: {
     Accept: "application/json",
   },
@@ -30,6 +31,7 @@ export function resetAuthRefreshAttempts(): void {
   failedAuthRefreshAttempts = 0;
 }
 
+// ------------------- Request Interceptor -------------------
 apiService.interceptors.request.use(
   async (config) => {
     requestCount++;
@@ -41,11 +43,13 @@ apiService.interceptors.request.use(
       config.headers["Content-Type"] = "application/json";
     }
 
-    // OPTIONAL: attach token if using JWT in storage
-    // const token = await AsyncStorage.getItem("accessToken");
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    console.log(
+      "[API REQUEST]",
+      config.method,
+      config.url,
+      config.data,
+      config.headers,
+    );
 
     return config;
   },
@@ -54,27 +58,28 @@ apiService.interceptors.request.use(
   },
 );
 
+// ------------------- Response Interceptor -------------------
 apiService.interceptors.response.use(
   async (response) => {
     requestCount--;
     if (requestCount === 0) stopGlobalLoading();
+    console.log("[API RESPONSE]", response.status, response.data);
     return response;
   },
   async (error) => {
     requestCount--;
     if (requestCount === 0) stopGlobalLoading();
+    console.log("[API ERROR]", error.message, error.response?.data);
 
     const originalRequest = error.config as RequestConfigWithRetry | undefined;
 
+    // If it's not 403 or no config, just reject
     if (error.response?.status !== 403 || !originalRequest) {
       return Promise.reject(error);
     }
 
-    if (isAuthRefreshUrl(originalRequest)) {
-      return Promise.reject(error);
-    }
-
-    if (originalRequest._retry) {
+    // Prevent infinite refresh loop
+    if (isAuthRefreshUrl(originalRequest) || originalRequest._retry) {
       return Promise.reject(error);
     }
 
@@ -87,6 +92,8 @@ apiService.interceptors.response.use(
     try {
       await apiService.post("/api/auth/refresh");
       failedAuthRefreshAttempts = 0;
+
+      // Retry original request
       return apiService(originalRequest);
     } catch (refreshError) {
       failedAuthRefreshAttempts += 1;
