@@ -4,32 +4,30 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { login, refetchInit } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const { mutate: loginMutation, isPending } = useLoginMutation();
 
   const handleLogin = () => {
     Keyboard.dismiss();
-    const payload = {
-      password: password,
-      username: email,
-    };
+
+    const payload = { username, password };
+
     loginMutation(payload, {
       onSuccess: () => {
         login();
@@ -41,49 +39,56 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* KeyboardAvoidingView moves inputs up when keyboard appears */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {/* Dismiss keyboard on tap outside */}
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: "center",
-              paddingHorizontal: 24,
-            }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View className="mb-10">
-              <Text className="text-3xl font-bold text-gray-900">
-                Welcome Back
-              </Text>
-              <Text className="mt-2 text-base text-gray-500">
-                Login to continue
-              </Text>
-            </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAwareScrollView
+          className="flex-1"
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: 12,
+            paddingTop: 30,
+            paddingBottom: 30,
+          }}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="flex-1 justify-center">
+            <View className="rounded-3xl bg-white px-6 py-8">
+              {/* Logo */}
+              <View className="mb-10 items-center">
+                <Image
+                  source={require("../../../assets/images/logo.png")}
+                  className="h-24 w-52"
+                  resizeMode="contain"
+                />
 
-            <View className="space-y-4">
-              {/* Email */}
-              <View>
-                <Text className="mb-2 text-sm font-medium text-gray-700">
-                  Email
+                <Text className="mt-6 text-3xl font-bold text-gray-900">
+                  Welcome Back
+                </Text>
+                <Text className="mt-2 text-center text-base text-gray-500">
+                  Login to continue to your account
+                </Text>
+              </View>
+
+              {/* Username */}
+              <View className="mb-6">
+                <Text className="mb-2 text-lg font-semibold text-gray-700">
+                  Username
                 </Text>
                 <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  keyboardType="email-address"
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="Enter your username"
                   autoCapitalize="none"
-                  className="rounded-2xl border border-gray-300 px-4 py-4 text-base text-gray-900"
+                  className="rounded-2xl border border-gray-300 focus:border-blue-600 bg-gray-50 px-4 py-4 text-base text-gray-900"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
 
               {/* Password */}
-              <View>
-                <Text className="mb-2 text-sm font-medium text-gray-700">
+              <View className="mb-8">
+                <Text className="mb-2 text-lg font-semibold text-gray-700">
                   Password
                 </Text>
                 <TextInput
@@ -91,14 +96,18 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   placeholder="Enter your password"
                   secureTextEntry
-                  className="rounded-2xl border border-gray-300 px-4 py-4 text-base text-gray-900"
+                  className="rounded-2xl border border-gray-300 focus:border-blue-600 bg-gray-50 px-4 py-4 text-base text-gray-900"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
 
               {/* Login Button */}
               <Pressable
                 onPress={handleLogin}
-                className="mt-4 items-center rounded-2xl bg-blue-600 py-4 active:opacity-80"
+                disabled={isPending}
+                className={`items-center rounded-2xl py-4 ${
+                  isPending ? "bg-blue-400" : "bg-blue-600"
+                }`}
               >
                 {isPending ? (
                   <ActivityIndicator color="white" />
@@ -109,9 +118,9 @@ export default function LoginScreen() {
                 )}
               </Pressable>
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+          </View>
+        </KeyboardAwareScrollView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }

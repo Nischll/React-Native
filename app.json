@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "learning",
-    "slug": "learning",
+    "name": "Bild Strata",
+    "slug": "bild-strata",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "learning",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,11 +14,11 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/react-logo.png",
+        "backgroundImage": "./assets/images/react-logo.png",
+        "monochromeImage": "./assets/images/react-logo.png"
       },
-      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
     },
     "web": {
