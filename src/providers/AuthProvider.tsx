@@ -1,34 +1,40 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useGetInit } from "../api/auth.api";
 import { resetAuthRefreshAttempts } from "../api/client";
 import { BuildingSelectDialog } from "../components/ui/BuildingSelectDialog";
+import { debugSessionStorage } from "../devTools/sessionDebugger";
+import {
+  clearSessionStorage,
+  getStoredBuilding,
+  removeStoredBuilding,
+  // removeStoredUser,
+  setStoredBuilding,
+} from "../storage/sessionStorage";
 import { BuildingItem, UserData } from "../types/auth.types";
-
-const SELECTED_BUILDING_KEY = "selectedBuildingId";
+import { ENABLE_DEBUG_LOGS } from "../utils/debug";
 
 export interface AuthContextType {
   isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
   refetchInit: () => void;
   user: UserData | null;
   loading: boolean;
   selectedBuilding: BuildingItem | null;
-  setSelectedBuilding: (building: BuildingItem | null) => void;
+  setSelectedBuilding: (building: BuildingItem | null) => Promise<void>;
   buildingId: number | null;
   openBuildingSelectDialog: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
-  login: () => {},
-  logout: () => {},
+  login: async () => {},
+  logout: async () => {},
   refetchInit: () => {},
   user: null,
   loading: true,
   selectedBuilding: null,
-  setSelectedBuilding: () => {},
+  setSelectedBuilding: async () => {},
   buildingId: null,
   openBuildingSelectDialog: () => {},
 });
@@ -47,48 +53,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refetch: refetchInit,
   } = useGetInit();
 
-  // Init API effect
+  // ------------------- INIT USER -------------------
   useEffect(() => {
     const initUser = async () => {
       if (pendingInit) return;
+
       if (fetchedInit?.data) {
         const data = fetchedInit.data;
+
         setUser(data);
         setIsAuthenticated(true);
+        // await setStoredUser(data);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        // await removeStoredUser();
       }
+
       setLoading(false);
+
+      if (ENABLE_DEBUG_LOGS) {
+        await debugSessionStorage();
+      }
     };
+
     initUser();
   }, [fetchedInit, pendingInit]);
 
-  // Handle building selection
+  // ------------------- BUILDING HANDLER -------------------
   useEffect(() => {
     const handleBuilding = async () => {
       if (!user?.buildingList?.length) return;
 
       const buildings = user.buildingList;
-      let parsed: BuildingItem | null = null;
-
-      try {
-        const stored = await AsyncStorage.getItem(SELECTED_BUILDING_KEY);
-        if (stored) parsed = JSON.parse(stored);
-      } catch {
-        /* ignore */
-      }
+      const storedBuilding = await getStoredBuilding();
 
       const isValidStored =
-        parsed && buildings.some((b) => b.value === parsed.value);
+        storedBuilding &&
+        buildings.some((b) => b.value === storedBuilding.value);
+
       if (isValidStored) {
-        setSelectedBuildingState(parsed);
+        setSelectedBuildingState(storedBuilding);
+
         return;
       }
 
       if (buildings.length === 1) {
         setSelectedBuildingState(buildings[0]);
-        await AsyncStorage.setItem(
-          SELECTED_BUILDING_KEY,
-          JSON.stringify(buildings[0]),
-        );
+        await setStoredBuilding(buildings[0]);
+
         return;
       }
 
@@ -98,41 +111,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     handleBuilding();
   }, [user?.buildingList]);
 
+  // ------------------- SET BUILDING -------------------
   const setSelectedBuilding = async (building: BuildingItem | null) => {
     setSelectedBuildingState(building);
+
     if (building) {
-      await AsyncStorage.setItem(
-        SELECTED_BUILDING_KEY,
-        JSON.stringify(building),
-      );
+      await setStoredBuilding(building);
     } else {
-      await AsyncStorage.removeItem(SELECTED_BUILDING_KEY);
+      await removeStoredBuilding();
     }
+
     setShowBuildingDialog(false);
+
+    if (ENABLE_DEBUG_LOGS) {
+      await debugSessionStorage();
+    }
   };
 
-  const openBuildingSelectDialog = () => setShowBuildingDialog(true);
+  const openBuildingSelectDialog = () => {
+    setShowBuildingDialog(true);
+  };
 
+  // ------------------- LOGIN -------------------
   const login = async () => {
     resetAuthRefreshAttempts();
-    if (fetchedInit?.data) {
-      const data = fetchedInit.data;
-      setUser(data);
-      setIsAuthenticated(true);
+    await refetchInit();
+
+    if (ENABLE_DEBUG_LOGS) {
+      await debugSessionStorage();
     }
   };
 
+  // ------------------- LOGOUT -------------------
   const logout = async () => {
     setIsAuthenticated(false);
     setUser(null);
     setSelectedBuildingState(null);
-    await AsyncStorage.removeItem(SELECTED_BUILDING_KEY);
+
+    await clearSessionStorage();
+
     setLoading(false);
+
+    if (ENABLE_DEBUG_LOGS) {
+      await debugSessionStorage();
+    }
   };
 
   const buildingId = selectedBuilding?.value
     ? parseInt(selectedBuilding.value, 10)
     : null;
+
   const validBuildingId = !isNaN(buildingId as number) ? buildingId : null;
 
   return (
@@ -151,6 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }}
     >
       {children}
+
       {user?.buildingList && user.buildingList.length > 0 && (
         <BuildingSelectDialog
           open={showBuildingDialog}
