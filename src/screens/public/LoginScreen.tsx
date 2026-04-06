@@ -29,9 +29,9 @@ export default function LoginScreen() {
     const payload = { username, password };
 
     loginMutation(payload, {
-      onSuccess: () => {
-        login();
-        refetchInit();
+      onSuccess: async () => {
+        await login();
+        await refetchInit();
         router.replace("/(private)/dashboard");
       },
     });

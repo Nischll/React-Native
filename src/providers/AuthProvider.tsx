@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useGetInit } from "../api/auth.api";
 import { resetAuthRefreshAttempts } from "../api/client";
@@ -48,6 +49,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedBuilding, setSelectedBuildingState] =
     useState<BuildingItem | null>(null);
   const [showBuildingDialog, setShowBuildingDialog] = useState(false);
+
+  const queryClient = useQueryClient();
 
   const {
     data: fetchedInit,
@@ -145,11 +148,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ------------------- LOGIN -------------------
   const login = async () => {
-    resetAuthRefreshAttempts();
-    await refetchInit();
+    try {
+      setLoading(true);
+      resetAuthRefreshAttempts();
 
-    if (ENABLE_DEBUG_LOGS) {
-      await debugSessionStorage();
+      const result = await refetchInit();
+
+      if (result.data?.data) {
+        setUser(result.data.data);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    } finally {
+      setLoading(false);
+
+      if (ENABLE_DEBUG_LOGS) {
+        await debugSessionStorage();
+      }
     }
   };
 
@@ -160,6 +177,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedBuildingState(null);
 
     await clearSessionStorage();
+    queryClient.clear();
 
     setLoading(false);
 
