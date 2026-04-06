@@ -139,7 +139,7 @@ apiService.interceptors.response.use(
         console.log("🔄 TRYING AUTH REFRESH...");
       }
 
-      await apiService.post("/api/auth/refresh");
+      await apiService.post("/auth/refresh");
 
       failedAuthRefreshAttempts = 0;
 

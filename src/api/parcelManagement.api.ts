@@ -1,0 +1,32 @@
+import { useApiQuery } from "../hooks/api/useApiQuery";
+import { ParcelResponse } from "../types/parcelManagement.types";
+import { ApiListResponse, ApiPaginatedData } from "./auth.api";
+
+export const useGetParcels = (
+  params: {
+    page?: number;
+    limit?: number;
+    trackingId?: string;
+    buildingId?: number;
+    residentId?: number;
+  },
+  enabled = true,
+) => {
+  const queryParams: Record<string, any> = {};
+  if (params.page != null) queryParams.page = params.page;
+  if (params.limit != null) queryParams.limit = params.limit;
+  if (params.trackingId?.trim())
+    queryParams.trackingId = params.trackingId.trim();
+  if (params.buildingId != null) queryParams.buildingId = params.buildingId;
+  if (params.residentId != null) queryParams.residentId = params.residentId;
+
+  return useApiQuery<ApiListResponse<ApiPaginatedData<ParcelResponse>>>(
+    "/parcels",
+    {
+      enabled: enabled && params.buildingId != null,
+      retry: 0,
+      queryParams:
+        Object.keys(queryParams).length > 0 ? queryParams : undefined,
+    },
+  );
+};

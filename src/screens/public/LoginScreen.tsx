@@ -32,7 +32,7 @@ export default function LoginScreen() {
       onSuccess: () => {
         login();
         refetchInit();
-        router.replace("/(dashboard)/dashboard");
+        router.replace("/(private)/dashboard");
       },
     });
   };

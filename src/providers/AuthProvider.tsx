@@ -18,6 +18,7 @@ export interface AuthContextType {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   refetchInit: () => void;
+  refetchInitData: () => Promise<void>;
   user: UserData | null;
   loading: boolean;
   selectedBuilding: BuildingItem | null;
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: async () => {},
   refetchInit: () => {},
+  refetchInitData: async () => {},
   user: null,
   loading: true,
   selectedBuilding: null,
@@ -56,18 +58,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // ------------------- INIT USER -------------------
   useEffect(() => {
     const initUser = async () => {
-      if (pendingInit) return;
+      if (pendingInit) {
+        setLoading(true);
+        return;
+      }
 
       if (fetchedInit?.data) {
         const data = fetchedInit.data;
-
         setUser(data);
         setIsAuthenticated(true);
-        // await setStoredUser(data);
       } else {
         setUser(null);
         setIsAuthenticated(false);
-        // await removeStoredUser();
       }
 
       setLoading(false);
@@ -79,6 +81,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initUser();
   }, [fetchedInit, pendingInit]);
+
+  const refetchInitData = async () => {
+    setLoading(true);
+    try {
+      await refetchInit();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ------------------- BUILDING HANDLER -------------------
   useEffect(() => {
@@ -172,6 +183,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         loading,
         refetchInit,
+        refetchInitData,
         selectedBuilding,
         setSelectedBuilding,
         buildingId: validBuildingId,
