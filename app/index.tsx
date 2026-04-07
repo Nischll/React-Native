@@ -15,9 +15,18 @@ export default function Home() {
     );
   }
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return <Redirect href="/(public)/login" />;
   }
 
-  return <Redirect href="/(private)/dashboard" />;
+  if (!user) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-white">
+        <View>
+          <ActivityIndicator size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+  return <Redirect href="/(private)/(tabs)/home" />;
 }

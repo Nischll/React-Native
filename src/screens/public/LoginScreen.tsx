@@ -32,7 +32,7 @@ export default function LoginScreen() {
       onSuccess: async () => {
         await login();
         await refetchInit();
-        router.replace("/(private)/dashboard");
+        router.replace("/(private)/(tabs)/home");
       },
     });
   };

@@ -15,7 +15,7 @@ export default function NotFoundScreen() {
         </Text>
 
         <Pressable
-          onPress={() => router.replace("/(private)/dashboard")}
+          onPress={() => router.replace("/(private)/(tabs)/home")}
           className="mt-8 rounded-2xl bg-blue-600 px-6 py-4"
         >
           <Text className="font-semibold text-white">Go to Dashboard</Text>

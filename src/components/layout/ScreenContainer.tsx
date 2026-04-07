@@ -22,8 +22,8 @@ export default function ScreenContainer({
   children,
   scrollable = true,
   padded = true,
-  backgroundClassName = "bg-slate-100",
-  contentClassName = "",
+  backgroundClassName = "bg-blue-500",
+  contentClassName = "bg-slate-100",
   refreshable = true,
   showRefreshOverlay = true,
   ...props

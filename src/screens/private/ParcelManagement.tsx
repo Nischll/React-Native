@@ -1,5 +1,6 @@
 import { useGetParcels } from "@/src/api/parcelManagement.api";
 import ScreenContainer from "@/src/components/layout/ScreenContainer";
+import PageHeader from "@/src/components/ui/PageHeader";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -21,11 +22,10 @@ export default function ParcelManagement() {
   );
   return (
     <ScreenContainer>
-      <View className="">
-        <Text className="text-xl font-bold">
-          Parcel Management and {parcelsResponse?.data.limit}
-        </Text>
-      </View>
+      <PageHeader
+        title="Parcel Management"
+        subtitle="View and manage all parcels delivered to your building"
+      />
 
       <View className="p-4">
         <Text>Count{count}</Text>

@@ -24,6 +24,10 @@ module.exports = {
           "sans-serif",
         ],
       },
+      colors: {
+        primary: "#453956",
+        "primary-hover": "#4338CA",
+      },
     },
   },
   plugins: [],
