@@ -149,21 +149,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // ------------------- LOGIN -------------------
   const login = async () => {
     try {
-      setLoading(true);
       resetAuthRefreshAttempts();
-
       const result = await refetchInit();
 
       if (result.data?.data) {
         setUser(result.data.data);
         setIsAuthenticated(true);
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
       }
     } finally {
-      setLoading(false);
-
       if (ENABLE_DEBUG_LOGS) {
         await debugSessionStorage();
       }

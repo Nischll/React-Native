@@ -12,7 +12,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: "#94A3B8",
         tabBarStyle: {
           height: 60,
-          paddingTop: 6,
+          paddingTop: 8,
           paddingBottom: 8,
           borderTopWidth: 1,
           borderTopColor: "#E2E8F0",
@@ -25,7 +25,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="home"
+        name="index"
         options={{
           title: "Home",
           tabBarIcon: ({ color, focused }) => (

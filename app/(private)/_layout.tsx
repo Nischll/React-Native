@@ -16,7 +16,7 @@ export default function PrivateLayout() {
     );
   }
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return <Redirect href="/(public)/login" />;
   }
 

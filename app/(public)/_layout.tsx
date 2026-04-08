@@ -1,10 +1,10 @@
 import { useAuth } from "@/src/providers/AuthProvider";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Slot } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PublicLayout() {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,9 +16,9 @@ export default function PublicLayout() {
     );
   }
 
-  if (isAuthenticated && user) {
-    return <Redirect href="/(private)/dashboard" />;
+  if (isAuthenticated) {
+    return <Redirect href="/(private)/(tabs)" />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Slot />;
 }

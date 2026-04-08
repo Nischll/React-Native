@@ -1,6 +1,5 @@
 import { useLoginMutation } from "@/src/api/auth.api";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -16,10 +15,11 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
-  const { login, refetchInit } = useAuth();
+  const { login } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isFinishingLogin, setIsFinishingLogin] = useState(false);
 
   const { mutate: loginMutation, isPending } = useLoginMutation();
 
@@ -30,9 +30,12 @@ export default function LoginScreen() {
 
     loginMutation(payload, {
       onSuccess: async () => {
-        await login();
-        await refetchInit();
-        router.replace("/(private)/(tabs)/home");
+        try {
+          setIsFinishingLogin(true);
+          await login();
+        } finally {
+          setIsFinishingLogin(false);
+        }
       },
     });
   };
@@ -104,12 +107,12 @@ export default function LoginScreen() {
               {/* Login Button */}
               <Pressable
                 onPress={handleLogin}
-                disabled={isPending}
+                disabled={isPending || isFinishingLogin}
                 className={`items-center rounded-2xl py-4 ${
-                  isPending ? "bg-blue-400" : "bg-blue-600"
+                  isPending || isFinishingLogin ? "bg-blue-400" : "bg-blue-600"
                 }`}
               >
-                {isPending ? (
+                {isPending || isFinishingLogin ? (
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text className="text-base font-semibold text-white">
