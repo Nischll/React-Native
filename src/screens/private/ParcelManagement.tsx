@@ -1,5 +1,4 @@
 import { useGetParcels } from "@/src/api/parcelManagement.api";
-import ScreenContainer from "@/src/components/layout/ScreenContainer";
 import PageHeader from "@/src/components/ui/PageHeader";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useState } from "react";
@@ -21,12 +20,12 @@ export default function ParcelManagement() {
     !!user?.userId,
   );
   return (
-    <ScreenContainer>
+    // <ScreenContainer>
+    <View>
       <PageHeader
         title="Parcel Management"
         subtitle="View and manage all parcels delivered to your building"
       />
-
       <View className="p-4">
         <Text>Count{count}</Text>
       </View>
@@ -35,6 +34,7 @@ export default function ParcelManagement() {
           <Text>Press here</Text>
         </View>
       </Pressable>
-    </ScreenContainer>
+    </View>
+    // </ScreenContainer>
   );
 }
