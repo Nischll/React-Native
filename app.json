@@ -4,19 +4,22 @@
     "slug": "bild-strata",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
-    "scheme": "learning",
+    "icon": "./assets/images/app-icon.png",
+    "scheme": "bild-strata",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bildstrata",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.bildstrata",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/react-logo.png",
-        "backgroundImage": "./assets/images/react-logo.png",
-        "monochromeImage": "./assets/images/react-logo.png"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/images/app-icon.png"
       },
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
@@ -31,12 +34,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash-logo.png",
+          "imageWidth": 240,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#ffffff"
           }
         }
       ]
@@ -44,6 +47,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6068a624-fc4a-4762-aed0-dae1f7df0397"
+      }
     }
   }
 }

@@ -1,9 +1,11 @@
 import { BuildingItem } from "@/src/types/auth.types";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Text,
   TouchableOpacity,
   View,
@@ -15,7 +17,7 @@ interface Props {
   open: boolean;
   buildings: BuildingItem[];
   selectedBuilding: BuildingItem | null;
-  onSelect: (building: BuildingItem) => void;
+  onSelect: (building: BuildingItem | null) => void;
 }
 
 export const BuildingSelectDialog: React.FC<Props> = ({
@@ -42,14 +44,37 @@ export const BuildingSelectDialog: React.FC<Props> = ({
     }, SELECT_CONFIRM_MS);
   };
 
+  const handleClose = () => {
+    onSelect(null);
+  };
+
   const otherBuildings = selectedBuilding
     ? buildings.filter((b) => b.value !== selectedBuilding.value)
     : buildings;
 
   return (
-    <Modal visible={open} transparent animationType="fade">
-      <View className="flex-1 bg-black/40 justify-center items-center">
-        <View className="w-11/12 max-h-3/4 bg-white dark:bg-gray-800 rounded-xl p-5">
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      statusBarTranslucent={true}
+    >
+      <View
+        className="flex-1 bg-black/40 justify-center items-center"
+        style={{
+          paddingTop: Platform.OS === "android" ? 0 : 0,
+        }}
+      >
+        {/* Dialog box */}
+        <View className="w-11/12 max-h-3/4 bg-white dark:bg-gray-800 rounded-xl p-5 relative">
+          {/* Close button */}
+          <TouchableOpacity
+            onPress={handleClose}
+            className="absolute top-3 right-3 z-10 p-1"
+          >
+            <Ionicons name="close" size={24} color="#374151" />
+          </TouchableOpacity>
+
           <Text className="text-xl font-bold text-gray-900 dark:text-white mb-1">
             {selectedBuilding ? "Switch Building" : "Select Building"}
           </Text>
