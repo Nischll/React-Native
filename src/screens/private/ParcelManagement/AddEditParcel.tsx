@@ -91,7 +91,7 @@ export default function AddEditParcelScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-4 mt-4">
+          <View className="gap-3 mt-4">
             {/* Resident */}
             <Controller
               control={control}
@@ -104,20 +104,6 @@ export default function AddEditParcelScreen() {
                   options={residences}
                   // loading={residencesLoading}
                   placeholder="Select Resident"
-                />
-              )}
-            />
-
-            {/* Location */}
-            <Controller
-              control={control}
-              name="location"
-              render={({ field: { onChange, value } }) => (
-                <AppInput
-                  label="Location"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Parcel storage location"
                 />
               )}
             />
@@ -178,6 +164,21 @@ export default function AddEditParcelScreen() {
                   onChange={onChange}
                   options={PARCEL_CONDITION_OPTIONS}
                   placeholder="Select Condition"
+                />
+              )}
+            />
+
+            {/* Location */}
+            <Controller
+              control={control}
+              name="location"
+              render={({ field: { onChange, value } }) => (
+                <AppInput
+                  label="Location"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Parcel storage location"
+                  size="md"
                 />
               )}
             />

@@ -9,7 +9,7 @@ import { Text, View } from "react-native";
 import ActiveBuildingCard from "./ActiveBuildingCard";
 
 export default function Home() {
-  const { user, selectedBuilding } = useAuth();
+  const { user } = useAuth();
 
   const quickModules = [
     {
@@ -39,14 +39,14 @@ export default function Home() {
   ] as const;
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 ">
       {/*  TOP PRIMARY SECTION */}
       <View className="bg-primary px-4 pt-4 pb-8 rounded-b-3xl">
         {/* Header */}
         <PageHeader
           variant="dashboard"
           icon="person"
-          title={`Hi, ${user?.firstName || user?.fullName || "User"}`}
+          title={`${user?.firstName || user?.fullName || "User"}`}
           subtitle={user?.email || "Welcome back to your dashboard!"}
         />
 
@@ -60,7 +60,7 @@ export default function Home() {
         <ActiveBuildingCard />
       </View>
 
-      {/* 🔻 CONTENT AREA */}
+      {/*  CONTENT AREA */}
       <View className="px-4 mt-6">
         {/* Quick Actions Header */}
         <View className="mb-4 flex-row items-center justify-between">
@@ -68,10 +68,19 @@ export default function Home() {
             Quick Actions
           </Text>
 
-          <Text className="text-sm font-medium text-primary ">
-            View All Modules
-            <AppIcon name="chevron-forward" size={16} color="#453956" />
-          </Text>
+          <AnimatedPressable
+            onPress={() => router.push("/(private)/(tabs)/modules")}
+          >
+            <View className="flex-row items-center gap-1">
+              <Text className="text-sm font-medium text-primary">
+                View All Modules
+              </Text>
+
+              <View className="items-center justify-center">
+                <AppIcon name="chevron-forward" size={16} color="#453956" />
+              </View>
+            </View>
+          </AnimatedPressable>
         </View>
 
         {/* Quick Actions Grid */}
@@ -80,7 +89,7 @@ export default function Home() {
             <AnimatedPressable
               key={item.title}
               onPress={() => router.push(item.route)}
-              className="mb-4 w-[23%]"
+              className="mb-4 w-[23%] "
             >
               <Card className="items-center px-2 py-4">
                 <View className="mb-2 h-12 w-12 items-center justify-center rounded-xl bg-primary/10">

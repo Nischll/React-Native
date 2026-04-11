@@ -44,14 +44,25 @@ export default function AnimatedPressable({ children, ...props }: Props) {
   return (
     <Pressable {...props} onPressIn={handlePressIn} onPressOut={handlePressOut}>
       <Animated.View
-        style={{
-          transform: [{ scale }],
-        }}
+        style={[
+          {
+            transform: [{ scale }],
+
+            shadowColor: "#000",
+            shadowOffset: {
+              width: 0,
+              height: 4,
+            },
+            shadowOpacity: 0.12,
+            shadowRadius: 10,
+
+            elevation: 6,
+          },
+        ]}
       >
         {/* Content */}
         {children}
 
-        {/* 🔥 Press overlay effect */}
         <Animated.View
           pointerEvents="none"
           style={{
@@ -59,9 +70,9 @@ export default function AnimatedPressable({ children, ...props }: Props) {
             backgroundColor: "#000",
             opacity: overlay.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, 0.04], // subtle dark press effect
+              outputRange: [0, 0.04],
             }),
-            borderRadius: 12, // match your card radius
+            borderRadius: 12,
           }}
         />
       </Animated.View>

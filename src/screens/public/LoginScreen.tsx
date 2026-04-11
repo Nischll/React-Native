@@ -82,6 +82,7 @@ export default function LoginScreen() {
                 placeholder="Enter your username"
                 autoCapitalize="none"
                 leftIcon="person-outline"
+                size="md"
               />
 
               {/* Password */}
@@ -90,6 +91,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Enter your password"
+                size="md"
               />
 
               {/* Login Button */}

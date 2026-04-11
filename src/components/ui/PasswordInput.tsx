@@ -5,11 +5,13 @@ import AppInput from "./AppInput";
 interface PasswordInputProps extends TextInputProps {
   label?: string;
   error?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export default function PasswordInput({
   label,
   error,
+  size,
   ...props
 }: PasswordInputProps) {
   const [hidden, setHidden] = useState(true);
@@ -18,6 +20,7 @@ export default function PasswordInput({
     <AppInput
       label={label}
       error={error}
+      size={size}
       secureTextEntry={hidden}
       leftIcon="lock-closed-outline"
       rightIcon={hidden ? "eye-off-outline" : "eye-outline"}

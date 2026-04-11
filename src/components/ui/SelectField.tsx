@@ -13,6 +13,8 @@ export interface SelectOption {
   label: string;
   value: string;
 }
+type SelectSize = "sm" | "md" | "lg";
+
 interface SelectFieldProps {
   label?: string;
   value?: string;
@@ -20,6 +22,7 @@ interface SelectFieldProps {
   options: SelectOption[];
   onChange: (value: string) => void;
   error?: string;
+  size?: SelectSize;
 }
 
 export default function SelectField({
@@ -40,7 +43,7 @@ export default function SelectField({
   );
 
   return (
-    <View className="w-full mb-5">
+    <View className="w-full">
       {/* Label */}
       {label && (
         <Text className="mb-2 text-sm font-semibold text-slate-700">

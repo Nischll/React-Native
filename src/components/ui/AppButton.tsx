@@ -63,7 +63,7 @@ export default function AppButton({
 
   const variantStyles: Record<ButtonVariant, string> = {
     primary: "bg-primary",
-    secondary: "bg-slate-700",
+    secondary: "bg-secondary",
     outline: "border border-border bg-surface",
     danger: "bg-danger",
     ghost: "bg-transparent",
