@@ -1,5 +1,5 @@
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -15,21 +15,18 @@ interface ScreenContainerProps extends ScrollViewProps {
   backgroundClassName?: string;
   contentClassName?: string;
   refreshable?: boolean;
-  showRefreshOverlay?: boolean;
 }
 
 export default function ScreenContainer({
   children,
   scrollable = true,
   padded = true,
-  backgroundClassName = "bg-blue-500",
-  contentClassName = "bg-slate-100",
+  backgroundClassName = "bg-primary",
+  contentClassName = "bg-white",
   refreshable = true,
-  showRefreshOverlay = true,
   ...props
 }: ScreenContainerProps) {
-  const { triggerRefresh } = useGlobalRefresh();
-  const [refreshing, setRefreshing] = useState(false);
+  const { triggerRefresh, refreshing, setRefreshing } = useGlobalRefresh();
 
   const onRefresh = useCallback(async () => {
     if (!refreshable || refreshing) return;
@@ -40,23 +37,11 @@ export default function ScreenContainer({
     } finally {
       setRefreshing(false);
     }
-  }, [refreshable, refreshing, triggerRefresh]);
+  }, [refreshable, refreshing, triggerRefresh, setRefreshing]);
 
   const content = (
-    <View
-      className={`${padded ? "p-4" : ""} relative flex-1 ${contentClassName}`}
-    >
+    <View className={`${padded ? "p-4" : ""} flex-1 ${contentClassName}`}>
       {children}
-      {showRefreshOverlay && refreshing && (
-        <View className="absolute inset-0 items-center justify-center bg-black/30">
-          {/* <View className="rounded-2xl bg-white px-6 py-4 shadow">
-            <ActivityIndicator size="large" color="#2563eb" />
-            <Text className="mt-3 text-sm font-medium text-slate-700">
-              Refreshing...
-            </Text>
-          </View> */}
-        </View>
-      )}
     </View>
   );
 

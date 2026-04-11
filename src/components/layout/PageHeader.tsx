@@ -1,0 +1,68 @@
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { Pressable, Text, View } from "react-native";
+import AppIcon from "../ui/AppIcon";
+
+interface PageHeaderProps {
+  title: string;
+  subtitle?: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  variant?: "default" | "dashboard";
+  showBackButton?: boolean;
+}
+
+export default function PageHeader({
+  title,
+  subtitle,
+  icon,
+  variant = "default",
+  showBackButton = false,
+}: PageHeaderProps) {
+  const isDashboard = variant === "dashboard";
+
+  return (
+    <View
+      className={`
+        flex-row items-center gap-2 mb-4
+        ${isDashboard ? "bg-primary" : ""}
+      `}
+    >
+      <View className="items-center justify-center">
+        <AppIcon
+          name={icon}
+          size={22}
+          color={isDashboard ? "#FFFFFF" : "#475569"}
+        />
+      </View>
+
+      <View className="flex-1">
+        <Text
+          className={`text-xl font-bold ${
+            isDashboard ? "text-surface" : "text-textPrimary"
+          }`}
+        >
+          {title}
+        </Text>
+
+        {subtitle ? (
+          <Text
+            className={`text-base ${
+              isDashboard ? "text-surface" : "text-textSecondary"
+            }`}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+
+      {showBackButton && (
+        <Pressable
+          onPress={() => router.back()}
+          className="mt-1 h-10 w-10 items-center justify-center rounded-xl bg-surfaceMuted"
+        >
+          <AppIcon name="arrow-back" size={20} color="#453956" />
+        </Pressable>
+      )}
+    </View>
+  );
+}

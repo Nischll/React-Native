@@ -1,13 +1,13 @@
 import { useLoginMutation } from "@/src/api/auth.api";
+import AppButton from "@/src/components/ui/AppButton";
+import AppInput from "@/src/components/ui/AppInput";
+import PasswordInput from "@/src/components/ui/PasswordInput";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Keyboard,
-  Pressable,
   Text,
-  TextInput,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
@@ -56,17 +56,17 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="flex-1 justify-center">
-            <View className="rounded-3xl bg-white px-6 py-8">
+          <View className="flex-1 justify-center ">
+            <View className="rounded-3xl bg-white px-6 py-8 gap-4">
               {/* Logo */}
-              <View className="mb-10 items-center">
+              <View className="items-center">
                 <Image
                   source={require("../../../assets/images/logo.png")}
                   className="h-24 w-52"
                   resizeMode="contain"
                 />
 
-                <Text className="mt-6 text-3xl font-bold text-gray-900">
+                <Text className="mt-4 text-3xl font-bold text-gray-900">
                   Welcome Back
                 </Text>
                 <Text className="mt-2 text-center text-base text-gray-500">
@@ -75,51 +75,31 @@ export default function LoginScreen() {
               </View>
 
               {/* Username */}
-              <View className="mb-6">
-                <Text className="mb-2 text-lg font-semibold text-gray-700">
-                  Username
-                </Text>
-                <TextInput
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder="Enter your username"
-                  autoCapitalize="none"
-                  className="rounded-2xl border border-gray-300 focus:border-blue-600 bg-gray-50 px-4 py-4 text-base text-gray-900"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
+              <AppInput
+                label="Username"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Enter your username"
+                autoCapitalize="none"
+                leftIcon="person-outline"
+              />
 
               {/* Password */}
-              <View className="mb-8">
-                <Text className="mb-2 text-lg font-semibold text-gray-700">
-                  Password
-                </Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  secureTextEntry
-                  className="rounded-2xl border border-gray-300 focus:border-blue-600 bg-gray-50 px-4 py-4 text-base text-gray-900"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
+              <PasswordInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+              />
 
               {/* Login Button */}
-              <Pressable
+              <AppButton
+                size="lg"
                 onPress={handleLogin}
-                disabled={isPending || isFinishingLogin}
-                className={`items-center rounded-2xl py-4 ${
-                  isPending || isFinishingLogin ? "bg-blue-400" : "bg-blue-600"
-                }`}
+                loading={isPending || isFinishingLogin}
               >
-                {isPending || isFinishingLogin ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-base font-semibold text-white">
-                    Login
-                  </Text>
-                )}
-              </Pressable>
+                Login
+              </AppButton>
             </View>
           </View>
         </KeyboardAwareScrollView>

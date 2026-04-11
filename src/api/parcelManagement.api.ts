@@ -1,5 +1,9 @@
+import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-import { ParcelResponse } from "../types/parcelManagement.types";
+import {
+  ParcelRequestPojo,
+  ParcelResponse,
+} from "../types/parcelManagement.types";
 import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
 export const useGetParcels = (
@@ -30,3 +34,6 @@ export const useGetParcels = (
     },
   );
 };
+
+export const useAddParcel = (buildingId: number) =>
+  useApiMutation<ParcelRequestPojo>("post", `/parcels/building/${buildingId}`);

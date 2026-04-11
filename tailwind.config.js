@@ -26,7 +26,21 @@ module.exports = {
       },
       colors: {
         primary: "#453956",
-        "primary-hover": "#4338CA",
+        secondary: "#06B6D4",
+
+        success: "#22C55E",
+        warning: "#F59E0B",
+        danger: "#EF4444",
+
+        background: "#F8FAFC",
+        surface: "#FFFFFF",
+        surfaceMuted: "#F1F5F9",
+
+        border: "#E2E8F0",
+
+        textPrimary: "#0F172A",
+        textSecondary: "#475569",
+        textMuted: "#94A3B8",
       },
     },
   },

@@ -1,5 +1,5 @@
+import PageHeader from "@/src/components/layout/PageHeader";
 import ModuleCard from "@/src/components/ui/ModuleCard";
-import PageHeader from "@/src/components/ui/PageHeader";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { router } from "expo-router";
 import { Text, View } from "react-native";

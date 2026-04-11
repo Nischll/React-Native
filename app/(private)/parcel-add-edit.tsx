@@ -1,14 +1,14 @@
 import ScreenContainer from "@/src/components/layout/ScreenContainer";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
-import ParcelManagement from "@/src/screens/private/ParcelManagement/ParcelManagement";
+import AddEditParcelScreen from "@/src/screens/private/ParcelManagement/AddEditParcel";
 import { View } from "react-native";
 
-export default function ParcelManagementPage() {
+export default function ParcelAddEditPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
       <ScreenContainer key="static-container">
-        <ParcelManagement key={screenRefreshKey} />
+        <AddEditParcelScreen key={screenRefreshKey} />
       </ScreenContainer>
 
       {refreshing && (

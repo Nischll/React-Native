@@ -209,6 +209,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           buildings={user.buildingList}
           selectedBuilding={selectedBuilding}
           onSelect={setSelectedBuilding}
+          onClose={() => setShowBuildingDialog(false)}
         />
       )}
     </AuthContext.Provider>

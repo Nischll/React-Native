@@ -1,5 +1,5 @@
 import { useLogoutMutation } from "@/src/api/auth.api";
-import PageHeader from "@/src/components/ui/PageHeader";
+import PageHeader from "@/src/components/layout/PageHeader";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Text, TouchableOpacity, View } from "react-native";
 
@@ -20,6 +20,7 @@ export default function Profile() {
   return (
     <View>
       <PageHeader
+        icon="person"
         title="Profile"
         subtitle="Manage your account and workspace settings"
       />

@@ -4,6 +4,8 @@ import React, { createContext, useContext, useMemo, useState } from "react";
 interface GlobalRefreshContextType {
   triggerRefresh: () => Promise<void>;
   screenRefreshKey: number;
+  refreshing: boolean;
+  setRefreshing: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const GlobalRefreshContext = createContext<GlobalRefreshContextType | null>(
@@ -18,12 +20,13 @@ export const GlobalRefreshProvider = ({
   queryClient: QueryClient;
 }) => {
   const [screenRefreshKey, setScreenRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const triggerRefresh = async () => {
-    // 1. Refetch all active queries
+    if (refreshing) return;
+
     await queryClient.refetchQueries({ type: "active" });
 
-    // 2. Force current screen subtree to remount
     setScreenRefreshKey((prev) => prev + 1);
   };
 
@@ -31,8 +34,10 @@ export const GlobalRefreshProvider = ({
     () => ({
       triggerRefresh,
       screenRefreshKey,
+      refreshing,
+      setRefreshing,
     }),
-    [screenRefreshKey],
+    [screenRefreshKey, refreshing],
   );
 
   return (
@@ -44,8 +49,10 @@ export const GlobalRefreshProvider = ({
 
 export const useGlobalRefresh = () => {
   const context = useContext(GlobalRefreshContext);
+
   if (!context) {
     throw new Error("useGlobalRefresh must be inside provider");
   }
+
   return context;
 };
