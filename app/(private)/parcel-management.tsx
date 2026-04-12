@@ -7,7 +7,7 @@ export default function ParcelManagementPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container">
+      <ScreenContainer key="static-container" virtualized>
         <ParcelManagement key={screenRefreshKey} />
       </ScreenContainer>
 

@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 
 export default function EmptyState({
-  title = "No data found",
+  title = "",
   message = "There is nothing to display right now.",
 }: {
   title?: string;

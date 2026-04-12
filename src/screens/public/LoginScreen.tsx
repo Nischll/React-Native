@@ -96,7 +96,7 @@ export default function LoginScreen() {
 
               {/* Login Button */}
               <AppButton
-                size="lg"
+                size="md"
                 onPress={handleLogin}
                 loading={isPending || isFinishingLogin}
               >
