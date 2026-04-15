@@ -1,4 +1,9 @@
-import { useDeleteParcel, useGetParcels } from "@/src/api/parcelManagement.api";
+import {
+  useDeleteParcel,
+  useDeliverParcel,
+  useGetParcels,
+  useRemindParcel,
+} from "@/src/api/parcelManagement.api";
 import {
   MobileColumn,
   MobileDataList,
@@ -6,6 +11,7 @@ import {
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnchoredPopupMenu from "@/src/components/ui/AnchoredPopMenu";
 import AppButton from "@/src/components/ui/AppButton";
+import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
@@ -17,9 +23,12 @@ export default function ParcelManagement() {
 
   const [page, setPage] = useState(1);
   const [trackingId, setTrackingId] = useState("");
-  const [selectedParcel, setSelectedParcel] = useState<ParcelResponse | null>(
+  const [deleteParcel, setDeleteParcel] = useState<ParcelResponse | null>(null);
+  const [remindParcel, setRemindParcel] = useState<ParcelResponse | null>(null);
+  const [deliverParcel, setDeliverParcel] = useState<ParcelResponse | null>(
     null,
   );
+  const [editParcel, setEditParcel] = useState<ParcelResponse | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useGetParcels(
     {
@@ -31,21 +40,47 @@ export default function ParcelManagement() {
     !!user?.userId,
   );
 
-  const { mutate: deleteParcel, isPending } = useDeleteParcel(
-    selectedParcel?.id,
-    buildingId ?? 0,
+  const { mutate: deleteParcelMutate, isPending } = useDeleteParcel(
+    deleteParcel?.id,
+    buildingId ?? undefined,
   );
+
+  const { mutate: remindParcelMutate, isPending: remindParcelPending } =
+    useRemindParcel(remindParcel?.id, buildingId ?? undefined);
+
+  const { mutate: deliverParcelMutate, isPending: deliverParcelPending } =
+    useDeliverParcel(deliverParcel?.id, buildingId ?? undefined);
 
   const parcels = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
 
-  const handleDeleteParcel = (data: ParcelResponse) => {
-    if (!selectedParcel) return;
-    setSelectedParcel(data);
+  const handleDeleteParcel = () => {
+    if (!deleteParcel) return;
 
-    deleteParcel(undefined, {
+    deleteParcelMutate(undefined, {
       onSuccess: () => {
-        setSelectedParcel(null);
+        setDeleteParcel(null);
+        refetch();
+      },
+    });
+  };
+
+  const handleRemindParcel = () => {
+    if (!remindParcel) return;
+    remindParcelMutate(undefined, {
+      onSuccess: () => {
+        setRemindParcel(null);
+        refetch();
+      },
+    });
+  };
+
+  const handleDeliverParcel = () => {
+    if (!deliverParcel) return;
+
+    deliverParcelMutate(undefined, {
+      onSuccess: () => {
+        setDeliverParcel(null);
         refetch();
       },
     });
@@ -105,86 +140,119 @@ export default function ParcelManagement() {
   ];
 
   return (
-    <View className="flex-1 ">
-      <PageHeader
-        showBackButton
-        icon="cube"
-        title="Parcel Management"
-        subtitle="View and manage all parcels delivered to your building"
-      />
+    <>
+      <View className="flex-1 ">
+        <PageHeader
+          showBackButton
+          icon="cube"
+          title="Parcel Management"
+          subtitle="View and manage all parcels delivered to your building"
+        />
 
-      <View className="px-4 mt-4">
-        <AppButton onPress={() => router.push("/(private)/parcel-add-edit")}>
-          Log Parcel
-        </AppButton>
-      </View>
+        <View className="px-4 mt-4">
+          <AppButton onPress={() => router.push("/(private)/parcel-add-edit")}>
+            Log Parcel
+          </AppButton>
+        </View>
 
-      <View className="flex-1 px-4 mt-4">
-        <MobileDataList<ParcelResponse>
-          data={parcels}
-          columns={columns}
-          loading={isLoading}
-          refreshing={isRefetching}
-          searchable
-          backendMode
-          keyExtractor={(item) => item.id.toString()}
-          emptyMessage="No parcels found"
-          onRefresh={refetch}
-          onSearch={(value) => {
-            setPage(1);
-            setTrackingId(value);
-          }}
-          pagination={{
-            page,
-            pageSize: 10,
-            hasMore: page * 10 < total,
-            onPageChange: setPage,
-          }}
-          renderActions={(row) => (
-            <AnchoredPopupMenu
-              items={[
-                {
-                  label: "View Details",
-                  icon: "eye",
-                  onPress: () =>
-                    router.push({
-                      pathname: "/(private)/parcel-details",
-                      params: {
-                        parcelId: row.id,
-                        mode: "view",
-                      },
-                    }),
-                },
-                {
-                  label: "Remind",
-                  icon: "notifications",
-                  onPress: () => console.log("Remind", row.id),
-                },
-                {
-                  label: "Deliver",
-                  icon: "checkmark-circle",
-                  onPress: () => console.log("Deliver", row.id),
-                },
-                {
-                  label: "Edit Parcel",
-                  icon: "pencil",
-                  onPress: () =>
-                    router.push({
-                      pathname: "/(private)/parcel-add-edit",
-                      params: { parcelId: row.id },
-                    }),
-                },
-                {
-                  label: "Delete",
-                  icon: "trash",
-                  danger: true,
-                  onPress: () => handleDeleteParcel(row),
-                },
-              ]}
-            />
-          )}
+        <View className="flex-1 px-4 mt-4">
+          <MobileDataList<ParcelResponse>
+            data={parcels}
+            columns={columns}
+            loading={isLoading}
+            refreshing={isRefetching}
+            searchable
+            backendMode
+            keyExtractor={(item) => item.id.toString()}
+            emptyMessage="No parcels found"
+            onRefresh={refetch}
+            onSearch={(value) => {
+              setPage(1);
+              setTrackingId(value);
+            }}
+            pagination={{
+              page,
+              pageSize: 10,
+              hasMore: page * 10 < total,
+              onPageChange: setPage,
+            }}
+            renderActions={(row) => (
+              <AnchoredPopupMenu
+                items={[
+                  {
+                    label: "View Details",
+                    icon: "eye",
+                    onPress: () =>
+                      router.push({
+                        pathname: "/(private)/parcel-details",
+                        params: {
+                          parcelId: row.id,
+                          mode: "view",
+                        },
+                      }),
+                  },
+                  {
+                    label: "Remind",
+                    icon: "notifications",
+                    onPress: () => setRemindParcel(row),
+                  },
+                  {
+                    label: "Deliver",
+                    icon: "checkmark-circle",
+                    onPress: () => setDeliverParcel(row),
+                  },
+                  {
+                    label: "Edit Parcel",
+                    icon: "pencil",
+                    onPress: () =>
+                      router.push({
+                        pathname: "/(private)/parcel-add-edit",
+                        params: { parcelId: row.id },
+                      }),
+                  },
+                  {
+                    label: "Delete",
+                    icon: "trash",
+                    danger: true,
+                    onPress: () => setDeleteParcel(row),
+                  },
+                ]}
+              />
+            )}
+          />
+        </View>
+        <ConfirmModal
+          visible={!!deleteParcel}
+          title="Delete Parcel"
+          message={`Are you sure you want to delete parcel "${deleteParcel?.trackingId}"?`}
+          confirmText="Delete"
+          destructive
+          loading={isPending}
+          onCancel={() => setDeleteParcel(null)}
+          onConfirm={handleDeleteParcel}
+        />
+        <ConfirmModal
+          visible={!!remindParcel}
+          title="Remind Parcel"
+          message={`Are you sure you want to remind parcel "${remindParcel?.trackingId}"?`}
+          confirmText="Confirm"
+          destructive
+          loading={remindParcelPending}
+          onCancel={() => setRemindParcel(null)}
+          onConfirm={handleRemindParcel}
+        />
+
+        <ConfirmModal
+          visible={!!deliverParcel}
+          title="Deliver Parcel"
+          message={`Are you sure you want to deliver parcel "${deliverParcel?.trackingId}"?`}
+          confirmText="Confirm"
+          destructive
+          loading={deliverParcelPending}
+          onCancel={() => setDeliverParcel(null)}
+          onConfirm={handleDeliverParcel}
         />
       </View>
-    </View>
+    </>
   );
 }

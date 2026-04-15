@@ -48,5 +48,22 @@ export const useGetParcelById = (parcelId: number) => {
   });
 };
 
-export const useDeleteParcel = (parcelId: number, buildingId: number) =>
-  useApiMutation("delete", `/parcels/${parcelId}/building/${buildingId}`);
+export const useDeleteParcel = (
+  parcelId: number | undefined,
+  buildingId: number | undefined,
+) => useApiMutation("delete", `/parcels/${parcelId}/building/${buildingId}`);
+
+export const useRemindParcel = (
+  parcelId: number | undefined,
+  buildingId: number | undefined,
+) =>
+  useApiMutation(
+    "post",
+    `/parcels/${parcelId}/building/${buildingId}/remind-now`,
+  );
+
+export const useDeliverParcel = (
+  parcelId: number | undefined,
+  buildingId: number | undefined,
+) =>
+  useApiMutation("post", `/parcels/${parcelId}/building/${buildingId}/deliver`);

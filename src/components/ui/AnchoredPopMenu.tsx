@@ -125,7 +125,7 @@ export default function AnchoredPopupMenu({ items }: Props) {
   return (
     <>
       {/* Trigger */}
-      <Pressable ref={triggerRef} onPress={openMenu} style={{ padding: 8 }}>
+      <Pressable ref={triggerRef} onPress={openMenu} className="px-2">
         <Text style={{ fontSize: 18, color: "#6B7280" }}>⋮</Text>
       </Pressable>
 
@@ -192,7 +192,7 @@ export default function AnchoredPopupMenu({ items }: Props) {
                 <Pressable
                   key={index}
                   onPress={() => animateClose(item.onPress)}
-                  className="flex-row items-center gap-2 mx-1 px-2 py-3 active:bg-white/10 rounded"
+                  className="flex-row items-center gap-2 mx-1 px-2 py-2 active:bg-white/10 rounded"
                 >
                   {/* Icon */}
                   {item.icon ? (
