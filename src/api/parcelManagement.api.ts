@@ -37,3 +37,16 @@ export const useGetParcels = (
 
 export const useAddParcel = (buildingId: number) =>
   useApiMutation<ParcelRequestPojo>("post", `/parcels/building/${buildingId}`);
+
+export const useGetParcelById = (parcelId: number) => {
+  return useApiQuery<ApiListResponse<ParcelResponse>>(`parcels/${parcelId}`, {
+    enabled: parcelId != null,
+    retry: 0,
+    refetchOnMount: true,
+    // refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+};
+
+export const useDeleteParcel = (parcelId: number, buildingId: number) =>
+  useApiMutation("delete", `/parcels/${parcelId}/building/${buildingId}`);

@@ -1,16 +1,16 @@
-import { useGetParcels } from "@/src/api/parcelManagement.api";
+import { useDeleteParcel, useGetParcels } from "@/src/api/parcelManagement.api";
 import {
   MobileColumn,
   MobileDataList,
 } from "@/src/components/layout/MobileDataList";
 import PageHeader from "@/src/components/layout/PageHeader";
+import AnchoredPopupMenu from "@/src/components/ui/AnchoredPopMenu";
 import AppButton from "@/src/components/ui/AppButton";
-import AppIcon from "@/src/components/ui/AppIcon";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
 
 export default function ParcelManagement() {
   const { user, buildingId } = useAuth();
@@ -20,18 +20,6 @@ export default function ParcelManagement() {
   const [selectedParcel, setSelectedParcel] = useState<ParcelResponse | null>(
     null,
   );
-
-  const [menuVisible, setMenuVisible] = useState(false);
-
-  const openMenu = (parcel: ParcelResponse) => {
-    setSelectedParcel(parcel);
-    setMenuVisible(true);
-  };
-
-  const closeMenu = () => {
-    setSelectedParcel(null);
-    setMenuVisible(false);
-  };
 
   const { data, isLoading, refetch, isRefetching } = useGetParcels(
     {
@@ -43,8 +31,25 @@ export default function ParcelManagement() {
     !!user?.userId,
   );
 
+  const { mutate: deleteParcel, isPending } = useDeleteParcel(
+    selectedParcel?.id,
+    buildingId ?? 0,
+  );
+
   const parcels = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
+
+  const handleDeleteParcel = (data: ParcelResponse) => {
+    if (!selectedParcel) return;
+    setSelectedParcel(data);
+
+    deleteParcel(undefined, {
+      onSuccess: () => {
+        setSelectedParcel(null);
+        refetch();
+      },
+    });
+  };
 
   const columns: MobileColumn<ParcelResponse>[] = [
     {
@@ -100,7 +105,7 @@ export default function ParcelManagement() {
   ];
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 ">
       <PageHeader
         showBackButton
         icon="cube"
@@ -136,71 +141,49 @@ export default function ParcelManagement() {
             onPageChange: setPage,
           }}
           renderActions={(row) => (
-            <TouchableOpacity onPress={() => openMenu(row)} className="p-2">
-              <AppIcon name="ellipsis-vertical" size={18} color="#6B7280" />
-            </TouchableOpacity>
+            <AnchoredPopupMenu
+              items={[
+                {
+                  label: "View Details",
+                  icon: "eye",
+                  onPress: () =>
+                    router.push({
+                      pathname: "/(private)/parcel-details",
+                      params: {
+                        parcelId: row.id,
+                        mode: "view",
+                      },
+                    }),
+                },
+                {
+                  label: "Remind",
+                  icon: "notifications",
+                  onPress: () => console.log("Remind", row.id),
+                },
+                {
+                  label: "Deliver",
+                  icon: "checkmark-circle",
+                  onPress: () => console.log("Deliver", row.id),
+                },
+                {
+                  label: "Edit Parcel",
+                  icon: "pencil",
+                  onPress: () =>
+                    router.push({
+                      pathname: "/(private)/parcel-add-edit",
+                      params: { parcelId: row.id },
+                    }),
+                },
+                {
+                  label: "Delete",
+                  icon: "trash",
+                  danger: true,
+                  onPress: () => handleDeleteParcel(row),
+                },
+              ]}
+            />
           )}
         />
-
-        {menuVisible && selectedParcel && (
-          <View className="absolute inset-0 z-50 bg-black/30 justify-end">
-            {/* overlay click to close */}
-            <TouchableOpacity
-              className="flex-1"
-              activeOpacity={1}
-              onPress={closeMenu}
-            />
-
-            {/* menu box */}
-            <View className="bg-white rounded-t-2xl p-4">
-              <Text className="text-lg font-bold mb-3">Actions</Text>
-
-              {/* Edit */}
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push({
-                    pathname: "/(private)/parcel-add-edit",
-                    params: { parcelId: selectedParcel.id },
-                  });
-                }}
-                className="py-3"
-              >
-                <Text className="text-base">✏️ Edit Parcel</Text>
-              </TouchableOpacity>
-
-              {/* View */}
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push({
-                    pathname: "/(private)/parcel-add-edit",
-                    params: { parcelId: selectedParcel.id, mode: "view" },
-                  });
-                }}
-                className="py-3"
-              >
-                <Text className="text-base">👁️ View Details</Text>
-              </TouchableOpacity>
-
-              {/* Delete (example) */}
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  console.log("delete parcel", selectedParcel.id);
-                }}
-                className="py-3"
-              >
-                <Text className="text-base text-red-500">🗑️ Delete</Text>
-              </TouchableOpacity>
-
-              {/* Cancel */}
-              <TouchableOpacity onPress={closeMenu} className="py-3 mt-2">
-                <Text className="text-center text-gray-500">Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
       </View>
     </View>
   );

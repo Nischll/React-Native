@@ -58,9 +58,16 @@ export default function PageHeader({
       {showBackButton && (
         <Pressable
           onPress={() => router.back()}
-          className="mt-1 h-10 w-10 items-center justify-center rounded-xl bg-surfaceMuted"
+          className={`
+      mt-1 h-10 w-10 items-center justify-center rounded-xl
+      ${isDashboard ? "bg-white/20" : "bg-surfaceMuted"}
+    `}
         >
-          <AppIcon name="arrow-back" size={20} color="#453956" />
+          <AppIcon
+            name="arrow-back"
+            size={20}
+            color={isDashboard ? "#FFFFFF" : "#453956"}
+          />
         </Pressable>
       )}
     </View>
