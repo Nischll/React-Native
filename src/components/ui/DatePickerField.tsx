@@ -1,39 +1,91 @@
-import React, { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import { useMemo, useState } from "react";
+import { Platform, Pressable, Text, View } from "react-native";
 
-export default function DatePickerField({ value, onChange }: any) {
-  const [open, setOpen] = useState(false);
+type DatePickerFieldProps = {
+  value?: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+};
+
+export default function DatePickerField({
+  value,
+  onChange,
+  placeholder = "Select Pickup Date & Time",
+}: DatePickerFieldProps) {
+  const [showIOS, setShowIOS] = useState(false);
+
+  const parsedDate = useMemo(() => {
+    if (!value) return new Date();
+
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? new Date() : date;
+  }, [value]);
+
+  const formatForBackend = (date: Date) => date.toISOString().slice(0, 16);
+
+  const handleAndroidOpen = () => {
+    DateTimePickerAndroid.open({
+      value: parsedDate,
+      mode: "date",
+      maximumDate: new Date(),
+      is24Hour: false,
+      onChange: (event, selectedDate) => {
+        if (event.type === "dismissed" || !selectedDate) return;
+        onChange(formatForBackend(selectedDate));
+      },
+    });
+  };
+
+  const handleIOSChange = (
+    _event: DateTimePickerEvent,
+    selectedDate?: Date,
+  ) => {
+    if (!selectedDate) return;
+    onChange(formatForBackend(selectedDate));
+  };
 
   return (
     <View>
       <Pressable
-        onPress={() => setOpen(true)}
-        className="rounded-xl border border-slate-300 bg-white px-4 py-3"
+        onPress={() => {
+          if (Platform.OS === "android") {
+            handleAndroidOpen();
+          } else {
+            setShowIOS(true);
+          }
+        }}
+        className="flex-row items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3"
       >
         <Text className="text-slate-900">
-          {value ? value.toString() : "Select Date"}
+          {value ? new Date(value).toLocaleString() : placeholder}
         </Text>
+
+        <Ionicons name="calendar-outline" size={20} color="#64748b" />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="slide">
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white p-4 rounded-t-2xl">
-            <Text className="text-center text-lg font-semibold">
-              Date Picker (Hook real picker later)
-            </Text>
+      {Platform.OS === "ios" && showIOS && (
+        <View className="mt-3 rounded-xl border border-slate-200 bg-white p-2">
+          <DateTimePicker
+            value={parsedDate}
+            mode="datetime"
+            display="spinner"
+            maximumDate={new Date()}
+            onChange={handleIOSChange}
+          />
 
-            <Pressable
-              onPress={() => {
-                onChange(new Date().toISOString().split("T")[0]);
-                setOpen(false);
-              }}
-              className="mt-4 bg-primary py-3 rounded-xl"
-            >
-              <Text className="text-white text-center">Select Today</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => setShowIOS(false)}
+            className="mt-2 rounded-lg bg-primary py-3"
+          >
+            <Text className="text-center font-semibold text-white">Done</Text>
+          </Pressable>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }

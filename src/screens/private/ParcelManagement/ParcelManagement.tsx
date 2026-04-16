@@ -62,6 +62,9 @@ export default function ParcelManagement() {
         setDeleteParcel(null);
         refetch();
       },
+      onError: () => {
+        setDeleteParcel(null);
+      },
     });
   };
 
@@ -71,6 +74,9 @@ export default function ParcelManagement() {
       onSuccess: () => {
         setRemindParcel(null);
         refetch();
+      },
+      onError: () => {
+        setRemindParcel(null);
       },
     });
   };
@@ -82,6 +88,9 @@ export default function ParcelManagement() {
       onSuccess: () => {
         setDeliverParcel(null);
         refetch();
+      },
+      onError: () => {
+        setDeliverParcel(null);
       },
     });
   };
@@ -199,7 +208,11 @@ export default function ParcelManagement() {
                   {
                     label: "Deliver",
                     icon: "checkmark-circle",
-                    onPress: () => setDeliverParcel(row),
+                    onPress: () =>
+                      router.push({
+                        pathname: "/(private)/parcel-deliver",
+                        params: { parcelId: row.id },
+                      }),
                   },
                   {
                     label: "Edit Parcel",
@@ -240,17 +253,6 @@ export default function ParcelManagement() {
           loading={remindParcelPending}
           onCancel={() => setRemindParcel(null)}
           onConfirm={handleRemindParcel}
-        />
-
-        <ConfirmModal
-          visible={!!deliverParcel}
-          title="Deliver Parcel"
-          message={`Are you sure you want to deliver parcel "${deliverParcel?.trackingId}"?`}
-          confirmText="Confirm"
-          destructive
-          loading={deliverParcelPending}
-          onCancel={() => setDeliverParcel(null)}
-          onConfirm={handleDeliverParcel}
         />
       </View>
     </>
