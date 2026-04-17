@@ -9,7 +9,9 @@ import {
   MobileDataList,
 } from "@/src/components/layout/MobileDataList";
 import PageHeader from "@/src/components/layout/PageHeader";
-import AnchoredPopupMenu from "@/src/components/ui/AnchoredPopMenu";
+import AnchoredPopupMenu, {
+  MenuItem,
+} from "@/src/components/ui/AnchoredPopMenu";
 import AppButton from "@/src/components/ui/AppButton";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -185,53 +187,60 @@ export default function ParcelManagement() {
               hasMore: page * 10 < total,
               onPageChange: setPage,
             }}
-            renderActions={(row) => (
-              <AnchoredPopupMenu
-                items={[
-                  {
-                    label: "View Details",
-                    icon: "eye",
-                    onPress: () =>
-                      router.push({
-                        pathname: "/(private)/parcel-details",
-                        params: {
-                          parcelId: row.id,
-                          mode: "view",
-                        },
-                      }),
-                  },
-                  {
-                    label: "Remind",
-                    icon: "notifications",
-                    onPress: () => setRemindParcel(row),
-                  },
-                  {
-                    label: "Deliver",
-                    icon: "checkmark-circle",
-                    onPress: () =>
-                      router.push({
-                        pathname: "/(private)/parcel-deliver",
-                        params: { parcelId: row.id },
-                      }),
-                  },
-                  {
-                    label: "Edit Parcel",
-                    icon: "pencil",
-                    onPress: () =>
-                      router.push({
-                        pathname: "/(private)/parcel-add-edit",
-                        params: { parcelId: row.id },
-                      }),
-                  },
-                  {
-                    label: "Delete",
-                    icon: "trash",
-                    danger: true,
-                    onPress: () => setDeleteParcel(row),
-                  },
-                ]}
-              />
-            )}
+            renderActions={(row) => {
+              const isDelivered = row.status === "DELIVERED";
+
+              const items = [
+                {
+                  label: "View Details",
+                  icon: "eye",
+                  onPress: () =>
+                    router.push({
+                      pathname: "/(private)/parcel-details",
+                      params: {
+                        parcelId: row.id,
+                        mode: "view",
+                      },
+                    }),
+                },
+
+                ...(!isDelivered
+                  ? [
+                      {
+                        label: "Remind",
+                        icon: "notifications",
+                        onPress: () => setRemindParcel(row),
+                      },
+                      {
+                        label: "Deliver",
+                        icon: "checkmark-circle",
+                        onPress: () =>
+                          router.push({
+                            pathname: "/(private)/parcel-deliver",
+                            params: { parcelId: row.id },
+                          }),
+                      },
+                      {
+                        label: "Edit Parcel",
+                        icon: "pencil",
+                        onPress: () =>
+                          router.push({
+                            pathname: "/(private)/parcel-add-edit",
+                            params: { parcelId: row.id },
+                          }),
+                      },
+                      {
+                        label: "Delete",
+                        icon: "trash",
+                        danger: true,
+                        onPress: () => setDeleteParcel(row),
+                      },
+                    ]
+                  : []),
+              ] as MenuItem[];
+
+              return <AnchoredPopupMenu items={items} />;
+            }}
           />
         </View>
         <ConfirmModal
@@ -247,9 +256,8 @@ export default function ParcelManagement() {
         <ConfirmModal
           visible={!!remindParcel}
           title="Remind Parcel"
-          message={`Are you sure you want to remind parcel "${remindParcel?.trackingId}"?`}
+          message={`A reminder email will be sent to the resident notifying them to collect parcel "${remindParcel?.trackingId}".`}
           confirmText="Confirm"
-          destructive
           loading={remindParcelPending}
           onCancel={() => setRemindParcel(null)}
           onConfirm={handleRemindParcel}

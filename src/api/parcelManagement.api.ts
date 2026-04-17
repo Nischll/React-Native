@@ -67,3 +67,8 @@ export const useDeliverParcel = (
   buildingId: number | undefined,
 ) =>
   useApiMutation("post", `/parcels/${parcelId}/building/${buildingId}/deliver`);
+
+export const useUpdateParcel = (
+  parcelId: number | undefined,
+  buildingId: number | undefined,
+) => useApiMutation("put", `/parcels/${parcelId}/building/${buildingId}`);

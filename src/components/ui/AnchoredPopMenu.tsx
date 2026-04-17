@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import AppIcon from "./AppIcon";
 
-type MenuItem = {
+export type MenuItem = {
   label: string;
   danger?: boolean;
   onPress: () => void;
@@ -162,7 +162,7 @@ export default function AnchoredPopupMenu({ items }: Props) {
               opacity: opacityAnim,
               transform: [{ scale: scaleAnim }],
               backgroundColor: "#453956",
-              borderRadius: 16,
+              borderRadius: 6,
               borderWidth: 1,
               borderColor: "#5B4A70",
               paddingVertical: 6,
@@ -192,7 +192,7 @@ export default function AnchoredPopupMenu({ items }: Props) {
                 <Pressable
                   key={index}
                   onPress={() => animateClose(item.onPress)}
-                  className="flex-row items-center gap-2 mx-1 px-2 py-2 active:bg-white/10 rounded"
+                  className="flex-row items-center gap-2 px-2 py-2.5 active:bg-white/10"
                 >
                   {/* Icon */}
                   {item.icon ? (

@@ -1,9 +1,11 @@
 import { useGetParcelById } from "@/src/api/parcelManagement.api";
+import EmptyState from "@/src/components/feedback/EmptyState";
+import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { renderSignature } from "@/src/helper/renderSignature";
 import { useLocalSearchParams } from "expo-router";
-import { Image, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import Svg from "react-native-svg";
 
 export default function ParcelDetailsScreen() {
@@ -14,19 +16,11 @@ export default function ParcelDetailsScreen() {
   const parcel = data?.data;
 
   if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-gray-500">Loading...</Text>
-      </View>
-    );
+    return <LoadingState message="Parcel details loading." />;
   }
 
   if (!parcel) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-gray-500">No parcel found</Text>
-      </View>
-    );
+    return <EmptyState message="No Parcel details found." />;
   }
 
   const isDelivered = parcel.status === "DELIVERED";
@@ -111,7 +105,7 @@ export default function ParcelDetailsScreen() {
       )}
 
       {/* QR CODE */}
-      {parcel.qrCodeUrl && (
+      {/* {parcel.qrCodeUrl && (
         <View className="mt-8 items-center">
           <Text className="text-gray-500 mb-2">QR Code</Text>
           <Image
@@ -120,7 +114,7 @@ export default function ParcelDetailsScreen() {
             resizeMode="contain"
           />
         </View>
-      )}
+      )} */}
 
       {/* SIGNATURE */}
       {parcel.recipientSignature && (

@@ -1,4 +1,9 @@
-import { useAddParcel } from "@/src/api/parcelManagement.api";
+import {
+  useAddParcel,
+  useGetParcelById,
+  useUpdateParcel,
+} from "@/src/api/parcelManagement.api";
+import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
@@ -11,7 +16,8 @@ import {
   PACKAGE_TYPE_OPTIONS,
   PARCEL_CONDITION_OPTIONS,
 } from "@/src/types/parcelManagement.types";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Keyboard, TouchableWithoutFeedback, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -27,14 +33,21 @@ interface FormValues {
 }
 
 export default function AddEditParcelScreen() {
+  const { parcelId } = useLocalSearchParams();
+  const id = Number(parcelId);
+
   const { buildingId, user } = useAuth();
 
-  const { residences, isLoading: residencesLoading } =
-    useResidencesForActiveBuilding();
+  const { residences } = useResidencesForActiveBuilding();
 
   const { mutate: addParcel, isPending } = useAddParcel(buildingId!);
+  const { data, isLoading } = useGetParcelById(id);
+  const { mutate: updateParcelMutate, isPending: pendingUpdateParcel } =
+    useUpdateParcel(id, buildingId ?? undefined);
 
-  const { control, handleSubmit } = useForm<FormValues>({
+  const editmode = !!parcelId;
+
+  const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
       residentId: "",
       courier: "",
@@ -45,6 +58,22 @@ export default function AddEditParcelScreen() {
       receivedById: String(user?.userId || ""),
     },
   });
+
+  useEffect(() => {
+    if (editmode && data?.data) {
+      const parcel = data.data;
+
+      reset({
+        residentId: String(parcel.residentId ?? ""),
+        courier: parcel.courier ?? "",
+        packageType: parcel.packageType ?? "",
+        size: parcel.size ?? "",
+        location: parcel.location ?? "",
+        condition: parcel.condition ?? "",
+        receivedById: String(parcel.receivedById ?? user?.userId ?? ""),
+      });
+    }
+  }, [editmode, data, reset]);
 
   const onSubmit = (values: FormValues) => {
     const payload = {
@@ -57,26 +86,34 @@ export default function AddEditParcelScreen() {
       receivedById: Number(values.receivedById),
     };
 
-    console.log("📤 Add Parcel Payload:", payload);
-
-    addParcel(payload, {
-      onSuccess: () => {
-        console.log("✅ Parcel Added Successfully");
-        router.back();
-      },
-      onError: (err) => {
-        console.log("❌ Add Parcel Failed", err);
-      },
-    });
+    if (editmode) {
+      updateParcelMutate(payload, {
+        onSuccess: () => {
+          router.back();
+        },
+      });
+    } else {
+      addParcel(payload, {
+        onSuccess: () => {
+          router.back();
+        },
+      });
+    }
   };
+
+  if (editmode && isLoading) {
+    return <LoadingState message="Parcel details loading." />;
+  }
 
   return (
     <View className="flex-1">
       <PageHeader
         showBackButton
-        icon="add-circle"
-        title="Add Parcel"
-        subtitle="Create a new parcel record"
+        icon={editmode ? "create" : "add-circle"}
+        title={editmode ? "Edit Parcel" : "Add Parcel"}
+        subtitle={
+          editmode ? "Update parcel details" : "Create a new parcel record"
+        }
       />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -102,7 +139,6 @@ export default function AddEditParcelScreen() {
                   value={value}
                   onChange={onChange}
                   options={residences}
-                  // loading={residencesLoading}
                   placeholder="Select Resident"
                 />
               )}
@@ -183,8 +219,11 @@ export default function AddEditParcelScreen() {
               )}
             />
 
-            <AppButton loading={isPending} onPress={handleSubmit(onSubmit)}>
-              Log Parcel
+            <AppButton
+              loading={editmode ? pendingUpdateParcel : isPending}
+              onPress={handleSubmit(onSubmit)}
+            >
+              {editmode ? "Update Parcel" : "Log Parcel"}
             </AppButton>
           </View>
         </KeyboardAwareScrollView>
