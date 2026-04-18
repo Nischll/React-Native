@@ -66,10 +66,10 @@ export default function LoginScreen() {
                   resizeMode="contain"
                 />
 
-                <Text className="mt-4 text-xl font-bold text-gray-900">
+                <Text className="mt-2 text-xl font-bold text-gray-900">
                   Welcome Back
                 </Text>
-                <Text className="mt-2 text-center text-base text-gray-500">
+                <Text className="text-center text-base text-gray-500">
                   Login to continue to your account
                 </Text>
               </View>

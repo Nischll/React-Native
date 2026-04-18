@@ -4,12 +4,12 @@ import {
   FlatList,
   RefreshControl,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import EmptyState from "../feedback/EmptyState";
 import { SkeletonCard } from "../feedback/SkeletonCard";
+import AppInput from "../ui/AppInput";
 
 type SortOrder = "asc" | "desc";
 
@@ -144,14 +144,15 @@ export function MobileDataList<T>({
   const primaryColumn = columns.find((c) => c.primary);
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 gap-3">
       {/* Search */}
       {searchable && (
-        <TextInput
+        <AppInput
           placeholder="Search..."
           value={search}
           onChangeText={setSearch}
-          className="mb-3 rounded-xl border border-gray-300 px-4 py-3"
+          // className="mb-3"
+          size="sm"
         />
       )}
 

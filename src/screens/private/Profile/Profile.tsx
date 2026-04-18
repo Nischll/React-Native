@@ -1,9 +1,10 @@
 import { useLogoutMutation } from "@/src/api/auth.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
+import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 export default function Profile() {
   const { logout, user, selectedBuilding, openBuildingSelectDialog } =
@@ -20,81 +21,109 @@ export default function Profile() {
   };
 
   return (
-    <View className="flex-1 ">
+    <View className="flex-1">
       <PageHeader
         icon="person"
         title="Profile"
-        subtitle="Manage your account and workspace settings"
+        subtitle="Manage your account"
       />
 
-      <View className="mt-4 gap-4">
-        {/* USER INFO */}
-        <Card className="p-5">
-          <Text className="text-lg font-semibold text-textPrimary">
-            {user?.fullName || "N/A"}
+      <View className="px-4 gap-6">
+        {/*  PROFILE HEADER */}
+        <View className="items-center">
+          <View className="h-24 w-24 rounded-full bg-primary/20 items-center justify-center">
+            {user?.profilePictureUrl ? (
+              <Image
+                source={{ uri: user.profilePictureUrl }}
+                className="h-24 w-24 rounded-full"
+              />
+            ) : (
+              <AppIcon name="person" size={40} color="#453956" />
+            )}
+          </View>
+
+          <Text className="mt-4 text-lg font-semibold text-textPrimary">
+            {user?.fullName || "User"}
           </Text>
 
-          <Text className="mt-2 text-sm text-textMuted">
+          <Text className="text-sm text-textMuted">
             @{user?.username || "username"}
           </Text>
 
-          <Text className="mt-1 text-sm text-textSecondary">
-            {user?.email || "No email available"}
+          {/* EDIT PROFILE BUTTON */}
+          <AppButton
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            // onPress={() => router.push("/(private)/edit-profile")}
+            leftIcon="pencil"
+          >
+            Edit Profile
+          </AppButton>
+        </View>
+
+        {/* ACCOUNT INFO */}
+        <Card className="p-4 gap-4">
+          <Text className="text-base font-semibold text-textPrimary">
+            Account Information
           </Text>
+
+          <View className="gap-3">
+            <View className="flex-row items-center gap-3">
+              <AppIcon name="mail" size={18} />
+              <Text className="text-sm text-textSecondary">
+                {user?.email || "No email"}
+              </Text>
+            </View>
+
+            <View className="flex-row items-center gap-3">
+              <AppIcon name="call" size={18} />
+              <Text className="text-sm text-textSecondary">
+                {user?.phoneNumber || "No phone number"}
+              </Text>
+            </View>
+          </View>
         </Card>
 
-        {/* ACTIVE BUILDING */}
-        <Card className="p-5">
-          <Text className="text-lg font-semibold text-textPrimary">
+        {/*  BUILDING */}
+        <Card className="p-4 gap-4">
+          <Text className="text-base font-semibold text-textPrimary">
             Active Building
           </Text>
 
-          <Text className="my-3 text-base text-textSecondary">
-            {selectedBuilding?.label || "No building assigned"}
-          </Text>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-3 flex-1">
+              <AppIcon name="business" size={18} />
 
-          <AppButton
-            variant="secondary"
-            size="sm"
-            // className="mt-4"
-            onPress={openBuildingSelectDialog}
-          >
-            Change Building
-          </AppButton>
-        </Card>
-
-        {/* ROLES */}
-        <Card className="p-5">
-          <Text className="mb-4 text-lg font-semibold text-textPrimary">
-            Assigned Roles
-          </Text>
-
-          {user?.roleList?.length ? (
-            <View className="gap-3">
-              {user.roleList.map((role) => (
-                <View
-                  key={role.id}
-                  className="rounded-xl bg-surfaceMuted px-4 py-3"
-                >
-                  <Text className="text-base font-semibold text-textPrimary">
-                    {role.name}
-                  </Text>
-
-                  <Text className="mt-1 text-sm text-textMuted">
-                    {role.code}
-                  </Text>
-                </View>
-              ))}
+              <Text
+                className="text-sm text-textSecondary flex-1"
+                numberOfLines={2}
+              >
+                {selectedBuilding?.label || "No building assigned"}
+              </Text>
             </View>
-          ) : (
-            <Text className="text-sm text-textMuted">No roles assigned.</Text>
-          )}
+
+            <AppButton
+              variant="secondary"
+              size="sm"
+              onPress={openBuildingSelectDialog}
+            >
+              Change
+            </AppButton>
+          </View>
         </Card>
 
-        {/* LOGOUT */}
-        <AppButton variant="danger" loading={isPending} onPress={handleLogout}>
-          Log Out
-        </AppButton>
+        {/* ACTIONS */}
+        <View className="gap-3">
+          {/*  LOGOUT */}
+          <AppButton
+            // variant="danger"
+            loading={isPending}
+            onPress={handleLogout}
+          >
+            Log Out
+          </AppButton>
+        </View>
       </View>
     </View>
   );

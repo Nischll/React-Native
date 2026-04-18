@@ -153,7 +153,7 @@ export default function ParcelManagement() {
 
   return (
     <>
-      <View className="flex-1 ">
+      <View className="flex-1">
         <PageHeader
           showBackButton
           icon="cube"
@@ -161,13 +161,13 @@ export default function ParcelManagement() {
           subtitle="View and manage all parcels delivered to your building."
         />
 
-        <View className="px-4 mt-4">
+        <View>
           <AppButton onPress={() => router.push("/(private)/parcel-add-edit")}>
             Log Parcel
           </AppButton>
         </View>
 
-        <View className="flex-1 px-4 mt-4">
+        <View className="flex-1 mt-4">
           <MobileDataList<ParcelResponse>
             data={parcels}
             columns={columns}
