@@ -7,7 +7,7 @@ export default function ActiveBuildingCard() {
   const { selectedBuilding, openBuildingSelectDialog } = useAuth();
 
   return (
-    <View className="flex-row items-center justify-between px-5 py-5">
+    <View className="flex-row items-center justify-between py-5">
       {/* LEFT SIDE */}
       <View className="flex-1 pr-4">
         {/* Title */}

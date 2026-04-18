@@ -112,6 +112,7 @@ export default function ParcelManagement() {
     {
       key: "unit",
       label: "Unit",
+      // primary: true,
       searchable: true,
     },
     {
@@ -157,7 +158,7 @@ export default function ParcelManagement() {
           showBackButton
           icon="cube"
           title="Parcel Management"
-          subtitle="View and manage all parcels delivered to your building"
+          subtitle="View and manage all parcels delivered to your building."
         />
 
         <View className="px-4 mt-4">

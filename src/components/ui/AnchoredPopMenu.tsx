@@ -125,8 +125,8 @@ export default function AnchoredPopupMenu({ items }: Props) {
   return (
     <>
       {/* Trigger */}
-      <Pressable ref={triggerRef} onPress={openMenu} className="px-2">
-        <Text style={{ fontSize: 18, color: "#6B7280" }}>⋮</Text>
+      <Pressable ref={triggerRef} onPress={openMenu} className="py-2 px-1">
+        <AppIcon name="ellipsis-vertical" color="#6B7280" size={18} />
       </Pressable>
 
       {/* Popup */}

@@ -201,9 +201,9 @@ export function MobileDataList<T>({
           onEndReachedThreshold={0.5}
           ListEmptyComponent={<EmptyState message={emptyMessage} />}
           renderItem={({ item }) => (
-            <View className="mb-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <View className="mb-3 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm">
               {/* Header */}
-              <View className="mb-3 flex-row items-start justify-between">
+              <View className="mb-3 flex-row items-center justify-between">
                 {/* Primary Field */}
                 <View className="flex-1 pr-3">
                   {primaryColumn && (
@@ -216,7 +216,7 @@ export function MobileDataList<T>({
                 </View>
 
                 {/* Action Menu */}
-                {renderActions && renderActions(item)}
+                <View>{renderActions && renderActions(item)}</View>
               </View>
 
               {/* Secondary Fields */}

@@ -1,14 +1,14 @@
 import PageHeader from "@/src/components/layout/PageHeader";
 import { View } from "react-native";
 
-export default function TradeManagement() {
+export default function BuildingImprovements() {
   return (
     <>
       <View>
         <PageHeader
-          title="Trade Mangement"
-          subtitle="Contractor visits, bookings, check-in / checkout."
-          icon="wallet"
+          title="Building Improvements"
+          subtitle="Track improvement work, locations, and before / after images."
+          icon="hammer"
           showBackButton
         />
       </View>
