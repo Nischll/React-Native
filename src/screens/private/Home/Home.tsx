@@ -4,19 +4,31 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import Card from "@/src/components/ui/Card";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Href, router } from "expo-router";
 import { Text, View } from "react-native";
 import ActiveBuildingCard from "./ActiveBuildingCard";
 
 export default function Home() {
   const { user } = useAuth();
 
-  const quickModules = [
+  const quickModules: {
+    title: string;
+    subtitle: string;
+    icon: React.ComponentProps<typeof Ionicons>["name"];
+    route: Href;
+  }[] = [
     {
       title: "Parcels",
       subtitle: "Manage deliveries",
       icon: "cube",
       route: "/(private)/parcel-management",
+    },
+    {
+      title: "Trade",
+      subtitle: "Trade management",
+      icon: "wallet",
+      route: "/(private)/trade-management",
     },
     {
       title: "Residents",
@@ -25,18 +37,12 @@ export default function Home() {
       route: "/(private)/(tabs)/modules",
     },
     {
-      title: "Visitors",
-      subtitle: "Track entries",
-      icon: "walk",
-      route: "/(private)/(tabs)/modules",
-    },
-    {
       title: "Complaints",
       subtitle: "Handle issues",
       icon: "document-text",
       route: "/(private)/(tabs)/modules",
     },
-  ] as const;
+  ];
 
   return (
     <View className="flex-1 ">
@@ -89,16 +95,17 @@ export default function Home() {
             <AnimatedPressable
               key={item.title}
               onPress={() => router.push(item.route)}
-              className="mb-4 w-[23%] "
+              className="mb-4 w-[48%]"
             >
-              <Card className="items-center px-2 py-4">
-                <View className="mb-2 h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+              <Card className="flex-row justify-between items-center p-2">
+                <View className="h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <AppIcon name={item.icon} size={22} color="#453956" />
                 </View>
 
                 <Text className="text-center text-xs font-semibold text-textPrimary">
                   {item.title}
                 </Text>
+                <AppIcon name="chevron-forward" size={16} />
               </Card>
             </AnimatedPressable>
           ))}
