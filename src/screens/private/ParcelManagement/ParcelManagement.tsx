@@ -30,7 +30,6 @@ export default function ParcelManagement() {
   const [deliverParcel, setDeliverParcel] = useState<ParcelResponse | null>(
     null,
   );
-  const [editParcel, setEditParcel] = useState<ParcelResponse | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useGetParcels(
     {
