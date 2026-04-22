@@ -159,41 +159,71 @@ export default function TradeManagement() {
           }}
           renderActions={(row) => {
             const isPmApproved = row.pmApproved === true;
+            const hasCheckedIn = !!row.timeIn;
+            const hasCheckedOut = !!row.timeOut;
+            const isCompleted = row.workCompleted === true;
 
-            const items: MenuItem[] = [
-              {
-                label: "View Details",
-                icon: "eye",
+            const items: MenuItem[] = [];
+
+            items.push({
+              label: "View Details",
+              icon: "eye",
+              onPress: () =>
+                router.push({
+                  pathname: "/(private)/trade-management/trade-details",
+                  params: { id: row.id },
+                }),
+            });
+
+            if (isCompleted) {
+              return <AnchoredPopupMenu items={items} />;
+            }
+
+            if (isPmApproved && !hasCheckedIn) {
+              items.push({
+                label: "Check In",
+                icon: "log-in",
                 onPress: () =>
                   router.push({
-                    pathname: "/(private)/trade-visit-details",
+                    pathname: "/(private)/trade-checkin",
                     params: { id: row.id },
                   }),
-              },
+              });
+            }
 
-              ...(!isPmApproved
-                ? [
-                    {
-                      label: "Edit",
-                      icon: "pencil",
-                      onPress: () =>
-                        router.push({
-                          pathname: "/(private)/trade-add-edit",
-                          params: { id: row.id },
-                        }),
-                    },
-                    {
-                      label: "PM Approval / Document",
-                      icon: "document-text",
-                      onPress: () =>
-                        router.push({
-                          pathname: "/(private)/trade-pm-approval",
-                          params: { id: row.id },
-                        }),
-                    },
-                  ]
-                : []),
-            ] as MenuItem[];
+            if (hasCheckedIn && !hasCheckedOut) {
+              items.push({
+                label: "Check Out",
+                icon: "log-out",
+                onPress: () =>
+                  router.push({
+                    pathname: "/(private)/trade-checkout",
+                    params: { id: row.id },
+                  }),
+              });
+            }
+
+            if (!isPmApproved) {
+              items.push({
+                label: "Edit",
+                icon: "pencil",
+                onPress: () =>
+                  router.push({
+                    pathname: "/(private)/trade-add-edit",
+                    params: { id: row.id },
+                  }),
+              });
+
+              items.push({
+                label: "PM Approval / Document",
+                icon: "document-text",
+                onPress: () =>
+                  router.push({
+                    pathname: "/(private)/trade-pm-approval",
+                    params: { id: row.id },
+                  }),
+              });
+            }
 
             return <AnchoredPopupMenu items={items} />;
           }}

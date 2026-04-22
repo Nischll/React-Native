@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import AnimatedPressable from "../ui/AnimatedPressable";
 import AppIcon from "../ui/AppIcon";
 
 interface PageHeaderProps {
@@ -27,6 +28,7 @@ export default function PageHeader({
         ${isDashboard ? "bg-primary" : ""}
       `}
     >
+      {/* Icon */}
       <View className="items-center justify-center">
         <AppIcon
           name={icon}
@@ -35,6 +37,7 @@ export default function PageHeader({
         />
       </View>
 
+      {/* Title + Subtitle */}
       <View className="flex-1">
         <Text
           className={`text-xl font-bold ${
@@ -55,20 +58,22 @@ export default function PageHeader({
         ) : null}
       </View>
 
+      {/* Back Button (ANIMATED) */}
       {showBackButton && (
-        <Pressable
-          onPress={() => router.back()}
-          className={`
-      mt-1 h-10 w-10 items-center justify-center rounded-xl
-      ${isDashboard ? "bg-white/20" : "bg-surfaceMuted"}
-    `}
-        >
-          <AppIcon
-            name="arrow-back"
-            size={20}
-            color={isDashboard ? "#FFFFFF" : "#453956"}
-          />
-        </Pressable>
+        <AnimatedPressable onPress={() => router.back()} className="mt-1">
+          <View
+            className={`
+              h-10 w-10 items-center justify-center rounded-xl
+              ${isDashboard ? "bg-white/20" : "bg-surfaceMuted"}
+            `}
+          >
+            <AppIcon
+              name="arrow-back"
+              size={20}
+              color={isDashboard ? "#FFFFFF" : "#453956"}
+            />
+          </View>
+        </AnimatedPressable>
       )}
     </View>
   );
