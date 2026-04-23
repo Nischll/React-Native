@@ -24,7 +24,6 @@ export default function TradeManagement() {
   const { user, buildingId } = useAuth();
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [lifecycle, setLifecycle] = useState<string | undefined>();
 
   const { data, isLoading, refetch, isRefetching } = useGetTradeVisits(
@@ -124,6 +123,7 @@ export default function TradeManagement() {
         <SelectField
           placeholder="Filter by status"
           value={lifecycle}
+          mode="dropdown"
           options={[
             { label: "All", value: "" },
             ...LIFECYCLE_STATUS_OPTIONS.map((item) => ({
@@ -149,7 +149,6 @@ export default function TradeManagement() {
           onRefresh={refetch}
           onSearch={(value) => {
             setPage(1);
-            setSearch(value);
           }}
           pagination={{
             page,
@@ -209,7 +208,7 @@ export default function TradeManagement() {
                 icon: "pencil",
                 onPress: () =>
                   router.push({
-                    pathname: "/(private)/trade-add-edit",
+                    pathname: "/(private)/trade-management/trade-add-edit",
                     params: { id: row.id },
                   }),
               });
@@ -234,7 +233,7 @@ export default function TradeManagement() {
         <AnimatedPressable
           onPress={() =>
             router.push({
-              pathname: "/(private)/trade-add-edit",
+              pathname: "/(private)/trade-management/trade-add-edit",
               params: { mode: "create" },
             })
           }

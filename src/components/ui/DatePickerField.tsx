@@ -10,37 +10,60 @@ type DatePickerFieldProps = {
   value?: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  showTime?: boolean; // ✅ NEW PROP
 };
 
 export default function DatePickerField({
   value,
   onChange,
-  placeholder = "Select Pickup Date & Time",
+  placeholder = "Select Date",
+  showTime = false, // ✅ default safe
 }: DatePickerFieldProps) {
   const [showIOS, setShowIOS] = useState(false);
 
   const parsedDate = useMemo(() => {
     if (!value) return new Date();
-
     const date = new Date(value);
     return isNaN(date.getTime()) ? new Date() : date;
   }, [value]);
 
-  const formatForBackend = (date: Date) => date.toISOString().slice(0, 16);
+  const formatForBackend = (date: Date) => date.toISOString();
 
+  // ✅ ANDROID HANDLER
   const handleAndroidOpen = () => {
     DateTimePickerAndroid.open({
       value: parsedDate,
       mode: "date",
-      maximumDate: new Date(),
-      is24Hour: false,
       onChange: (event, selectedDate) => {
-        if (event.type === "dismissed" || !selectedDate) return;
-        onChange(formatForBackend(selectedDate));
+        if (event.type !== "set" || !selectedDate) return;
+
+        // 👉 If no time needed → return immediately
+        if (!showTime) {
+          onChange(formatForBackend(selectedDate));
+          return;
+        }
+
+        // 👉 If time needed → open time picker
+        DateTimePickerAndroid.open({
+          value: selectedDate,
+          mode: "time",
+          onChange: (event2, selectedTime) => {
+            if (event2.type !== "set" || !selectedTime) return;
+
+            const finalDate = new Date(selectedDate);
+            finalDate.setHours(
+              selectedTime.getHours(),
+              selectedTime.getMinutes(),
+            );
+
+            onChange(formatForBackend(finalDate));
+          },
+        });
       },
     });
   };
 
+  // ✅ IOS HANDLER
   const handleIOSChange = (
     _event: DateTimePickerEvent,
     selectedDate?: Date,
@@ -68,13 +91,13 @@ export default function DatePickerField({
         <Ionicons name="calendar-outline" size={20} color="#64748b" />
       </Pressable>
 
+      {/* ✅ IOS */}
       {Platform.OS === "ios" && showIOS && (
         <View className="mt-3 rounded-xl border border-slate-200 bg-white p-2">
           <DateTimePicker
             value={parsedDate}
-            mode="datetime"
+            mode={showTime ? "datetime" : "date"} // ✅ dynamic
             display="spinner"
-            maximumDate={new Date()}
             onChange={handleIOSChange}
           />
 

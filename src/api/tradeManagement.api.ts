@@ -42,16 +42,12 @@ export const useGetTradeVisitById = (id: number | undefined, enabled = true) =>
   });
 
 export const useCreateTradeVisit = () =>
-  useApiMutation<TradeVisitCreatePojo>("post", "", {
+  useApiMutation<TradeVisitCreatePojo>("post", "trade-visit", {
     successMessage: "Trade visit created",
   });
 
-export const useUpdateTradeVisit = () =>
-  useApiMutation<
-    TradeVisitUpdatePojo & { pathVars: { id: number } },
-    unknown,
-    { id: number }
-  >("put", (vars) => "");
+export const useUpdateTradeVisit = (tradeId: number) =>
+  useApiMutation<TradeVisitUpdatePojo>("put", `trade-visit/${tradeId}`);
 
 /** POST multipart: approved + file (file required when approved=true). approved=false revokes and deletes file. */
 // export const useSubmitTradeVisitPmApproval = () =>

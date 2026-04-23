@@ -12,7 +12,8 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import AnchoredPopupMenu, {
   MenuItem,
 } from "@/src/components/ui/AnchoredPopMenu";
-import AppButton from "@/src/components/ui/AppButton";
+import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
+import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse } from "@/src/types/parcelManagement.types";
@@ -159,14 +160,28 @@ export default function ParcelManagement() {
           title="Parcel Management"
           subtitle="View and manage all parcels delivered to your building."
         />
+        <View className="absolute bottom-6 right-6 z-50">
+          <AnimatedPressable
+            onPress={() =>
+              router.push({
+                pathname: "/(private)/parcel-add-edit",
+                params: { mode: "create" },
+              })
+            }
+          >
+            <View className="bg-primary rounded-full p-4 elevation-5">
+              <AppIcon name="add" size={24} color="#fff" />
+            </View>
+          </AnimatedPressable>
+        </View>
 
-        <View>
+        {/* <View>
           <AppButton onPress={() => router.push("/(private)/parcel-add-edit")}>
             Log Parcel
           </AppButton>
-        </View>
+        </View> */}
 
-        <View className="flex-1 mt-4">
+        <View className="flex-1">
           <MobileDataList<ParcelResponse>
             data={parcels}
             columns={columns}
