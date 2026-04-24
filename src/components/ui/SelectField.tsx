@@ -143,7 +143,6 @@ export default function SelectField({
       {/* ERROR */}
       {error && <Text className="mt-2 text-sm text-red-500">{error}</Text>}
 
-      {/* ================= MODAL MODE (UNCHANGED EXACTLY) ================= */}
       {mode === "modal" && (
         <Modal visible={open} animationType="slide">
           <View className="flex-1 bg-white p-4">
@@ -193,7 +192,7 @@ export default function SelectField({
               left: layout.x,
               width: layout.width,
               top:
-                layout.y + layout.height + 6 > 600
+                layout.y + layout.height > 600
                   ? layout.y - 180 // OPEN UPWARD
                   : layout.y + layout.height, // OPEN DOWNWARD
             }}

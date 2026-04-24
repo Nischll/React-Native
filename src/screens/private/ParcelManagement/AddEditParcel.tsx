@@ -120,7 +120,7 @@ export default function AddEditParcelScreen() {
         <KeyboardAwareScrollView
           className="flex-1"
           contentContainerStyle={{
-            paddingHorizontal: 16,
+            paddingHorizontal: 10,
             paddingBottom: 30,
           }}
           enableOnAndroid
@@ -128,7 +128,7 @@ export default function AddEditParcelScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-3 mt-4">
+          <View className="">
             {/* Resident */}
             <Controller
               control={control}
@@ -144,80 +144,94 @@ export default function AddEditParcelScreen() {
               )}
             />
 
-            {/* Courier */}
-            <Controller
-              control={control}
-              name="courier"
-              render={({ field: { onChange, value } }) => (
-                <SelectField
-                  label="Courier"
-                  value={value}
-                  onChange={onChange}
-                  options={COURIER_OPTIONS}
-                  placeholder="Select Courier"
-                />
-              )}
-            />
+            <View className="mt-3">
+              {/* Courier */}
+              <Controller
+                control={control}
+                name="courier"
+                render={({ field: { onChange, value } }) => (
+                  <SelectField
+                    label="Courier"
+                    value={value}
+                    onChange={onChange}
+                    options={COURIER_OPTIONS}
+                    placeholder="Select Courier"
+                    mode="dropdown"
+                  />
+                )}
+              />
+            </View>
 
-            {/* Package Type */}
-            <Controller
-              control={control}
-              name="packageType"
-              render={({ field: { onChange, value } }) => (
-                <SelectField
-                  label="Package Type"
-                  value={value}
-                  onChange={onChange}
-                  options={PACKAGE_TYPE_OPTIONS}
-                  placeholder="Select Package Type"
-                />
-              )}
-            />
+            <View className="mt-3">
+              {/* Package Type */}
+              <Controller
+                control={control}
+                name="packageType"
+                render={({ field: { onChange, value } }) => (
+                  <SelectField
+                    label="Package Type"
+                    value={value}
+                    onChange={onChange}
+                    options={PACKAGE_TYPE_OPTIONS}
+                    placeholder="Select Package Type"
+                    mode="dropdown"
+                  />
+                )}
+              />
+            </View>
 
-            {/* Size */}
-            <Controller
-              control={control}
-              name="size"
-              render={({ field: { onChange, value } }) => (
-                <SelectField
-                  label="Package Size"
-                  value={value}
-                  onChange={onChange}
-                  options={PACKAGE_SIZE_OPTIONS}
-                  placeholder="Select Package Size"
-                />
-              )}
-            />
+            <View className="mt-3">
+              {/* Size */}
+              <Controller
+                control={control}
+                name="size"
+                render={({ field: { onChange, value } }) => (
+                  <SelectField
+                    label="Package Size"
+                    value={value}
+                    onChange={onChange}
+                    options={PACKAGE_SIZE_OPTIONS}
+                    placeholder="Select Package Size"
+                    mode="dropdown"
+                  />
+                )}
+              />
+            </View>
 
-            {/* Condition */}
-            <Controller
-              control={control}
-              name="condition"
-              render={({ field: { onChange, value } }) => (
-                <SelectField
-                  label="Condition"
-                  value={value}
-                  onChange={onChange}
-                  options={PARCEL_CONDITION_OPTIONS}
-                  placeholder="Select Condition"
-                />
-              )}
-            />
+            <View className="mt-3">
+              {/* Condition */}
+              <Controller
+                control={control}
+                name="condition"
+                render={({ field: { onChange, value } }) => (
+                  <SelectField
+                    label="Condition"
+                    value={value}
+                    onChange={onChange}
+                    options={PARCEL_CONDITION_OPTIONS}
+                    placeholder="Select Condition"
+                    mode="dropdown"
+                  />
+                )}
+              />
+            </View>
 
-            {/* Location */}
-            <Controller
-              control={control}
-              name="location"
-              render={({ field: { onChange, value } }) => (
-                <AppInput
-                  label="Location"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Parcel storage location"
-                  size="md"
-                />
-              )}
-            />
+            <View className="my-3">
+              {/* Location */}
+              <Controller
+                control={control}
+                name="location"
+                render={({ field: { onChange, value } }) => (
+                  <AppInput
+                    label="Location"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Parcel storage location"
+                    size="md"
+                  />
+                )}
+              />
+            </View>
 
             <AppButton
               loading={editmode ? pendingUpdateParcel : isPending}
