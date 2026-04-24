@@ -192,7 +192,7 @@ export default function SelectField({
               left: layout.x,
               width: layout.width,
               top:
-                layout.y + layout.height > 600
+                layout.y + layout.height + 6 > 600
                   ? layout.y - 180 // OPEN UPWARD
                   : layout.y + layout.height, // OPEN DOWNWARD
             }}
