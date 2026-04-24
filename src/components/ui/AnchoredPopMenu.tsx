@@ -86,7 +86,7 @@ export default function AnchoredPopupMenu({ items }: Props) {
     triggerRef.current?.measureInWindow(
       (x: number, y: number, width: number, height: number) => {
         let left = x;
-        let top = y + height + GAP - ARROW_OFFSET;
+        let top = y + GAP - ARROW_OFFSET;
         let openUpward = false;
 
         if (left + MENU_WIDTH > SCREEN_WIDTH - SCREEN_PADDING) {
