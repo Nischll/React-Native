@@ -14,7 +14,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { TradeVisitResponse } from "@/src/types/tradeManagement.types";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
-import { Animated, TouchableOpacity, View } from "react-native";
+import { Animated, Text, TouchableOpacity, View } from "react-native";
 
 export default function TradeManagement() {
   const { user, buildingId } = useAuth();
@@ -139,33 +139,38 @@ export default function TradeManagement() {
       />
 
       <View className="flex-row bg-gray-200 rounded-xl p-1">
-        {FILTERS.map((filter, index) => {
-          const bgColor = animatedValues[index].interpolate({
-            inputRange: [0, 1],
-            outputRange: ["transparent", "#453956"], // e.g. "#
-          });
-          const textColor = animatedValues[index].interpolate({
-            inputRange: [0, 1],
-            outputRange: ["#4B5563", "#FFFFFF"], // gray-600 → white
-          });
-
+        {FILTERS.map((filter) => {
+          const isActive = (lifecycle ?? "") === filter.value;
           return (
             <TouchableOpacity
               key={filter.value}
-              onPress={() => handleFilterChange(filter.value, index)}
-              className="flex-1 py-2 rounded-lg items-center"
+              onPress={() => {
+                setPage(1);
+                setLifecycle(filter.value || undefined);
+              }}
+              className={`flex-1 py-2 rounded-lg items-center ${
+                isActive ? "bg-primary" : ""
+              }`}
               activeOpacity={0.7}
+              style={
+                isActive
+                  ? {
+                      shadowColor: "#000",
+                      shadowOpacity: 0.08,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                      elevation: 2,
+                    }
+                  : undefined
+              }
             >
-              <Animated.View
-                className="absolute inset-0 rounded-lg"
-                style={{ backgroundColor: bgColor }}
-              />
-              <Animated.Text
-                className="text-xs font-semibold"
-                style={{ color: textColor }}
+              <Text
+                className={`text-sm font-semibold ${
+                  isActive ? "text-surface" : "text-gray-600"
+                }`}
               >
                 {filter.label}
-              </Animated.Text>
+              </Text>
             </TouchableOpacity>
           );
         })}
