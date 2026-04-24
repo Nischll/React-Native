@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import {
   Linking,
@@ -9,19 +8,14 @@ import {
 } from "react-native";
 import Svg from "react-native-svg";
 
-import { useGetTradeVisits } from "@/src/api/tradeManagement.api";
+import { useGetTradeVisitById } from "@/src/api/tradeManagement.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import Card from "@/src/components/ui/Card";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { renderSignature } from "@/src/helper/renderSignature";
-import { useAuth } from "@/src/providers/AuthProvider";
-import { TradeVisitResponse } from "@/src/types/tradeManagement.types";
 
 export default function TradeDetails() {
   const { id } = useLocalSearchParams();
-  const queryClient = useQueryClient();
-  const { buildingId } = useAuth();
-
   const idNum = Number(id);
 
   if (!id || isNaN(idNum)) {
@@ -32,34 +26,10 @@ export default function TradeDetails() {
     );
   }
 
-  // ---------------- CACHE FIRST ----------------
-  const cachedQueries = queryClient.getQueriesData({
-    queryKey: ["trade-visit"],
-  });
+  const { data, isLoading } = useGetTradeVisitById(idNum);
+  const trade = data?.data;
 
-  const cachedTrades: TradeVisitResponse[] = cachedQueries
-    .map(([, data]: any) => data?.data?.data ?? [])
-    .flat();
-
-  let trade = cachedTrades.find((t) => t.id === idNum);
-
-  // ---------------- FALLBACK FETCH ----------------
-  const { data: fallbackData, isLoading } = useGetTradeVisits(
-    {
-      page: 1,
-      limit: 20,
-      buildingId: buildingId ?? undefined,
-    },
-    !!buildingId && !trade,
-  );
-
-  const fallbackTrades = fallbackData?.data?.data ?? [];
-
-  if (!trade) {
-    trade = fallbackTrades.find((t) => t.id === idNum);
-  }
-
-  if (!trade && isLoading) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <Text>Loading trade details...</Text>
@@ -75,7 +45,6 @@ export default function TradeDetails() {
     );
   }
 
-  // ---------------- HELPERS ----------------
   const formatEnum = (value?: string | null) =>
     value
       ? value
@@ -100,15 +69,11 @@ export default function TradeDetails() {
         {/* ---------------- HEADER ---------------- */}
         <Card className="p-4 mb-4">
           <Text className="text-xl font-bold">{trade.tradeName}</Text>
-
           <Text className="text-gray-500 mt-1">{trade.company || "-"}</Text>
-
           <Text className="text-gray-500">{trade.buildingName || "-"}</Text>
-
           <Text className="text-gray-500 mt-2">
             {formatDateTime(trade.scheduledAppointmentAt)}
           </Text>
-
           <View className="flex-row flex-wrap mt-3">
             <Text className={badge}>{formatEnum(trade.lifecycleStatus)}</Text>
             <Text className={badge}>{formatEnum(trade.entryType)}</Text>
@@ -119,7 +84,6 @@ export default function TradeDetails() {
         {/* ---------------- VISIT SUMMARY ---------------- */}
         <Card className="p-4 mb-4">
           <Text className="font-semibold mb-2">Visit Summary</Text>
-
           <Info label="Reason" value={trade.reasonForVisit} />
           <Info label="Location" value={trade.location} />
           <Info label="Unit" value={trade.residentUnit} />
@@ -129,7 +93,6 @@ export default function TradeDetails() {
         {/* ---------------- CONTACT ---------------- */}
         <Card className="p-4 mb-4">
           <Text className="font-semibold mb-2">Contact & Notifications</Text>
-
           <Info label="Phone" value={trade.phoneNumber} />
           <Info label="Verified" value={trade.phoneVerified ? "Yes" : "No"} />
           <Info label="SMS Sent" value={trade.bookingSmsSent ? "Yes" : "No"} />
@@ -138,20 +101,17 @@ export default function TradeDetails() {
         {/* ---------------- PM APPROVAL ---------------- */}
         <Card className="p-4 mb-4">
           <Text className="font-semibold mb-2">PM Approval</Text>
-
           <Info
             label="Status"
             value={trade.pmApproved ? "Approved" : "Pending"}
           />
-
           {trade.pmApprovalAttachment ? (
             <View className="flex-row justify-between mt-2">
               <Text className="text-gray-500">Document</Text>
-
               <TouchableOpacity
                 onPress={() =>
                   Linking.openURL(
-                    `https://cloud.bildstrata.com/api/trade-visit/${id}/pm-approval-attachment}`,
+                    `https://cloud.bildstrata.com/api/trade-visit/${idNum}/pm-approval-attachment`,
                   )
                 }
                 className="flex-1 ml-4"
@@ -183,7 +143,6 @@ export default function TradeDetails() {
         {/* ---------------- CHECK-IN / OUT ---------------- */}
         <Card className="p-4 mb-4">
           <Text className="font-semibold mb-2">Check-in & Checkout</Text>
-
           <Info label="Time In" value={formatDateTime(trade.timeIn)} />
           <Info label="Time Out" value={formatDateTime(trade.timeOut)} />
           <Info
@@ -200,7 +159,6 @@ export default function TradeDetails() {
         {trade.signatureData && (
           <Card className="p-4 mb-6">
             <Text className="font-semibold mb-2">Signature</Text>
-
             <View className="bg-gray-100 rounded-md p-2">
               <Svg height={160} width="100%">
                 {renderSignature(trade.signatureData)}
@@ -213,7 +171,6 @@ export default function TradeDetails() {
   );
 }
 
-/* ---------------- REUSABLE INFO ROW ---------------- */
 function Info({
   label,
   value,
@@ -224,7 +181,6 @@ function Info({
   return (
     <View className="flex-row justify-between mb-1">
       <Text className="text-gray-500 w-1/3">{label}</Text>
-
       <Text
         className="flex-1 text-right font-medium"
         numberOfLines={2}

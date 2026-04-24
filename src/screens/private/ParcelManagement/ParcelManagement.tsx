@@ -164,7 +164,7 @@ export default function ParcelManagement() {
           <AnimatedPressable
             onPress={() =>
               router.push({
-                pathname: "/(private)/parcel-add-edit",
+                pathname: "/(private)/parcel-management/parcel-add-edit",
                 params: { mode: "create" },
               })
             }
@@ -211,7 +211,7 @@ export default function ParcelManagement() {
                   icon: "eye",
                   onPress: () =>
                     router.push({
-                      pathname: "/(private)/parcel-details",
+                      pathname: "/(private)/parcel-management/parcel-details",
                       params: {
                         parcelId: row.id,
                         mode: "view",
@@ -231,7 +231,8 @@ export default function ParcelManagement() {
                         icon: "checkmark-circle",
                         onPress: () =>
                           router.push({
-                            pathname: "/(private)/parcel-deliver",
+                            pathname:
+                              "/(private)/parcel-management/parcel-deliver",
                             params: { parcelId: row.id },
                           }),
                       },
@@ -240,7 +241,8 @@ export default function ParcelManagement() {
                         icon: "pencil",
                         onPress: () =>
                           router.push({
-                            pathname: "/(private)/parcel-add-edit",
+                            pathname:
+                              "/(private)/parcel-management/parcel-add-edit",
                             params: { parcelId: row.id },
                           }),
                       },

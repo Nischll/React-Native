@@ -10,6 +10,7 @@ import {
 import EmptyState from "../feedback/EmptyState";
 import { SkeletonCard } from "../feedback/SkeletonCard";
 import AppInput from "../ui/AppInput";
+import Card from "../ui/Card";
 
 type SortOrder = "asc" | "desc";
 
@@ -144,7 +145,7 @@ export function MobileDataList<T>({
   const primaryColumn = columns.find((c) => c.primary);
 
   return (
-    <View className="flex-1 gap-3">
+    <View className="flex-1 gap-3 px-1">
       {/* Search */}
       {searchable && (
         <AppInput
@@ -202,10 +203,9 @@ export function MobileDataList<T>({
           onEndReachedThreshold={0.5}
           ListEmptyComponent={<EmptyState message={emptyMessage} />}
           renderItem={({ item }) => (
-            <View className="mb-3 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm">
+            <Card className="px-4 py-2.5 mb-3">
               {/* Header */}
               <View className="mb-3 flex-row items-center justify-between">
-                {/* Primary Field */}
                 <View className="flex-1 pr-3">
                   {primaryColumn && (
                     <Text className="text-lg font-bold">
@@ -215,11 +215,8 @@ export function MobileDataList<T>({
                     </Text>
                   )}
                 </View>
-
-                {/* Action Menu */}
                 <View>{renderActions && renderActions(item)}</View>
               </View>
-
               {/* Secondary Fields */}
               {columns
                 .filter((col) => !col.primary && !col.hidden)
@@ -229,7 +226,6 @@ export function MobileDataList<T>({
                     className="mb-1 flex-row justify-between"
                   >
                     <Text className="text-gray-500">{col.label}</Text>
-
                     <Text className="font-medium text-right flex-1 ml-4">
                       {col.render
                         ? col.render(item[col.key], item)
@@ -237,7 +233,7 @@ export function MobileDataList<T>({
                     </Text>
                   </View>
                 ))}
-            </View>
+            </Card>
           )}
           ListFooterComponent={
             loading && data.length > 0 ? (

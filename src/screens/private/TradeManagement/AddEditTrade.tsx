@@ -2,13 +2,11 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
 
-import { useQueryClient } from "@tanstack/react-query";
-
 import PageHeader from "@/src/components/layout/PageHeader";
 
 import {
   useCreateTradeVisit,
-  useGetTradeVisits,
+  useGetTradeVisitById,
   useUpdateTradeVisit,
 } from "@/src/api/tradeManagement.api";
 
@@ -32,14 +30,13 @@ import {
 export default function AddEditTrade() {
   const { id } = useLocalSearchParams();
   const isEdit = !!id;
+  const idNum = Number(id);
 
   const { buildingId } = useAuth();
   const { residences } = useResidencesForActiveBuilding();
 
-  const queryClient = useQueryClient();
-
   const createMutation = useCreateTradeVisit();
-  const updateMutation = useUpdateTradeVisit(Number(id));
+  const updateMutation = useUpdateTradeVisit(idNum);
 
   // ---------------- FORM STATE ----------------
   const [form, setForm] = useState({
@@ -59,31 +56,12 @@ export default function AddEditTrade() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  // ---------------- CACHE + FALLBACK DATA ----------------
-  const cachedQueries = queryClient.getQueriesData({
-    queryKey: ["trade-visit"],
-  });
-
-  const cachedTrades = cachedQueries
-    .map(([, data]: any) => data?.data?.data ?? [])
-    .flat();
-
-  let trade = cachedTrades.find((t) => t.id === Number(id));
-
-  const { data: fallbackData } = useGetTradeVisits(
-    {
-      page: 1,
-      limit: 20,
-      buildingId: buildingId ?? undefined,
-    },
-    !!buildingId && isEdit && !trade,
+  // ---------------- FETCH BY ID (edit only) ----------------
+  const { data: tradeData } = useGetTradeVisitById(
+    isEdit ? idNum : undefined,
+    isEdit,
   );
-
-  const fallbackTrades = fallbackData?.data?.data ?? [];
-
-  if (!trade) {
-    trade = fallbackTrades.find((t) => t.id === Number(id));
-  }
+  const trade = tradeData?.data;
 
   // ---------------- HYDRATE FORM ----------------
   useEffect(() => {
@@ -152,10 +130,7 @@ export default function AddEditTrade() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
           className="flex-1"
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingBottom: 30,
-          }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}
           enableOnAndroid
           extraScrollHeight={20}
           keyboardShouldPersistTaps="handled"

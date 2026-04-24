@@ -1,4 +1,3 @@
-
 /** Matches backend TradeVisitEntryType */
 export type TradeVisitEntryType = "BOOKED" | "WALK_IN";
 

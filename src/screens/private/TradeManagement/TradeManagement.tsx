@@ -9,16 +9,12 @@ import AnchoredPopupMenu, {
 } from "@/src/components/ui/AnchoredPopMenu";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
-import SelectField from "@/src/components/ui/SelectField";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
-import {
-  LIFECYCLE_STATUS_OPTIONS,
-  TradeVisitResponse,
-} from "@/src/types/tradeManagement.types";
+import { TradeVisitResponse } from "@/src/types/tradeManagement.types";
 import { router } from "expo-router";
-import { useState } from "react";
-import { View } from "react-native";
+import { useRef, useState } from "react";
+import { Animated, TouchableOpacity, View } from "react-native";
 
 export default function TradeManagement() {
   const { user, buildingId } = useAuth();
@@ -110,6 +106,29 @@ export default function TradeManagement() {
     },
   ];
 
+  const FILTERS = [
+    { label: "All", value: "" },
+    { label: "Registered", value: "REGISTERED" },
+    { label: "On Site", value: "ON_SITE" },
+    { label: "Completed", value: "COMPLETED" },
+  ];
+
+  const animatedValues = useRef(
+    FILTERS.map((_, i) => new Animated.Value(i === 0 ? 1 : 0)),
+  ).current;
+
+  const handleFilterChange = (value: string, index: number) => {
+    setPage(1);
+    setLifecycle(value || undefined);
+
+    FILTERS.forEach((_, i) => {
+      Animated.timing(animatedValues[i], {
+        toValue: i === index ? 1 : 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    });
+  };
   return (
     <View className="flex-1 relative">
       <PageHeader
@@ -119,24 +138,39 @@ export default function TradeManagement() {
         showBackButton
       />
 
-      <View className=" mt-3">
-        <SelectField
-          placeholder="Filter by status"
-          value={lifecycle}
-          mode="dropdown"
-          options={[
-            { label: "All", value: "" },
-            ...LIFECYCLE_STATUS_OPTIONS.map((item) => ({
-              label: item.label,
-              value: item.value,
-            })),
-          ]}
-          onChange={(value) => {
-            setPage(1);
-            setLifecycle(value || undefined);
-          }}
-        />
+      <View className="flex-row bg-gray-200 rounded-xl p-1">
+        {FILTERS.map((filter, index) => {
+          const bgColor = animatedValues[index].interpolate({
+            inputRange: [0, 1],
+            outputRange: ["transparent", "#453956"], // e.g. "#
+          });
+          const textColor = animatedValues[index].interpolate({
+            inputRange: [0, 1],
+            outputRange: ["#4B5563", "#FFFFFF"], // gray-600 → white
+          });
+
+          return (
+            <TouchableOpacity
+              key={filter.value}
+              onPress={() => handleFilterChange(filter.value, index)}
+              className="flex-1 py-2 rounded-lg items-center"
+              activeOpacity={0.7}
+            >
+              <Animated.View
+                className="absolute inset-0 rounded-lg"
+                style={{ backgroundColor: bgColor }}
+              />
+              <Animated.Text
+                className="text-xs font-semibold"
+                style={{ color: textColor }}
+              >
+                {filter.label}
+              </Animated.Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+
       <View className="flex-1 mt-4">
         <MobileDataList<TradeVisitResponse>
           data={tradeVisits}
@@ -178,31 +212,7 @@ export default function TradeManagement() {
               return <AnchoredPopupMenu items={items} />;
             }
 
-            if (isPmApproved && !hasCheckedIn) {
-              items.push({
-                label: "Check In",
-                icon: "log-in",
-                onPress: () =>
-                  router.push({
-                    pathname: "/(private)/trade-checkin",
-                    params: { id: row.id },
-                  }),
-              });
-            }
-
-            if (hasCheckedIn && !hasCheckedOut) {
-              items.push({
-                label: "Check Out",
-                icon: "log-out",
-                onPress: () =>
-                  router.push({
-                    pathname: "/(private)/trade-checkout",
-                    params: { id: row.id },
-                  }),
-              });
-            }
-
-            if (!isPmApproved) {
+            if (!hasCheckedIn) {
               items.push({
                 label: "Edit",
                 icon: "pencil",
@@ -218,7 +228,31 @@ export default function TradeManagement() {
                 icon: "document-text",
                 onPress: () =>
                   router.push({
-                    pathname: "/(private)/trade-pm-approval",
+                    pathname: "/(private)/trade-management/trade-pm-approval",
+                    params: { id: row.id },
+                  }),
+              });
+            }
+
+            if (isPmApproved && !hasCheckedIn) {
+              items.push({
+                label: "Check In",
+                icon: "log-in",
+                onPress: () =>
+                  router.push({
+                    pathname: "/(private)/trade-management/trade-checkin",
+                    params: { id: row.id },
+                  }),
+              });
+            }
+
+            if (hasCheckedIn && !hasCheckedOut) {
+              items.push({
+                label: "Check Out",
+                icon: "log-out",
+                onPress: () =>
+                  router.push({
+                    pathname: "/(private)/trade-management/trade-checkout",
                     params: { id: row.id },
                   }),
               });

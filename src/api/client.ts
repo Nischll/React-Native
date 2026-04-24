@@ -53,8 +53,14 @@ apiService.interceptors.request.use(
   async (config) => {
     increaseRequestCount();
 
-    if (config.data instanceof FormData) {
-      delete config.headers["Content-Type"];
+    const isFormData =
+      config.data instanceof FormData ||
+      (config.data &&
+        typeof config.data === "object" &&
+        "_parts" in config.data);
+
+    if (isFormData) {
+      config.headers["Content-Type"] = "multipart/form-data"; // RN runtime adds boundary automatically
     } else {
       config.headers["Content-Type"] = "application/json";
     }

@@ -25,7 +25,7 @@ export const useGetTradeVisits = (
   if (params.lifecycle?.trim()) queryParams.lifecycle = params.lifecycle.trim();
 
   return useApiQuery<ApiListResponse<ApiPaginatedData<TradeVisitResponse>>>(
-    "trade-visit",
+    "/trade-visit",
     {
       enabled: enabled && params.buildingId != null,
       retry: 0,
@@ -36,18 +36,23 @@ export const useGetTradeVisits = (
 };
 
 export const useGetTradeVisitById = (id: number | undefined, enabled = true) =>
-  useApiQuery<ApiListResponse<TradeVisitResponse>>(`trade-visit`, {
+  useApiQuery<ApiListResponse<TradeVisitResponse>>(`/trade-visit/${id}`, {
     enabled: enabled && id != null && id > 0,
     retry: 0,
   });
 
 export const useCreateTradeVisit = () =>
-  useApiMutation<TradeVisitCreatePojo>("post", "trade-visit", {
+  useApiMutation<TradeVisitCreatePojo>("post", "/trade-visit", {
     successMessage: "Trade visit created",
   });
 
 export const useUpdateTradeVisit = (tradeId: number) =>
-  useApiMutation<TradeVisitUpdatePojo>("put", `trade-visit/${tradeId}`);
+  useApiMutation<TradeVisitUpdatePojo>("put", `/trade-visit/${tradeId}`);
+
+export const useUpdateTradeVisitPmApproval = (tradeId: number) =>
+  useApiMutation<FormData>("post", `/trade-visit/${tradeId}/pm-approval`, {
+    successMessage: "PM approval updated",
+  });
 
 /** POST multipart: approved + file (file required when approved=true). approved=false revokes and deletes file. */
 // export const useSubmitTradeVisitPmApproval = () =>
