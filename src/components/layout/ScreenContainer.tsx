@@ -6,7 +6,10 @@ import {
   ScrollViewProps,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 interface ScreenContainerProps extends ScrollViewProps {
   children: React.ReactNode;
@@ -27,12 +30,13 @@ export default function ScreenContainer({
   scrollable,
   virtualized = false,
   padded = true,
-  backgroundClassName = "bg-primary",
+  backgroundClassName = "bg-white",
   contentClassName = "bg-white",
   refreshable = true,
   ...props
 }: ScreenContainerProps) {
   const { triggerRefresh, refreshing, setRefreshing } = useGlobalRefresh();
+  const insets = useSafeAreaInsets();
 
   const onRefresh = useCallback(async () => {
     if (!refreshable || refreshing) return;
@@ -48,13 +52,19 @@ export default function ScreenContainer({
   const shouldScroll = scrollable ?? (virtualized ? false : true); // auto rule
 
   const content = (
-    <View className={`${padded ? "p-4" : ""} flex-1 ${contentClassName}`}>
+    <View
+      className={`${padded ? "p-4" : ""} flex-1 ${contentClassName}`}
+      style={{ paddingBottom: insets.bottom }}
+    >
       {children}
     </View>
   );
 
   return (
-    <SafeAreaView className={`flex-1 ${backgroundClassName}`}>
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      className={`flex-1 ${backgroundClassName}`}
+    >
       {shouldScroll ? (
         <ScrollView
           className="flex-1"

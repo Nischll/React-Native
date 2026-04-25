@@ -3,9 +3,23 @@ import { AuthProvider } from "@/src/providers/AuthProvider";
 import QueryProvider from "@/src/providers/QueryProvider";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import "../global.css";
+
+function RootLayoutInner() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <Toast config={toastConfig} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   useEffect(() => {
@@ -20,8 +34,9 @@ export default function RootLayout() {
     <QueryProvider>
       <SafeAreaProvider>
         <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-          <Toast config={toastConfig} />
+          {/* <Stack screenOptions={{ headerShown: false }} />
+          <Toast config={toastConfig} /> */}
+          <RootLayoutInner />
         </AuthProvider>
       </SafeAreaProvider>
     </QueryProvider>

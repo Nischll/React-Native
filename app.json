@@ -24,6 +24,9 @@
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
     },
+    "androidNavigationBar": {
+       "backgroundColor": "#FFFFFF"
+    },
     "web": {
       "bundler": "metro",
       "output": "static",

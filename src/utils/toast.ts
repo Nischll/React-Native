@@ -8,6 +8,6 @@ export function showToast(type: "success" | "error", message: string) {
     position: "bottom",
     visibilityTime: 2000,
     autoHide: true,
-    bottomOffset: 25,
+    bottomOffset: 60,
   });
 }

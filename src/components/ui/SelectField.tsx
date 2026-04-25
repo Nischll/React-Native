@@ -4,10 +4,12 @@ import {
   LayoutChangeEvent,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AppIcon from "./AppIcon";
 
 export interface SelectOption {
@@ -144,39 +146,48 @@ export default function SelectField({
       {error && <Text className="mt-2 text-sm text-red-500">{error}</Text>}
 
       {mode === "modal" && (
-        <Modal visible={open} animationType="slide">
-          <View className="flex-1 bg-white p-4">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold text-slate-900">
-                Select {label}
-              </Text>
+        <Modal visible={open} animationType="slide" statusBarTranslucent={true}>
+          <SafeAreaView
+            className="flex-1 bg-white"
+            edges={["top", "bottom", "left", "right"]}
+          >
+            <View className="p-4 flex-1">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-lg font-semibold text-slate-900">
+                  Select {label}
+                </Text>
+                <Pressable onPress={() => setOpen(false)}>
+                  <Text className="text-primary font-semibold">Close</Text>
+                </Pressable>
+              </View>
 
-              <Pressable onPress={() => setOpen(false)}>
-                <Text className="text-primary font-semibold">Close</Text>
-              </Pressable>
+              <TextInput
+                placeholder="Search..."
+                value={search}
+                onChangeText={setSearch}
+                className="mb-4 rounded-xl border border-slate-300 px-4 py-3"
+              />
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* ← wrap list in ScrollView */}
+                {filteredOptions.map((item) => (
+                  <Pressable
+                    key={item.value}
+                    onPress={() => {
+                      onChange(item.value);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className="py-4 border-b border-slate-100"
+                  >
+                    <Text className="text-slate-900 text-base">
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
-
-            <TextInput
-              placeholder="Search..."
-              value={search}
-              onChangeText={setSearch}
-              className="mb-4 rounded-xl border border-slate-300 px-4 py-3"
-            />
-
-            {filteredOptions.map((item) => (
-              <Pressable
-                key={item.value}
-                onPress={() => {
-                  onChange(item.value);
-                  setOpen(false);
-                  setSearch("");
-                }}
-                className="py-4 border-b border-slate-100"
-              >
-                <Text className="text-slate-900 text-base">{item.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          </SafeAreaView>
         </Modal>
       )}
 

@@ -2,10 +2,12 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const { refreshing } = useGlobalRefresh();
+  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -15,9 +17,9 @@ export default function TabsLayout() {
           tabBarActiveTintColor: "#453956",
           tabBarInactiveTintColor: "#94A3B8",
           tabBarStyle: {
-            height: 60,
+            height: 60 + (Platform.OS === "android" ? insets.bottom : 0),
             paddingTop: 8,
-            paddingBottom: 8,
+            paddingBottom: Platform.OS === "android" ? insets.bottom : 8,
             borderTopWidth: 1,
             borderTopColor: "#E2E8F0",
             backgroundColor: "#FFFFFF",
