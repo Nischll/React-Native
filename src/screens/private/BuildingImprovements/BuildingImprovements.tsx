@@ -8,6 +8,8 @@ import {
 } from "@/src/components/layout/MobileDataList";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnchoredPopupMenu from "@/src/components/ui/AnchoredPopMenu";
+import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
+import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -241,6 +243,20 @@ export default function BuildingImprovements() {
         icon="hammer"
         showBackButton
       />
+      <View className="absolute bottom-6 right-6 z-50">
+        <AnimatedPressable
+          onPress={() =>
+            router.push({
+              pathname: "/(private)/building-improvements/improvement-add-edit",
+              params: { mode: "create" },
+            })
+          }
+        >
+          <View className="bg-primary rounded-full p-4 elevation-5">
+            <AppIcon name="add" size={24} color="#fff" />
+          </View>
+        </AnimatedPressable>
+      </View>
 
       <View style={{ flex: 1 }}>
         <MobileDataList<BuildingImprovementResponse>
@@ -268,7 +284,7 @@ export default function BuildingImprovements() {
                   onPress: () =>
                     router.push({
                       pathname:
-                        "/(private)/building-improvements/building-details",
+                        "/(private)/building-improvements/improvement-details",
                       params: { id: item.id },
                     }),
                 },

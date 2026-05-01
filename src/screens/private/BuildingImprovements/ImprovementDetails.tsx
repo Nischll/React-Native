@@ -13,7 +13,7 @@ import {
 import { useRoute } from "@react-navigation/native";
 import { Image, ScrollView, Text, View } from "react-native";
 
-export function BuildingDetails() {
+export function ImprovementDetails() {
   const route = useRoute<any>();
   const id: number | undefined = route.params?.id;
 

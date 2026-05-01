@@ -1,14 +1,14 @@
 import ScreenContainer from "@/src/components/layout/ScreenContainer";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
-import { BuildingDetails } from "@/src/screens/private/BuildingImprovements/BuildingDetails";
+import { ImprovementAddEdit } from "@/src/screens/private/BuildingImprovements/ImprovementAddEdit";
 import { View } from "react-native";
 
-export default function BuildingImprovementDetailsPage() {
+export default function ImprovementAddEditPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
       <ScreenContainer key="static-container">
-        <BuildingDetails key={screenRefreshKey} />
+        <ImprovementAddEdit key={screenRefreshKey} />
       </ScreenContainer>
 
       {refreshing && (
