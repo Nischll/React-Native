@@ -4,6 +4,7 @@ import {
   RefreshControl,
   ScrollView,
   ScrollViewProps,
+  StatusBar,
   View,
 } from "react-native";
 import {
@@ -65,6 +66,11 @@ export default function ScreenContainer({
       edges={["top", "left", "right"]}
       className={`flex-1 ${backgroundClassName}`}
     >
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
       {shouldScroll ? (
         <ScrollView
           className="flex-1"

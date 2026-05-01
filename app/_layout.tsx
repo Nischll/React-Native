@@ -3,16 +3,11 @@ import { AuthProvider } from "@/src/providers/AuthProvider";
 import QueryProvider from "@/src/providers/QueryProvider";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import "../global.css";
 
 function RootLayoutInner() {
-  const insets = useSafeAreaInsets();
-
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />

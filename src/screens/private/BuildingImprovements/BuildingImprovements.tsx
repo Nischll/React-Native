@@ -291,7 +291,12 @@ export default function BuildingImprovements() {
                 {
                   label: "Edit",
                   icon: "create-outline",
-                  onPress: () => handleEdit(item),
+                  onPress: () =>
+                    router.push({
+                      pathname:
+                        "/(private)/building-improvements/improvement-add-edit",
+                      params: { improvementId: item.id },
+                    }),
                 },
                 {
                   label: "Delete",
