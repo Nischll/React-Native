@@ -25,7 +25,7 @@ export default function PageHeader({
     <View
       className={`
         flex-row items-center gap-2 mb-4
-        ${isDashboard ? "bg-primary" : ""}
+        ${isDashboard ? "bg-primary" : "pb-2 border-b border-slate-300 border-opacity-50"}
       `}
     >
       {/* Icon */}

@@ -27,15 +27,6 @@ import { Controller, useForm } from "react-hook-form";
 import { Platform, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-/**
- * Resolves a relative API image path to a full absolute URL.
- * BASE_URL typically ends with "/api" (e.g. "https://example.com/api").
- * fileUrl from the server starts with "/api/..." so we strip the trailing
- * "/api" from BASE_URL to avoid doubling it into ".../api/api/...".
- * Mirrors resolveImage() in ImprovementDetails.
- */
 function resolveUri(fileUrl?: string): string {
   if (!fileUrl) return "";
   if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://"))
