@@ -7,6 +7,7 @@ import { useState } from "react";
 import {
   Image,
   Keyboard,
+  StatusBar,
   Text,
   TouchableWithoutFeedback,
   View,
@@ -41,7 +42,12 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-white">
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
           className="flex-1"

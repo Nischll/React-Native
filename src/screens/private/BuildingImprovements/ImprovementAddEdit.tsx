@@ -127,7 +127,6 @@ export function ImprovementAddEdit() {
       project: item.project ?? "",
       subProject: item.subProject ?? "",
       location: item.location ?? "",
-      // Keep full ISO so DatePickerField can parse it correctly
       workDate: item.workDate ?? todayIso(),
       detailOfWork: item.detailOfWork ?? "",
     });
@@ -140,11 +139,10 @@ export function ImprovementAddEdit() {
 
     if (before?.fileUrl) {
       setBeforeImage({
-        // FIX: resolve relative API path → absolute URL so <Image> can render it
         uri: resolveUri(before.fileUrl),
         name: before.originalFileName ?? before.fileName ?? "before.jpg",
         mimeType: "image/jpeg",
-        isLocal: false, // remote — skip binary re-upload unless replaced
+        isLocal: false,
       });
     }
     if (after?.fileUrl) {

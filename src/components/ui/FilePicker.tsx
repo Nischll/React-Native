@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
 import { Image, Pressable, Text, TouchableOpacity, View } from "react-native";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,23 +15,14 @@ export interface PickedFile {
 export type FilePickerAccept = "images" | "files" | "all";
 
 interface FilePickerProps {
-  /** What to accept: images only, documents only, or both */
   accept?: FilePickerAccept;
-  /** Displayed above the pick area */
   label?: string;
-  /** Short contextual hint shown inside the empty state */
   hint?: string;
-  /** Currently picked/loaded file — null means empty */
   value: PickedFile | null;
-  /** Called when user picks a new file */
   onChange: (file: PickedFile | null) => void;
-  /** Optional accent colour (dot + border when empty). Defaults to indigo. */
   accentColor?: string;
-  /** Optional background colour of empty state. Defaults to light indigo tint. */
   accentBg?: string;
-  /** Height of the pick area. Default 140. */
   height?: number;
-  /** If true, shows a compact inline strip instead of a tall box (for non-image files) */
   compact?: boolean;
 }
 
@@ -59,32 +49,20 @@ export function FilePicker({
   height = 140,
   compact = false,
 }: FilePickerProps) {
-  // ── Pick handler ────────────────────────────────────────────────────────────
-
   async function handlePick() {
-    if (accept === "images") {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "Images" as any,
-        quality: 0.85,
-        allowsEditing: false,
-      });
-      if (result.canceled || !result.assets.length) return;
-      const asset = result.assets[0];
-      onChange({
-        uri: asset.uri,
-        name: asset.fileName ?? `image_${Date.now()}.jpg`,
-        mimeType: asset.mimeType ?? "image/jpeg",
-        isLocal: true,
-      });
-      return;
-    }
+    const mimeTypes =
+      accept === "images"
+        ? ["image/*"]
+        : accept === "files"
+          ? ["*/*"]
+          : ["image/*", "*/*"];
 
-    // "files" or "all"
     const result = await DocumentPicker.getDocumentAsync({
-      type: accept === "files" ? "*/*" : ["image/*", "*/*"],
+      type: mimeTypes,
       copyToCacheDirectory: true,
       multiple: false,
     });
+
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
     onChange({
@@ -99,7 +77,7 @@ export function FilePicker({
     onChange(null);
   }
 
-  // ── Compact strip (for non-image file display) ───────────────────────────
+  // ── Compact strip ─────────────────────────────────────────────────────────
 
   if (compact) {
     return (
@@ -130,7 +108,6 @@ export function FilePicker({
             gap: 10,
           }}
         >
-          {/* Icon */}
           <View
             style={{
               width: 36,
@@ -156,16 +133,11 @@ export function FilePicker({
             )}
           </View>
 
-          {/* Name / prompt */}
           <View style={{ flex: 1 }}>
             {value ? (
               <>
                 <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: "#111827",
-                  }}
+                  style={{ fontSize: 13, fontWeight: "600", color: "#111827" }}
                   numberOfLines={1}
                 >
                   {truncate(value.name)}
@@ -183,7 +155,6 @@ export function FilePicker({
             )}
           </View>
 
-          {/* Action button */}
           {value ? (
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity onPress={handlePick}>
@@ -215,13 +186,12 @@ export function FilePicker({
     );
   }
 
-  // ── Tall box (default — best for images) ─────────────────────────────────
+  // ── Tall box ──────────────────────────────────────────────────────────────
 
   const showImagePreview = value && isImage(value.mimeType);
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Label row */}
       {label && (
         <View
           style={{
@@ -245,7 +215,6 @@ export function FilePicker({
         </View>
       )}
 
-      {/* Pick area */}
       <Pressable
         onPress={value ? undefined : handlePick}
         style={{
@@ -267,7 +236,6 @@ export function FilePicker({
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
             />
-            {/* Overlay actions */}
             <View
               style={{
                 position: "absolute",
@@ -277,7 +245,6 @@ export function FilePicker({
                 gap: 6,
               }}
             >
-              {/* Replace */}
               <Pressable
                 onPress={handlePick}
                 style={{
@@ -295,7 +262,6 @@ export function FilePicker({
                   color="#fff"
                 />
               </Pressable>
-              {/* Remove */}
               <Pressable
                 onPress={handleRemove}
                 style={{
@@ -312,7 +278,6 @@ export function FilePicker({
             </View>
           </>
         ) : value ? (
-          // Non-image file preview inside tall box
           <View style={{ alignItems: "center", gap: 6, paddingHorizontal: 12 }}>
             <View
               style={{
@@ -391,7 +356,6 @@ export function FilePicker({
             </View>
           </View>
         ) : (
-          // Empty state
           <View style={{ alignItems: "center", gap: 6 }}>
             <View
               style={{

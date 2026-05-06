@@ -1,4 +1,4 @@
-import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import AppIcon from "../components/ui/AppIcon";
 import { UserData } from "../types/auth.types";
@@ -15,36 +15,31 @@ export function AvatarPicker({
   initials: UserData | null;
   remoteUri: string | null;
   localUri: string | null;
-  /** True while the upload mutation is in flight */
   saving?: boolean;
   onPick: (uri: string, fileName: string, mimeType: string) => void;
-  /** Called when user confirms the selected picture — parent fires the API */
   onSave?: () => void;
-  /** Called when user discards the selected picture */
   onCancel?: () => void;
 }) {
   const displayUri = localUri || remoteUri;
   const hasPendingImage = !!localUri;
 
   async function handlePick() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "Images" as any,
-      quality: 0.85,
-      allowsEditing: true,
-      aspect: [1, 1],
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ["image/*"],
+      copyToCacheDirectory: true,
+      multiple: false,
     });
-    if (result.canceled || !result.assets.length) return;
+    if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
     onPick(
       asset.uri,
-      asset.fileName ?? `avatar_${Date.now()}.jpg`,
+      asset.name ?? `avatar_${Date.now()}.jpg`,
       asset.mimeType ?? "image/jpeg",
     );
   }
 
   return (
     <View style={{ alignItems: "center", paddingVertical: 24 }}>
-      {/* Avatar circle */}
       <Pressable
         onPress={hasPendingImage ? undefined : handlePick}
         style={{ position: "relative" }}
@@ -59,7 +54,6 @@ export function AvatarPicker({
             justifyContent: "center",
             overflow: "hidden",
             borderWidth: 3,
-            // Highlight ring changes to amber when a new image is pending confirm
             borderColor: hasPendingImage ? "#FCD34D" : "#C7D2FE",
           }}
         >
@@ -82,7 +76,6 @@ export function AvatarPicker({
           )}
         </View>
 
-        {/* Camera / edit badge — hidden while a pending image awaits confirm */}
         {!hasPendingImage && (
           <View
             style={{
@@ -104,7 +97,6 @@ export function AvatarPicker({
         )}
       </Pressable>
 
-      {/* Name + username */}
       <Text
         style={{
           fontSize: 18,
@@ -119,7 +111,6 @@ export function AvatarPicker({
         @{initials?.username || "username"}
       </Text>
 
-      {/* ── Pending image action bar ── */}
       {hasPendingImage && (
         <View
           style={{
@@ -129,7 +120,6 @@ export function AvatarPicker({
             marginTop: 14,
           }}
         >
-          {/* Cancel */}
           <Pressable
             onPress={onCancel}
             disabled={saving}
@@ -149,7 +139,6 @@ export function AvatarPicker({
             </Text>
           </Pressable>
 
-          {/* Save picture */}
           <Pressable
             onPress={onSave}
             disabled={saving}
@@ -174,7 +163,6 @@ export function AvatarPicker({
             </Text>
           </Pressable>
 
-          {/* Change — lets them re-pick without cancelling */}
           <Pressable
             onPress={handlePick}
             disabled={saving}
