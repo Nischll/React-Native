@@ -1,12 +1,12 @@
 import ScreenContainer from "@/src/components/layout/ScreenContainer";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
-import Modules from "@/src/screens/private/Modules/Modules";
+import Updates from "@/src/screens/private/Updates/Updates";
 
-export default function ModulesPage() {
+export default function UpdatesPage() {
   const { screenRefreshKey } = useGlobalRefresh();
   return (
-    <ScreenContainer key="static-container">
-      <Modules key={screenRefreshKey} />
+    <ScreenContainer key="static-container" virtualized>
+      <Updates key={screenRefreshKey} />
     </ScreenContainer>
   );
 }

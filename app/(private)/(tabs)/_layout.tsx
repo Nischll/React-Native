@@ -1,3 +1,6 @@
+// app/(private)/(tabs)/_layout.tsx
+// Replace the "modules" tab with the new "updates" tab
+
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { Ionicons } from "@expo/vector-icons";
@@ -45,14 +48,15 @@ export default function TabsLayout() {
           }}
         />
 
+        {/* ── REPLACED: modules → updates ── */}
         <Tabs.Screen
-          name="modules"
+          name="updates"
           options={{
-            title: "Modules",
+            title: "Updates",
             tabBarIcon: ({ color, focused }) => (
               <TabIcon
-                icon="apps"
-                label="Modules"
+                icon="megaphone"
+                label="Updates"
                 color={color}
                 focused={focused}
               />
@@ -77,9 +81,16 @@ export default function TabsLayout() {
       </Tabs>
 
       {refreshing && (
-        <View className="absolute inset-0 bg-black/30 items-center justify-center z-50">
-          {/* <ActivityIndicator size="large" color="#2563eb" /> */}
-        </View>
+        <View
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.3)",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        />
       )}
     </>
   );
@@ -98,20 +109,10 @@ function TabIcon({
 }) {
   return (
     <View
-      className={`items-center justify-center rounded-2xl 
-    
-      `}
-      style={{
-        minWidth: 84,
-      }}
+      style={{ alignItems: "center", justifyContent: "center", minWidth: 84 }}
     >
       <AppIcon name={icon} color={color} size={22} />
-      <Text
-        className={`mt-1 text-sm font-semibold`}
-        style={{
-          color: color,
-        }}
-      >
+      <Text style={{ marginTop: 3, fontSize: 11, fontWeight: "600", color }}>
         {label}
       </Text>
     </View>

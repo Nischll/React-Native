@@ -167,7 +167,7 @@ export default function Home() {
             Quick Actions
           </Text>
 
-          <AnimatedPressable
+          {/* <AnimatedPressable
             onPress={() => router.push("/(private)/(tabs)/modules")}
           >
             <View className="flex-row items-center gap-1">
@@ -178,7 +178,7 @@ export default function Home() {
                 <AppIcon name="chevron-forward" size={16} color="#453956" />
               </View>
             </View>
-          </AnimatedPressable>
+          </AnimatedPressable> */}
         </View>
 
         {/* Quick Actions grid */}
