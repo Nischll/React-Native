@@ -16,6 +16,8 @@ export default function Updates() {
   const limit = 5;
   const [allNotices, setAllNotices] = useState<CommunicationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  // Track which card (by id) is currently swiped open — only one at a time
+  const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useGetCommunications(
     page,
@@ -37,12 +39,10 @@ export default function Updates() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-
+    setOpenSwipeId(null); // close any open swipe on refresh
     setPage(1);
     setAllNotices([]);
-
     await refetch();
-
     setRefreshing(false);
   };
 
@@ -69,6 +69,8 @@ export default function Updates() {
           paddingBottom: 6,
         }}
         showsVerticalScrollIndicator={false}
+        // Dismiss any open swipe when the list scrolls
+        onScrollBeginDrag={() => setOpenSwipeId(null)}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -117,7 +119,13 @@ export default function Updates() {
             </Pressable>
           ) : null
         }
-        renderItem={({ item }) => <NoticeCard item={item} />}
+        renderItem={({ item }) => (
+          <NoticeCard
+            item={item}
+            openSwipeId={openSwipeId}
+            onSwipeOpen={setOpenSwipeId}
+          />
+        )}
       />
     </View>
   );

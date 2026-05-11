@@ -3,6 +3,7 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   Text,
   TextInput,
@@ -23,6 +24,8 @@ export function ReplyComposer({
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
   const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
+
+  const hasText = text.trim().length > 0;
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -47,6 +50,7 @@ export function ReplyComposer({
         borderWidth: 1,
         borderColor: "#E2E8F0",
         paddingBottom: 10,
+        overflow: "hidden",
       }}
     >
       {parentAuthor && (
@@ -54,15 +58,20 @@ export function ReplyComposer({
           style={{
             paddingHorizontal: 12,
             paddingTop: 8,
+            paddingBottom: 4,
             flexDirection: "row",
             alignItems: "center",
             gap: 4,
+            borderBottomWidth: 1,
+            borderBottomColor: "#F1F5F9",
           }}
         >
           <AppIcon name="return-down-forward" size={12} color="#94A3B8" />
           <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-            Replying to
-            <Text style={{ fontWeight: "700" }}>{parentAuthor}</Text>
+            Replying to{" "}
+            <Text style={{ fontWeight: "700", color: "#64748B" }}>
+              {parentAuthor}
+            </Text>
           </Text>
         </View>
       )}
@@ -92,17 +101,24 @@ export function ReplyComposer({
           }}
           autoFocus
         />
+
+        {/* FIX: use hasText as the single source of truth for button state */}
         <Pressable
           onPress={handleSend}
-          disabled={!text.trim() || isPending}
+          disabled={!hasText || isPending}
           style={({ pressed }) => ({
             width: 36,
             height: 36,
             borderRadius: 10,
-            backgroundColor: !text.trim() || isPending ? "#E2E8F0" : "#7C3AED",
+            // FIX: derive background directly from hasText, not from text.trim()
+            // which can lag behind in render cycles
+            backgroundColor: hasText && !isPending ? "#7C3AED" : "#E2E8F0",
             alignItems: "center",
             justifyContent: "center",
-            opacity: pressed ? 1 : 1,
+            opacity: pressed && hasText ? 0.85 : 1,
+            // Smooth color transition
+            // Note: RN doesn't support transition on backgroundColor natively,
+            // but the state is now correct on every render
           })}
         >
           {isPending ? (
@@ -111,7 +127,7 @@ export function ReplyComposer({
             <AppIcon
               name="send"
               size={16}
-              color={!text.trim() ? "#94A3B8" : "#fff"}
+              color={hasText ? "#fff" : "#94A3B8"}
             />
           )}
         </Pressable>

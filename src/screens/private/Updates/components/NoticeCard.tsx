@@ -5,21 +5,29 @@ import {
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
-import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
-import { useState } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Animated,
+  Modal,
+  PanResponder,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
-import { ReplyComposer } from "./ReplyComposer";
-import { ReplyItem } from "./ReplyItem";
+import { RepliesSheet } from "./RepliesSheet";
 
 interface NoticeCardProps {
   item: CommunicationItem;
+  // Passed from the parent FlatList so only one card can be swiped at a time
+  openSwipeId: number | null;
+  onSwipeOpen: (id: number | null) => void;
 }
 
-// Highlights @mentions in purple
 function MessageText({ text }: { text: string }) {
   const parts = text.split(/(@[^@]+(?=@|$))/g);
   return (
@@ -37,18 +45,25 @@ function MessageText({ text }: { text: string }) {
   );
 }
 
-export function NoticeCard({ item }: NoticeCardProps) {
+const DELETE_REVEAL_WIDTH = 80;
+const SWIPE_THRESHOLD = 50;
+// Visual gap around card — gives the "floating" look
+const CARD_PADDING = 6;
+
+export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false;
+  const isSwiped = openSwipeId === item.id;
 
-  const [showReplies, setShowReplies] = useState(false);
-  const [showReplyComposer, setShowReplyComposer] = useState(false);
+  const [showRepliesSheet, setShowRepliesSheet] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.message);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const translateX = useRef(new Animated.Value(0)).current;
+  const deleteScale = useRef(new Animated.Value(0.8)).current;
 
   const { mutate: updateMsg, isPending: updating } =
     useUpdateCommunicationWithRefresh();
@@ -58,6 +73,60 @@ export function NoticeCard({ item }: NoticeCardProps) {
   const isLong = item.message.length > 180;
   const displayText =
     isLong && !expanded ? item.message.slice(0, 180) + "…" : item.message;
+
+  const snapOpen = () => {
+    Animated.spring(translateX, {
+      toValue: -DELETE_REVEAL_WIDTH,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 8,
+    }).start();
+    onSwipeOpen(item.id);
+  };
+
+  const snapClosed = () => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 8,
+    }).start();
+    deleteScale.setValue(0.8);
+    if (openSwipeId === item.id) onSwipeOpen(null);
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        isOwn && Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
+      onPanResponderMove: (_, g) => {
+        if (!isOwn) return;
+        const dx = Math.min(0, g.dx);
+        translateX.setValue(Math.max(-(DELETE_REVEAL_WIDTH + 10), dx));
+        const progress = Math.min(1, Math.abs(dx) / DELETE_REVEAL_WIDTH);
+        deleteScale.setValue(0.8 + progress * 0.2);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (!isOwn) return;
+        if (g.dx < -SWIPE_THRESHOLD) {
+          snapOpen();
+        } else {
+          snapClosed();
+        }
+      },
+    }),
+  ).current;
+
+  const handleDelete = () => {
+    Animated.timing(translateX, {
+      toValue: -500,
+      duration: 260,
+      useNativeDriver: true,
+    }).start(() => {
+      deleteMsg(item.id);
+      onSwipeOpen(null);
+    });
+  };
 
   const handleSaveEdit = () => {
     const trimmed = editText.trim();
@@ -71,248 +140,237 @@ export function NoticeCard({ item }: NoticeCardProps) {
     );
   };
 
-  const handleDelete = () => {
-    deleteMsg(item.id, { onSuccess: () => setShowDeleteModal(false) });
-  };
-
   return (
-    <Card
+    <View
       style={{
-        overflow: "hidden",
-        borderWidth: isNew ? 1.5 : 1,
-        borderColor: isNew ? "#7C3AED" : "#E2E8F0",
-        backgroundColor: "#fff",
+        marginBottom: 6,
+        paddingHorizontal: CARD_PADDING,
+        paddingVertical: CARD_PADDING,
       }}
-      className="mb-6"
     >
-      {/* Unseen strip */}
-      {isNew && <View style={{ height: 3, backgroundColor: "#7C3AED" }} />}
-
-      <View style={{ padding: 14 }}>
-        {/* Header */}
-        <View
-          style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}
-        >
-          <AuthorAvatar
-            fullName={item.createdByFullName}
-            size={38}
-            fontSize={13}
-          />
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "700",
-                  color: "#1E293B",
-                  flex: 1,
-                }}
-                numberOfLines={1}
-              >
-                {item.createdByFullName}
-              </Text>
-              {isNew && (
-                <View
-                  style={{
-                    backgroundColor: "#7C3AED",
-                    borderRadius: 99,
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    marginLeft: 6,
-                  }}
-                >
-                  <Text
-                    style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}
-                  >
-                    NEW
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 1 }}>
-              {timeAgo(item.createdDate)}
-            </Text>
-          </View>
-
-          {isOwn && (
-            <View style={{ flexDirection: "row", gap: 12, paddingTop: 2 }}>
-              <Pressable onPress={() => setEditing(true)} hitSlop={8}>
-                <AppIcon name="pencil-outline" size={16} color="#94A3B8" />
-              </Pressable>
-              <Pressable onPress={() => setShowDeleteModal(true)} hitSlop={8}>
-                <AppIcon name="trash-outline" size={16} color="#F87171" />
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        {/* Message */}
-        <View style={{ marginTop: 12 }}>
-          {editing ? (
-            <View
-              style={{
-                borderWidth: 1.5,
-                borderColor: "#7C3AED",
-                borderRadius: 12,
-                padding: 10,
-                backgroundColor: "#FAFAF9",
-              }}
-            >
-              <TextInput
-                value={editText}
-                onChangeText={setEditText}
-                multiline
-                autoFocus
-                style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
-              />
-              <View
-                style={{
-                  flexDirection: "row",
-                  gap: 12,
-                  marginTop: 8,
-                  justifyContent: "flex-end",
-                }}
-              >
-                <Pressable
-                  onPress={() => {
-                    setEditing(false);
-                    setEditText(item.message);
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: "#94A3B8",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Cancel
-                  </Text>
-                </Pressable>
-                <Pressable onPress={handleSaveEdit} disabled={updating}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: "#7C3AED",
-                      fontWeight: "700",
-                    }}
-                  >
-                    {updating ? "Saving…" : "Save"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <>
-              <MessageText text={displayText} />
-              {isLong && (
-                <Pressable
-                  onPress={() => setExpanded((v) => !v)}
-                  style={{ marginTop: 4 }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: "#7C3AED",
-                      fontWeight: "600",
-                    }}
-                  >
-                    {expanded ? "Show less" : "Read more"}
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          )}
-        </View>
-
-        {/* Reactions */}
-        <ReactionBar
-          communicationId={item.id}
-          reactions={item.reactions}
-          onOpenPicker={() => setShowReactionPicker(true)}
-        />
-
-        {/* Footer actions */}
+      {/*
+        Delete zone: uses the same CARD_PADDING inset so it sits flush
+        with the card edges — not bleeding into the outer padding gap.
+      */}
+      {isOwn && (
         <View
           style={{
-            flexDirection: "row",
+            position: "absolute",
+            right: CARD_PADDING,   // ← inset matches padding
+            top: CARD_PADDING,     // ← inset matches padding
+            bottom: CARD_PADDING,  // ← inset matches padding
+            width: DELETE_REVEAL_WIDTH,
+            backgroundColor: "#FEE2E2",
+            borderTopRightRadius: 16,
+            borderBottomRightRadius: 16,
             alignItems: "center",
-            marginTop: 12,
-            paddingTop: 10,
-            borderTopWidth: 1,
-            borderTopColor: "#F1F5F9",
-            gap: 16,
+            justifyContent: "center",
           }}
         >
           <Pressable
-            onPress={() => setShowReplyComposer((v) => !v)}
-            style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+            onPress={handleDelete}
+            disabled={deleting}
+            style={{ alignItems: "center", gap: 4 }}
           >
-            <AppIcon
-              name="chatbubble-outline"
-              size={15}
-              color={showReplyComposer ? "#7C3AED" : "#64748B"}
-            />
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: showReplyComposer ? "#7C3AED" : "#64748B",
-              }}
-            >
-              Reply
+            <Animated.View style={{ transform: [{ scale: deleteScale }] }}>
+              <AppIcon name="trash-outline" size={22} color="#EF4444" />
+            </Animated.View>
+            <Text style={{ fontSize: 10, color: "#EF4444", fontWeight: "700" }}>
+              Delete
             </Text>
           </Pressable>
-
-          {item.replies.length > 0 && (
-            <Pressable
-              onPress={() => setShowReplies((v) => !v)}
-              style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
-            >
-              <AppIcon
-                name={
-                  showReplies ? "chevron-up-outline" : "chevron-down-outline"
-                }
-                size={15}
-                color="#64748B"
-              />
-              <Text
-                style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}
-              >
-                {item.replies.length}{" "}
-                {item.replies.length === 1 ? "reply" : "replies"}
-              </Text>
-            </Pressable>
-          )}
         </View>
+      )}
 
-        {showReplyComposer && (
-          <ReplyComposer
-            parentId={item.id}
-            parentAuthor={item.createdByFullName}
-            onDone={() => setShowReplyComposer(false)}
-          />
-        )}
+      {/*
+        Full-screen tap-to-close overlay.
+        Sits above the delete zone (zIndex 5) but below the card (zIndex 6).
+        Extends far beyond the card so any tap anywhere dismisses the swipe.
+        Only mounted when THIS card is open — so it can't intercept other cards.
+      */}
+      {isSwiped && (
+        <Pressable
+          onPress={snapClosed}
+          style={{
+            position: "absolute",
+            top: -2000,
+            left: -2000,
+            right: -2000,
+            bottom: -2000,
+            zIndex: 5,
+          }}
+        />
+      )}
 
-        {showReplies && item.replies.length > 0 && (
-          <View
-            style={{
-              marginTop: 12,
-              paddingTop: 12,
-              borderTopWidth: 1,
-              borderTopColor: "#F1F5F9",
-              gap: 12,
-              paddingLeft: 4,
-            }}
-          >
-            {item.replies.map((reply) => (
-              <ReplyItem key={reply.id} item={reply} depth={0} />
-            ))}
+      {/* Swipeable card — zIndex 6 so it renders above the close overlay */}
+      <Animated.View
+        style={{
+          transform: [{ translateX }],
+          zIndex: 6,
+          borderRadius: 16,
+          // Clip so card slides cleanly without overflow bleed
+          overflow: "hidden",
+        }}
+        {...(isOwn ? panResponder.panHandlers : {})}
+      >
+        <Card
+          style={{
+            borderWidth: isNew ? 1.5 : 1,
+            borderColor: isNew ? "#7C3AED" : "#E2E8F0",
+            backgroundColor: "#fff",
+            borderRadius: 16,
+            shadowColor: "#64748B",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+          }}
+        >
+          {isNew && <View style={{ height: 3, backgroundColor: "#7C3AED" }} />}
+
+          <View style={{ padding: 14 }}>
+            {/* Header */}
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+              <AuthorAvatar
+                fullName={item.createdByFullName}
+                size={38}
+                fontSize={13}
+              />
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "700",
+                      color: "#1E293B",
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {item.createdByFullName}
+                  </Text>
+                  {isNew && (
+                    <View
+                      style={{
+                        backgroundColor: "#7C3AED",
+                        borderRadius: 99,
+                        paddingHorizontal: 7,
+                        paddingVertical: 2,
+                        marginLeft: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>
+                        NEW
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 1 }}>
+                  {timeAgo(item.createdDate)}
+                </Text>
+              </View>
+
+              {isOwn && (
+                <Pressable onPress={() => setEditing(true)} hitSlop={8} style={{ paddingTop: 2 }}>
+                  <AppIcon name="pencil-outline" size={16} color="#94A3B8" />
+                </Pressable>
+              )}
+            </View>
+
+            {/* Message */}
+            <View style={{ marginTop: 12 }}>
+              {editing ? (
+                <View
+                  style={{
+                    borderWidth: 1.5,
+                    borderColor: "#7C3AED",
+                    borderRadius: 12,
+                    padding: 10,
+                    backgroundColor: "#FAFAF9",
+                  }}
+                >
+                  <TextInput
+                    value={editText}
+                    onChangeText={setEditText}
+                    multiline
+                    autoFocus
+                    style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
+                  />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 12,
+                      marginTop: 8,
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <Pressable onPress={() => { setEditing(false); setEditText(item.message); }}>
+                      <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600" }}>Cancel</Text>
+                    </Pressable>
+                    <Pressable onPress={handleSaveEdit} disabled={updating}>
+                      <Text style={{ fontSize: 13, color: "#7C3AED", fontWeight: "700" }}>
+                        {updating ? "Saving…" : "Save"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <MessageText text={displayText} />
+                  {isLong && (
+                    <Pressable onPress={() => setExpanded((v) => !v)} style={{ marginTop: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#7C3AED", fontWeight: "600" }}>
+                        {expanded ? "Show less" : "Read more"}
+                      </Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+            </View>
+
+            {/* Reactions */}
+            <ReactionBar
+              communicationId={item.id}
+              reactions={item.reactions}
+              onOpenPicker={() => setShowReactionPicker(true)}
+            />
+
+            {/* Footer */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 12,
+                paddingTop: 10,
+                borderTopWidth: 1,
+                borderTopColor: "#F1F5F9",
+                gap: 16,
+              }}
+            >
+              <Pressable
+                onPress={() => setShowRepliesSheet(true)}
+                style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+              >
+                <AppIcon name="chatbubble-outline" size={15} color="#64748B" />
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+                  {item.replies.length > 0
+                    ? `${item.replies.length} ${item.replies.length === 1 ? "reply" : "replies"}`
+                    : "Reply"}
+                </Text>
+              </Pressable>
+
+              {isOwn && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+                  <AppIcon name="arrow-back-outline" size={11} color="#CBD5E1" />
+                  <Text style={{ fontSize: 11, color: "#CBD5E1" }}>Swipe to delete</Text>
+                </View>
+              )}
+            </View>
           </View>
-        )}
-      </View>
+        </Card>
+      </Animated.View>
 
-      {/* Reaction Picker Modal */}
+      {/* Reaction Picker */}
       <Modal
         visible={showReactionPicker}
         transparent
@@ -321,12 +379,7 @@ export function NoticeCard({ item }: NoticeCardProps) {
         onRequestClose={() => setShowReactionPicker(false)}
       >
         <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            padding: 32,
-          }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.3)", justifyContent: "center", padding: 32 }}
           onPress={() => setShowReactionPicker(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
@@ -338,16 +391,12 @@ export function NoticeCard({ item }: NoticeCardProps) {
         </Pressable>
       </Modal>
 
-      <ConfirmModal
-        visible={showDeleteModal}
-        title="Delete Notice"
-        message="This will permanently delete this notice and all its replies."
-        confirmText="Delete"
-        destructive
-        loading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteModal(false)}
+      {/* Replies sheet */}
+      <RepliesSheet
+        visible={showRepliesSheet}
+        parentItem={item}
+        onClose={() => setShowRepliesSheet(false)}
       />
-    </Card>
+    </View>
   );
 }
