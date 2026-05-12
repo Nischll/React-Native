@@ -8,7 +8,7 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -354,21 +354,49 @@ export function RepliesSheet({
     useDeleteCommunicationWithRefresh();
 
   const hasText = replyText.trim().length > 0;
-  const flatReplies = parentItem.replies ?? [];
+
+  const [localReplies, setLocalReplies] = useState<CommunicationItem[]>(
+    parentItem.replies ?? [],
+  );
+
+  useEffect(() => {
+    setLocalReplies(parentItem.replies ?? []);
+  }, [parentItem]);
+
+  const flatReplies = localReplies.filter((r) => r.parentId === parentItem.id);
 
   const handleSend = () => {
     const trimmed = replyText.trim();
     if (!trimmed) return;
+
     create(
-      { message: trimmed, parentId: parentItem.id },
-      { onSuccess: () => setReplyText("") },
+      {
+        message: trimmed,
+        parentId: parentItem.id,
+      },
+      {
+        onSuccess: (res: any) => {
+          const newReply = res?.data?.data || res?.data || res;
+
+          if (newReply) {
+            setLocalReplies((prev) => [...prev, newReply]);
+          }
+
+          setReplyText("");
+        },
+      },
     );
   };
 
   const handleDelete = () => {
     if (!deleteTargetId) return;
+
     deleteMsg(deleteTargetId, {
-      onSuccess: () => setDeleteTargetId(null),
+      onSuccess: () => {
+        setLocalReplies((prev) => prev.filter((r) => r.id !== deleteTargetId));
+
+        setDeleteTargetId(null);
+      },
     });
   };
 
@@ -380,258 +408,213 @@ export function RepliesSheet({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/*
-        FIX: Full-screen flex container so KeyboardAvoidingView
-        can push the sheet up correctly on first open.
-        Using flex:1 here instead of a bare Pressable backdrop
-        means the sheet's KAV has a proper parent to measure against.
-      */}
-      <View style={{ flex: 1 }}>
-        {/* Tap backdrop to close */}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.4)",
+        }}
+      >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}
+          style={{ flex: 1 }}
           onPress={() => {
             Keyboard.dismiss();
             onClose();
           }}
         />
 
-        {/*
-          FIX for keyboard hiding composer:
-          - On iOS: behavior="padding" works correctly
-          - On Android: behavior="height" is unreliable; instead we use
-            keyboardVerticalOffset and rely on the Modal's
-            windowSoftInputMode. The real fix on Android is wrapping in
-            a View with position absolute and using the
-            `android:windowSoftInputMode="adjustResize"` in AndroidManifest.
-            As a pure-RN workaround, we set behavior="padding" on both
-            platforms inside a Modal — this works because the Modal renders
-            in its own window context on Android too.
-        */}
         <KeyboardAvoidingView
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
           style={{
-            backgroundColor: "#fff",
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            // FIX: maxHeight as a flex constraint, not absolute
-            // so KAV can shrink it when keyboard appears
-            maxHeight: "82%",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.12,
-            shadowRadius: 20,
-            elevation: 20,
+            flex: 1,
+            justifyContent: "flex-end",
           }}
         >
-          {/* Drag handle */}
           <View
-            style={{ alignItems: "center", paddingTop: 10, paddingBottom: 4 }}
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              // maxHeight: "82%",
+              minHeight: "85%",
+              paddingBottom: Platform.OS === "ios" ? 32 : 16,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.12,
+              shadowRadius: 20,
+              elevation: 20,
+            }}
           >
+            {/* Header */}
             <View
               style={{
-                width: 36,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: "#E2E8F0",
-              }}
-            />
-          </View>
-
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 16,
-              paddingTop: 8,
-              paddingBottom: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: "#F1F5F9",
-            }}
-          >
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 16,
-                fontWeight: "700",
-                color: "#1E293B",
-              }}
-            >
-              {flatReplies.length}{" "}
-              {flatReplies.length === 1 ? "Reply" : "Replies"}
-            </Text>
-            <Pressable
-              onPress={() => {
-                Keyboard.dismiss();
-                onClose();
-              }}
-              hitSlop={12}
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 15,
-                backgroundColor: "#F1F5F9",
+                flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <AppIcon name="close" size={16} color="#64748B" />
-            </Pressable>
-          </View>
-
-          {/* Original post preview */}
-          <View
-            style={{
-              marginHorizontal: 16,
-              marginTop: 12,
-              marginBottom: 8,
-              padding: 12,
-              backgroundColor: "#FAFAFA",
-              borderRadius: 12,
-              borderLeftWidth: 3,
-              borderLeftColor: "#7C3AED",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: "700",
-                color: "#7C3AED",
-                marginBottom: 2,
-              }}
-            >
-              {parentItem.createdByFullName}
-            </Text>
-            <Text
-              style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
-              numberOfLines={3}
-            >
-              {parentItem.message}
-            </Text>
-          </View>
-
-          {/*
-            FIX: FlatList inside a flex:1 View so it doesn't expand
-            to push the composer off screen. The composer is anchored
-            at the bottom of KAV, FlatList takes remaining space.
-          */}
-          <View style={{ flex: 1 }}>
-            <FlatList
-              data={flatReplies}
-              keyExtractor={(r) => String(r.id)}
-              contentContainerStyle={{
                 paddingHorizontal: 16,
-                paddingTop: 4,
-                paddingBottom: 8,
-                gap: 8,
+                paddingTop: 8,
+                paddingBottom: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: "#F1F5F9",
               }}
-              showsVerticalScrollIndicator={false}
-              // Close any open swipe when list scrolls
-              onScrollBeginDrag={() => setOpenSwipeId(null)}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                  <Text style={{ fontSize: 13, color: "#94A3B8" }}>
-                    No replies yet. Be the first!
-                  </Text>
-                </View>
-              }
-              renderItem={({ item }) => (
-                <ReplyRow
-                  item={item}
-                  openSwipeId={openSwipeId}
-                  onSwipeOpen={setOpenSwipeId}
-                  onRequestDelete={setDeleteTargetId}
-                />
-              )}
-            />
-          </View>
+            >
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: "#1E293B",
+                }}
+              >
+                {flatReplies.length}{" "}
+                {flatReplies.length === 1 ? "Reply" : "Replies"}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Keyboard.dismiss();
+                  onClose();
+                }}
+                hitSlop={12}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  backgroundColor: "#F1F5F9",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AppIcon name="close" size={16} color="#64748B" />
+              </Pressable>
+            </View>
 
-          {/*
-            Composer — always at the bottom of KAV.
-            FIX for send button disappearing: the row uses flexDirection:"row"
-            with alignItems:"flex-end". On Android, when the TextInput grows,
-            the button was being pushed out of bounds because the parent had
-            no explicit height constraint. Fixed by giving the outer composer
-            View a minHeight and ensuring the button has an explicit
-            alignSelf:"flex-end" so it never gets stretched or hidden.
-          */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-end",
-              paddingHorizontal: 16,
-              paddingTop: 10,
-              paddingBottom: Platform.OS === "ios" ? 32 : 16,
-              borderTopWidth: 1,
-              borderTopColor: "#F1F5F9",
-              gap: 10,
-              // Prevent composer from being zero-height on first render
-              minHeight: Platform.OS === "ios" ? 80 : 64,
-            }}
-          >
-            <TextInput
-              value={replyText}
-              onChangeText={setReplyText}
-              placeholder={`Reply to ${parentItem.createdByFullName}…`}
-              placeholderTextColor="#CBD5E1"
-              multiline
-              // FIX: explicit textAlignVertical so Android doesn't
-              // misalign the text and cause layout recalculation issues
-              textAlignVertical="top"
+            {/* Original post preview */}
+            <View
               style={{
-                flex: 1,
-                fontSize: 14,
-                color: "#1E293B",
-                backgroundColor: "#F8FAFC",
-                borderWidth: 1,
-                borderColor: "#E2E8F0",
+                marginHorizontal: 16,
+                marginTop: 12,
+                marginBottom: 8,
+                padding: 12,
+                backgroundColor: "#FAFAFA",
                 borderRadius: 12,
-                paddingHorizontal: 12,
-                paddingTop: 10,
-                paddingBottom: 10,
-                // FIX: explicit min/max heights prevent Android layout
-                // thrashing that caused the button to disappear
-                minHeight: 42,
-                maxHeight: 100,
+                borderLeftWidth: 3,
+                borderLeftColor: "#7C3AED",
               }}
-            />
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: "#7C3AED",
+                  marginBottom: 2,
+                }}
+              >
+                {parentItem.createdByFullName}
+              </Text>
+              <Text
+                style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
+                numberOfLines={3}
+              >
+                {parentItem.message}
+              </Text>
+            </View>
 
-            {/*
-              FIX for send button disappearing:
-              - alignSelf:"flex-end" anchors it to the bottom of the row
-              - explicit width+height so it can never collapse to 0
-              - backgroundColor derived from hasText (computed once, not inline)
-                so it always reflects current state without render lag
-            */}
-            <Pressable
-              onPress={handleSend}
-              disabled={!hasText || sending}
-              style={({ pressed }) => ({
-                width: 42,
-                height: 42,
-                minWidth: 42, // prevent flex from collapsing it
-                minHeight: 42,
-                borderRadius: 12,
-                backgroundColor: hasText && !sending ? "#7C3AED" : "#E2E8F0",
+            <View style={{ flex: 1, minHeight: 0 }}>
+              <FlatList
+                data={flatReplies}
+                keyExtractor={(r) => String(r.id)}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingTop: 4,
+                  paddingBottom: 8,
+                  gap: 8,
+                }}
+                showsVerticalScrollIndicator={false}
+                onScrollBeginDrag={() => setOpenSwipeId(null)}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                    <Text style={{ fontSize: 13, color: "#94A3B8" }}>
+                      No replies yet. Be the first!
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <ReplyRow
+                    item={item}
+                    openSwipeId={openSwipeId}
+                    onSwipeOpen={setOpenSwipeId}
+                    onRequestDelete={setDeleteTargetId}
+                  />
+                )}
+              />
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
-                alignSelf: "flex-end",
-                opacity: pressed && hasText ? 0.85 : 1,
-              })}
+                alignContent: "center",
+                paddingHorizontal: 16,
+                paddingTop: 10,
+                paddingBottom: Platform.OS === "ios" ? 32 : 16,
+                borderTopWidth: 1,
+                borderTopColor: "#F1F5F9",
+                gap: 10,
+                minHeight: Platform.OS === "ios" ? 80 : 64,
+              }}
             >
-              {sending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <AppIcon
-                  name="send"
-                  size={16}
-                  color={hasText ? "#fff" : "#94A3B8"}
-                />
-              )}
-            </Pressable>
+              <TextInput
+                value={replyText}
+                onChangeText={setReplyText}
+                placeholder={`Reply to ${parentItem.createdByFullName}…`}
+                placeholderTextColor="#CBD5E1"
+                multiline
+                textAlignVertical="top"
+                style={{
+                  flex: 1,
+                  fontSize: 14,
+                  color: "#1E293B",
+                  backgroundColor: "#F8FAFC",
+                  borderWidth: 1,
+                  borderColor: "#E2E8F0",
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  paddingTop: 10,
+                  paddingBottom: 10,
+
+                  minHeight: 42,
+                  maxHeight: 100,
+                }}
+              />
+
+              <Pressable
+                onPress={handleSend}
+                disabled={!hasText || sending}
+                style={({ pressed }) => ({
+                  width: 42,
+                  height: 42,
+                  minWidth: 42,
+                  minHeight: 42,
+                  borderRadius: 12,
+                  backgroundColor: hasText && !sending ? "#7C3AED" : "#E2E8F0",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  alignSelf: "flex-end",
+                  opacity: pressed && hasText ? 0.85 : 1,
+                })}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color="black" />
+                ) : (
+                  <AppIcon
+                    name="send"
+                    size={18}
+                    color={hasText ? "black" : "#94A3B8"}
+                  />
+                )}
+              </Pressable>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </View>

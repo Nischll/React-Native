@@ -50,7 +50,11 @@ const SWIPE_THRESHOLD = 50;
 // Visual gap around card — gives the "floating" look
 const CARD_PADDING = 6;
 
-export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) {
+export function NoticeCard({
+  item,
+  openSwipeId,
+  onSwipeOpen,
+}: NoticeCardProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false;
@@ -148,17 +152,13 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
         paddingVertical: CARD_PADDING,
       }}
     >
-      {/*
-        Delete zone: uses the same CARD_PADDING inset so it sits flush
-        with the card edges — not bleeding into the outer padding gap.
-      */}
       {isOwn && (
         <View
           style={{
             position: "absolute",
-            right: CARD_PADDING,   // ← inset matches padding
-            top: CARD_PADDING,     // ← inset matches padding
-            bottom: CARD_PADDING,  // ← inset matches padding
+            right: CARD_PADDING, // ← inset matches padding
+            top: CARD_PADDING, // ← inset matches padding
+            bottom: CARD_PADDING, // ← inset matches padding
             width: DELETE_REVEAL_WIDTH,
             backgroundColor: "#FEE2E2",
             borderTopRightRadius: 16,
@@ -182,12 +182,6 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
         </View>
       )}
 
-      {/*
-        Full-screen tap-to-close overlay.
-        Sits above the delete zone (zIndex 5) but below the card (zIndex 6).
-        Extends far beyond the card so any tap anywhere dismisses the swipe.
-        Only mounted when THIS card is open — so it can't intercept other cards.
-      */}
       {isSwiped && (
         <Pressable
           onPress={snapClosed}
@@ -230,7 +224,13 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
 
           <View style={{ padding: 14 }}>
             {/* Header */}
-            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 10,
+              }}
+            >
               <AuthorAvatar
                 fullName={item.createdByFullName}
                 size={38}
@@ -259,7 +259,13 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
                         marginLeft: 6,
                       }}
                     >
-                      <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: "#fff",
+                          fontWeight: "700",
+                        }}
+                      >
                         NEW
                       </Text>
                     </View>
@@ -271,7 +277,11 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
               </View>
 
               {isOwn && (
-                <Pressable onPress={() => setEditing(true)} hitSlop={8} style={{ paddingTop: 2 }}>
+                <Pressable
+                  onPress={() => setEditing(true)}
+                  hitSlop={8}
+                  style={{ paddingTop: 2 }}
+                >
                   <AppIcon name="pencil-outline" size={16} color="#94A3B8" />
                 </Pressable>
               )}
@@ -304,11 +314,30 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
                       justifyContent: "flex-end",
                     }}
                   >
-                    <Pressable onPress={() => { setEditing(false); setEditText(item.message); }}>
-                      <Text style={{ fontSize: 13, color: "#94A3B8", fontWeight: "600" }}>Cancel</Text>
+                    <Pressable
+                      onPress={() => {
+                        setEditing(false);
+                        setEditText(item.message);
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: "#94A3B8",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Cancel
+                      </Text>
                     </Pressable>
                     <Pressable onPress={handleSaveEdit} disabled={updating}>
-                      <Text style={{ fontSize: 13, color: "#7C3AED", fontWeight: "700" }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: "#7C3AED",
+                          fontWeight: "700",
+                        }}
+                      >
                         {updating ? "Saving…" : "Save"}
                       </Text>
                     </Pressable>
@@ -318,8 +347,17 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
                 <>
                   <MessageText text={displayText} />
                   {isLong && (
-                    <Pressable onPress={() => setExpanded((v) => !v)} style={{ marginTop: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#7C3AED", fontWeight: "600" }}>
+                    <Pressable
+                      onPress={() => setExpanded((v) => !v)}
+                      style={{ marginTop: 4 }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: "#7C3AED",
+                          fontWeight: "600",
+                        }}
+                      >
                         {expanded ? "Show less" : "Read more"}
                       </Text>
                     </Pressable>
@@ -352,7 +390,9 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
                 <AppIcon name="chatbubble-outline" size={15} color="#64748B" />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+                <Text
+                  style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}
+                >
                   {item.replies.length > 0
                     ? `${item.replies.length} ${item.replies.length === 1 ? "reply" : "replies"}`
                     : "Reply"}
@@ -360,9 +400,22 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
               </Pressable>
 
               {isOwn && (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-                  <AppIcon name="arrow-back-outline" size={11} color="#CBD5E1" />
-                  <Text style={{ fontSize: 11, color: "#CBD5E1" }}>Swipe to delete</Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    marginLeft: "auto",
+                  }}
+                >
+                  <AppIcon
+                    name="arrow-back-outline"
+                    size={11}
+                    color="#CBD5E1"
+                  />
+                  <Text style={{ fontSize: 11, color: "#CBD5E1" }}>
+                    Swipe to delete
+                  </Text>
                 </View>
               )}
             </View>
@@ -379,7 +432,12 @@ export function NoticeCard({ item, openSwipeId, onSwipeOpen }: NoticeCardProps) 
         onRequestClose={() => setShowReactionPicker(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.3)", justifyContent: "center", padding: 32 }}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.3)",
+            justifyContent: "center",
+            padding: 32,
+          }}
           onPress={() => setShowReactionPicker(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>

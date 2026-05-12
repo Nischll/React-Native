@@ -2,22 +2,31 @@ import {
   CommunicationItem,
   useGetCommunications,
 } from "@/src/api/communication.api";
-import EmptyState from "@/src/components/feedback/EmptyState";
-import LoadingState from "@/src/components/feedback/LoadingState";
+import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { NoticeCard } from "@/src/screens/private/Updates/components/NoticeCard";
 import { NoticeComposer } from "@/src/screens/private/Updates/components/NoticeComposer";
-import { useEffect, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 export default function Updates() {
   const [page, setPage] = useState(1);
   const limit = 5;
   const [allNotices, setAllNotices] = useState<CommunicationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  // Track which card (by id) is currently swiped open — only one at a time
   const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
+
+  // Track whether the next data arrival is a reset (page 1 from refresh)
+  // so we replace allNotices instead of appending.
+  const isResetRef = useRef(false);
 
   const { data, isLoading, isFetching, refetch } = useGetCommunications(
     page,
@@ -28,25 +37,44 @@ export default function Updates() {
   const unseenCount = data?.data?.unseenCount ?? 0;
 
   useEffect(() => {
-    if (page === 1) {
-      setAllNotices(notices);
-    } else {
-      setAllNotices((prev) => [...prev, ...notices]);
+    if (notices.length === 0 && page === 1) {
+      // API returned empty — just clear the list
+      setAllNotices([]);
+      return;
     }
-  }, [notices, page]);
+    if (page === 1 || isResetRef.current) {
+      // First page or a reset: replace entirely
+      setAllNotices(notices);
+      isResetRef.current = false;
+    } else {
+      // Subsequent pages: append, deduplicating by id
+      setAllNotices((prev) => {
+        const existingIds = new Set(prev.map((n) => n.id));
+        const fresh = notices.filter((n) => !existingIds.has(n.id));
+        return [...prev, ...fresh];
+      });
+    }
+  }, [notices]);
 
-  const hasMore = allNotices.length < total;
+  // "Load more" should only show when:
+  // 1. We actually have items, AND
+  // 2. There are more items on the server than what we've loaded
+  const hasMore = allNotices.length > 0 && allNotices.length < total;
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    setOpenSwipeId(null); // close any open swipe on refresh
-    setPage(1);
-    setAllNotices([]);
-    await refetch();
+    setOpenSwipeId(null);
+    // Mark next data arrival as a reset so useEffect replaces allNotices
+    isResetRef.current = true;
+    // Go back to page 1 — if already on page 1 this won't trigger useEffect,
+    // so we call refetch() explicitly to force a fresh fetch
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      await refetch();
+    }
     setRefreshing(false);
   };
-
-  if (isLoading) return <LoadingState message="Loading notices…" />;
 
   return (
     <View style={{ flex: 1 }}>
@@ -65,11 +93,10 @@ export default function Updates() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{
           paddingHorizontal: 6,
-          paddingTop: 12,
+          // paddingTop: 12,
           paddingBottom: 6,
         }}
         showsVerticalScrollIndicator={false}
-        // Dismiss any open swipe when the list scrolls
         onScrollBeginDrag={() => setOpenSwipeId(null)}
         refreshControl={
           <RefreshControl
@@ -81,10 +108,32 @@ export default function Updates() {
         }
         ListHeaderComponent={<NoticeComposer />}
         ListEmptyComponent={
-          <EmptyState
-            title="No Notices Yet"
-            message="Be the first to post an update for the team."
-          />
+          !isLoading ? (
+            <View style={{ flex: 1 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 12,
+                  paddingTop: 12,
+                  paddingBottom: 24,
+                  gap: 12,
+                }}
+                showsVerticalScrollIndicator={false}
+              >
+                <View
+                  style={{
+                    height: 56,
+                    borderRadius: 14,
+                    backgroundColor: "#F1F5F9",
+                    marginBottom: 4,
+                  }}
+                />
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null
         }
         ListFooterComponent={
           hasMore ? (
