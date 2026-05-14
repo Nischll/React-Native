@@ -3,6 +3,7 @@ import { AuthProvider } from "@/src/providers/AuthProvider";
 import QueryProvider from "@/src/providers/QueryProvider";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
+import { PaperProvider, Portal } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import "../global.css";
@@ -29,9 +30,11 @@ export default function RootLayout() {
     <QueryProvider>
       <SafeAreaProvider>
         <AuthProvider>
-          {/* <Stack screenOptions={{ headerShown: false }} />
-          <Toast config={toastConfig} /> */}
-          <RootLayoutInner />
+          <PaperProvider>
+            <Portal.Host>
+              <RootLayoutInner />
+            </Portal.Host>
+          </PaperProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </QueryProvider>

@@ -1,7 +1,14 @@
-import AppIcon from "@/src/components/ui/AppIcon";
 import { useCreateCommunicationWithRefresh } from "@/src/api/communication.api";
+import AppIcon from "@/src/components/ui/AppIcon";
+import { MentionTextInput } from "@/src/helper/mentionTextInput";
 import { useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export function NoticeComposer() {
   const [text, setText] = useState("");
@@ -20,7 +27,7 @@ export function NoticeComposer() {
           setFocused(false);
           inputRef.current?.blur();
         },
-      }
+      },
     );
   };
 
@@ -33,12 +40,13 @@ export function NoticeComposer() {
   return (
     <View
       style={{
+        position: "relative",
         backgroundColor: "#fff",
         borderRadius: 18,
         borderWidth: focused ? 1.5 : 1,
         borderColor: focused ? "#7C3AED" : "#E2E8F0",
         marginBottom: 16,
-        overflow: "hidden",
+        overflow: "visible",
         shadowColor: focused ? "#7C3AED" : "#000",
         shadowOpacity: focused ? 0.08 : 0.04,
         shadowRadius: 8,
@@ -46,14 +54,29 @@ export function NoticeComposer() {
         elevation: focused ? 4 : 1,
       }}
     >
-      <View style={{ paddingHorizontal: 14, paddingTop: 12, flexDirection: "row", alignItems: "center", gap: 6 }}>
+      <View
+        style={{
+          paddingHorizontal: 14,
+          paddingTop: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
         <AppIcon name="megaphone-outline" size={14} color="#7C3AED" />
-        <Text style={{ fontSize: 12, fontWeight: "700", color: "#7C3AED", letterSpacing: 0.5 }}>
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "700",
+            color: "#7C3AED",
+            letterSpacing: 0.5,
+          }}
+        >
           POST A NOTICE
         </Text>
       </View>
 
-      <TextInput
+      <MentionTextInput
         ref={inputRef}
         value={text}
         onChangeText={setText}
@@ -61,24 +84,39 @@ export function NoticeComposer() {
         placeholder="Share an update with the team…"
         placeholderTextColor="#CBD5E1"
         multiline
-        style={{
-          fontSize: 14,
-          color: "#1E293B",
-          paddingHorizontal: 14,
-          paddingTop: 8,
-          paddingBottom: focused ? 4 : 12,
-          minHeight: focused ? 80 : 40,
-          maxHeight: 160,
-        }}
+        className="
+          text-[14px]
+          text-slate-800
+          px-[14px]
+          pt-2
+          pb-3
+          max-h-[160px]
+        "
       />
 
       {focused && (
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 12, paddingBottom: 10, gap: 8 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            paddingHorizontal: 12,
+            paddingBottom: 10,
+            gap: 8,
+          }}
+        >
           <Pressable
             onPress={handleCancel}
-            style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: "#F1F5F9" }}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 10,
+              backgroundColor: "#F1F5F9",
+            }}
           >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>Cancel</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}>
+              Cancel
+            </Text>
           </Pressable>
 
           <Pressable
@@ -91,15 +129,26 @@ export function NoticeComposer() {
               paddingHorizontal: 16,
               paddingVertical: 7,
               borderRadius: 10,
-              backgroundColor: !text.trim() || isPending ? "#E2E8F0" : "#7C3AED",
+              backgroundColor:
+                !text.trim() || isPending ? "#E2E8F0" : "#7C3AED",
             }}
           >
             {isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <AppIcon name="send" size={14} color={!text.trim() ? "#94A3B8" : "#fff"} />
+              <AppIcon
+                name="send"
+                size={14}
+                color={!text.trim() ? "#94A3B8" : "#fff"}
+              />
             )}
-            <Text style={{ fontSize: 13, fontWeight: "700", color: !text.trim() || isPending ? "#94A3B8" : "#fff" }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: !text.trim() || isPending ? "#94A3B8" : "#fff",
+              }}
+            >
               {isPending ? "Posting…" : "Post"}
             </Text>
           </Pressable>
