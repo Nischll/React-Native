@@ -24,8 +24,6 @@ export default function Updates() {
   const [refreshing, setRefreshing] = useState(false);
   const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
 
-  // Track whether the next data arrival is a reset (page 1 from refresh)
-  // so we replace allNotices instead of appending.
   const isResetRef = useRef(false);
 
   const { data, isLoading, isFetching, refetch } = useGetCommunications(
@@ -38,16 +36,13 @@ export default function Updates() {
 
   useEffect(() => {
     if (notices.length === 0 && page === 1) {
-      // API returned empty — just clear the list
       setAllNotices([]);
       return;
     }
     if (page === 1 || isResetRef.current) {
-      // First page or a reset: replace entirely
       setAllNotices(notices);
       isResetRef.current = false;
     } else {
-      // Subsequent pages: append, deduplicating by id
       setAllNotices((prev) => {
         const existingIds = new Set(prev.map((n) => n.id));
         const fresh = notices.filter((n) => !existingIds.has(n.id));
@@ -55,19 +50,13 @@ export default function Updates() {
       });
     }
   }, [notices]);
-
-  // "Load more" should only show when:
-  // 1. We actually have items, AND
-  // 2. There are more items on the server than what we've loaded
   const hasMore = allNotices.length > 0 && allNotices.length < total;
 
   const handleRefresh = async () => {
     setRefreshing(true);
     setOpenSwipeId(null);
-    // Mark next data arrival as a reset so useEffect replaces allNotices
     isResetRef.current = true;
-    // Go back to page 1 — if already on page 1 this won't trigger useEffect,
-    // so we call refetch() explicitly to force a fresh fetch
+
     if (page !== 1) {
       setPage(1);
     } else {
@@ -102,8 +91,8 @@ export default function Updates() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#7C3AED"
-            colors={["#7C3AED"]}
+            // tintColor="#7C3AED"
+            // colors={["#7C3AED"]}
           />
         }
         ListHeaderComponent={<NoticeComposer />}

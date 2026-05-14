@@ -26,12 +26,10 @@ import {
 import { AuthorAvatar } from "./AuthorAvatar";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const REPLY_DELETE_WIDTH = 80;
+const REPLY_SWIPE_THRESHOLD = 50;
 
-const REPLY_DELETE_WIDTH = 72;
-const REPLY_SWIPE_THRESHOLD = 44;
-
-// ─── Single reply row with swipe-to-delete ────────────────────────────────────
+// ─── Reply Row ────────────────────────────────────────────────────────────────
 
 interface ReplyRowProps {
   item: CommunicationItem;
@@ -55,42 +53,80 @@ function ReplyRow({
   const [showReactionPicker, setShowReactionPicker] = useState(false);
 
   const translateX = useRef(new Animated.Value(0)).current;
-  const deleteScale = useRef(new Animated.Value(0.8)).current;
+  const deleteOpacity = useRef(new Animated.Value(0)).current;
+
+  // Track swipe state locally too so PanResponder callbacks always see it
+  const isSwipedRef = useRef(false);
 
   const { mutate: updateMsg, isPending: updating } =
     useUpdateCommunicationWithRefresh();
 
   const snapOpen = () => {
-    Animated.spring(translateX, {
-      toValue: -REPLY_DELETE_WIDTH,
-      useNativeDriver: true,
-      tension: 120,
-      friction: 8,
-    }).start();
+    isSwipedRef.current = true;
+    Animated.parallel([
+      Animated.spring(translateX, {
+        toValue: -REPLY_DELETE_WIDTH,
+        useNativeDriver: true,
+        tension: 120,
+        friction: 8,
+      }),
+      Animated.timing(deleteOpacity, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
     onSwipeOpen(item.id);
   };
 
   const snapClosed = () => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 120,
-      friction: 8,
-    }).start();
-    deleteScale.setValue(0.8);
+    isSwipedRef.current = false;
+    Animated.parallel([
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 120,
+        friction: 8,
+      }),
+      Animated.timing(deleteOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
     if (openSwipeId === item.id) onSwipeOpen(null);
   };
 
+  // When another row opens, close this one
+  useEffect(() => {
+    if (openSwipeId !== item.id && isSwipedRef.current) {
+      snapClosed();
+    }
+  }, [openSwipeId]);
+
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        isOwn && Math.abs(g.dx) > 8 && Math.abs(g.dy) < 15,
+      // FIX 1: Claim the gesture earlier and more aggressively.
+      // The FlatList steals vertical scrolls; we need to claim anything
+      // that is meaningfully horizontal before the scroll view gets it.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) => {
+        if (!isOwn) return false;
+        const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
+        const hasMoved = Math.abs(g.dx) > 5;
+        return isHorizontal && hasMoved;
+      },
+      // Also claim when already swiped open so any tap-drag snaps it back
+      onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
+
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
+        // Allow dragging left (negative dx) only
         const dx = Math.min(0, g.dx);
-        translateX.setValue(Math.max(-(REPLY_DELETE_WIDTH + 8), dx));
-        const progress = Math.min(1, Math.abs(dx) / REPLY_DELETE_WIDTH);
-        deleteScale.setValue(0.8 + progress * 0.2);
+        const clamped = Math.max(-(REPLY_DELETE_WIDTH + 10), dx);
+        translateX.setValue(clamped);
+        const progress = Math.min(1, Math.abs(clamped) / REPLY_DELETE_WIDTH);
+        deleteOpacity.setValue(progress);
       },
       onPanResponderRelease: (_, g) => {
         if (!isOwn) return;
@@ -99,6 +135,9 @@ function ReplyRow({
         } else {
           snapClosed();
         }
+      },
+      onPanResponderTerminate: () => {
+        snapClosed();
       },
     }),
   ).current;
@@ -116,11 +155,23 @@ function ReplyRow({
   };
 
   return (
-    // Outer wrapper clips overflow so delete zone doesn't bleed
-    <View style={{ borderRadius: 12, overflow: "hidden" }}>
-      {/* Delete zone — always behind */}
+    <View style={{ borderRadius: 12 }}>
+      {/*
+        FIX 2: The delete zone is NOT wrapped in any overlay Pressable.
+        The previous code had a full-screen Pressable (zIndex 5) for
+        tap-to-close that extended to top:-2000/left:-2000 etc.
+        That overlay was sitting above the delete zone button and eating
+        the tap before it reached the Pressable inside the delete zone.
+
+        Solution: remove the full-screen overlay entirely.
+        Instead, we close the swipe via onStartShouldSetPanResponderCapture
+        above (any new touch on the card when swiped = close it),
+        and the delete zone Pressable can now receive taps normally.
+      */}
+
+      {/* Delete zone — behind the row, revealed by sliding card */}
       {isOwn && (
-        <View
+        <Animated.View
           style={{
             position: "absolute",
             right: 0,
@@ -132,43 +183,39 @@ function ReplyRow({
             borderBottomRightRadius: 12,
             alignItems: "center",
             justifyContent: "center",
+            opacity: deleteOpacity,
+            // zIndex lower than the sliding card but needs to receive taps
+            // when card is slid away — no zIndex needed, natural stacking works
           }}
         >
           <Pressable
             onPress={() => {
-              snapClosed();
+              // FIX: don't call snapClosed() before requesting delete.
+              // snapClosed() called onSwipeOpen(null) which triggered useEffect
+              // which tried to snapClosed again — and the state was already
+              // being cleared causing the delete id to not propagate.
+              // Instead: directly call onRequestDelete, let the parent
+              // handle dismiss via ConfirmModal flow.
               onRequestDelete(item.id);
             }}
-            style={{ alignItems: "center", gap: 3 }}
+            style={{ alignItems: "center", gap: 4, padding: 8 }}
           >
-            <Animated.View style={{ transform: [{ scale: deleteScale }] }}>
-              <AppIcon name="trash-outline" size={20} color="#EF4444" />
-            </Animated.View>
+            <AppIcon name="trash-outline" size={20} color="#EF4444" />
             <Text style={{ fontSize: 10, color: "#EF4444", fontWeight: "700" }}>
               Delete
             </Text>
           </Pressable>
-        </View>
+        </Animated.View>
       )}
 
-      {/* Tap-to-close overlay when swiped */}
-      {isSwiped && (
-        <Pressable
-          onPress={snapClosed}
-          style={{
-            position: "absolute",
-            top: -1000,
-            left: -1000,
-            right: -1000,
-            bottom: -1000,
-            zIndex: 5,
-          }}
-        />
-      )}
-
-      {/* Swipeable row */}
+      {/* Swipeable card */}
       <Animated.View
-        style={{ transform: [{ translateX }], zIndex: 6 }}
+        style={{
+          transform: [{ translateX }],
+          zIndex: 6,
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
         {...(isOwn ? panResponder.panHandlers : {})}
       >
         <View
@@ -196,20 +243,17 @@ function ReplyRow({
               >
                 <Text
                   style={{ fontSize: 13, fontWeight: "700", color: "#1E293B" }}
+                  numberOfLines={1}
                 >
                   {item.createdByFullName}
                 </Text>
                 <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
                 >
                   <Text style={{ fontSize: 11, color: "#94A3B8" }}>
                     {timeAgo(item.createdDate)}
                   </Text>
-                  {isOwn && !isSwiped && (
+                  {isOwn && (
                     <Pressable onPress={() => setEditing(true)} hitSlop={8}>
                       <AppIcon
                         name="pencil-outline"
@@ -217,6 +261,13 @@ function ReplyRow({
                         color="#94A3B8"
                       />
                     </Pressable>
+                  )}
+                  {isOwn && (
+                    <AppIcon
+                      name="arrow-back-outline"
+                      size={11}
+                      color="#CBD5E1"
+                    />
                   )}
                 </View>
               </View>
@@ -302,7 +353,6 @@ function ReplyRow({
         </View>
       </Animated.View>
 
-      {/* Reaction picker modal */}
       <Modal
         visible={showReactionPicker}
         transparent
@@ -331,7 +381,7 @@ function ReplyRow({
   );
 }
 
-// ─── Replies Bottom Sheet ─────────────────────────────────────────────────────
+// ─── Replies Sheet ────────────────────────────────────────────────────────────
 
 interface RepliesSheetProps {
   visible: boolean;
@@ -347,6 +397,13 @@ export function RepliesSheet({
   const [replyText, setReplyText] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
+  const [localReplies, setLocalReplies] = useState<CommunicationItem[]>(
+    parentItem.replies ?? [],
+  );
+
+  useEffect(() => {
+    setLocalReplies(parentItem.replies ?? []);
+  }, [parentItem.replies]);
 
   const { mutate: create, isPending: sending } =
     useCreateCommunicationWithRefresh();
@@ -354,34 +411,19 @@ export function RepliesSheet({
     useDeleteCommunicationWithRefresh();
 
   const hasText = replyText.trim().length > 0;
-
-  const [localReplies, setLocalReplies] = useState<CommunicationItem[]>(
-    parentItem.replies ?? [],
-  );
-
-  useEffect(() => {
-    setLocalReplies(parentItem.replies ?? []);
-  }, [parentItem]);
-
   const flatReplies = localReplies.filter((r) => r.parentId === parentItem.id);
 
   const handleSend = () => {
     const trimmed = replyText.trim();
     if (!trimmed) return;
-
     create(
-      {
-        message: trimmed,
-        parentId: parentItem.id,
-      },
+      { message: trimmed, parentId: parentItem.id },
       {
         onSuccess: (res: any) => {
           const newReply = res?.data?.data || res?.data || res;
-
-          if (newReply) {
+          if (newReply && newReply.id) {
             setLocalReplies((prev) => [...prev, newReply]);
           }
-
           setReplyText("");
         },
       },
@@ -390,12 +432,12 @@ export function RepliesSheet({
 
   const handleDelete = () => {
     if (!deleteTargetId) return;
-
     deleteMsg(deleteTargetId, {
       onSuccess: () => {
         setLocalReplies((prev) => prev.filter((r) => r.id !== deleteTargetId));
-
         setDeleteTargetId(null);
+        // Also close whatever swipe was open
+        setOpenSwipeId(null);
       },
     });
   };
@@ -406,14 +448,12 @@ export function RepliesSheet({
       animationType="slide"
       transparent
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        onClose();
+      }}
     >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(0,0,0,0.4)",
-        }}
-      >
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}>
         <Pressable
           style={{ flex: 1 }}
           onPress={() => {
@@ -425,17 +465,13 @@ export function RepliesSheet({
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={0}
-          style={{
-            flex: 1,
-            justifyContent: "flex-end",
-          }}
+          style={{ justifyContent: "flex-end" }}
         >
           <View
             style={{
               backgroundColor: "#fff",
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              // maxHeight: "82%",
               minHeight: "85%",
               paddingBottom: Platform.OS === "ios" ? 32 : 16,
               shadowColor: "#000",
@@ -445,13 +481,27 @@ export function RepliesSheet({
               elevation: 20,
             }}
           >
+            {/* Drag handle */}
+            <View
+              style={{ alignItems: "center", paddingTop: 10, paddingBottom: 4 }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: "#E2E8F0",
+                }}
+              />
+            </View>
+
             {/* Header */}
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 paddingHorizontal: 16,
-                paddingTop: 8,
+                paddingTop: 4,
                 paddingBottom: 12,
                 borderBottomWidth: 1,
                 borderBottomColor: "#F1F5F9",
@@ -518,6 +568,7 @@ export function RepliesSheet({
               </Text>
             </View>
 
+            {/* Reply list */}
             <View style={{ flex: 1, minHeight: 0 }}>
               <FlatList
                 data={flatReplies}
@@ -527,12 +578,25 @@ export function RepliesSheet({
                   paddingTop: 4,
                   paddingBottom: 8,
                   gap: 8,
+                  flexGrow: 1,
                 }}
                 showsVerticalScrollIndicator={false}
                 onScrollBeginDrag={() => setOpenSwipeId(null)}
                 keyboardShouldPersistTaps="handled"
+                // FIX: disableScrollViewPanResponder lets child PanResponders
+                // claim horizontal gestures before the ScrollView claims them.
+                // This is what makes swipe work on any part of the row,
+                // not just the top where there's no scroll conflict.
+                disableScrollViewPanResponder
                 ListEmptyComponent={
-                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 32,
+                    }}
+                  >
                     <Text style={{ fontSize: 13, color: "#94A3B8" }}>
                       No replies yet. Be the first!
                     </Text>
@@ -549,6 +613,7 @@ export function RepliesSheet({
               />
             </View>
 
+            {/* Composer */}
             <View
               style={{
                 flexDirection: "row",
@@ -627,7 +692,10 @@ export function RepliesSheet({
         destructive
         loading={deleting}
         onConfirm={handleDelete}
-        onCancel={() => setDeleteTargetId(null)}
+        onCancel={() => {
+          setDeleteTargetId(null);
+          setOpenSwipeId(null);
+        }}
       />
     </Modal>
   );

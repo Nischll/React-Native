@@ -9,6 +9,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Modal,
   PanResponder,
@@ -23,13 +24,12 @@ import { RepliesSheet } from "./RepliesSheet";
 
 interface NoticeCardProps {
   item: CommunicationItem;
-  // Passed from the parent FlatList so only one card can be swiped at a time
   openSwipeId: number | null;
   onSwipeOpen: (id: number | null) => void;
 }
 
 function MessageText({ text }: { text: string }) {
-  const parts = text.split(/(@[^@]+(?=@|$))/g);
+  const parts = text.split(/(@\S+)/g);
   return (
     <Text style={{ fontSize: 14, color: "#334155", lineHeight: 22 }}>
       {parts.map((part, i) =>
@@ -47,7 +47,6 @@ function MessageText({ text }: { text: string }) {
 
 const DELETE_REVEAL_WIDTH = 80;
 const SWIPE_THRESHOLD = 50;
-// Visual gap around card — gives the "floating" look
 const CARD_PADDING = 6;
 
 export function NoticeCard({
@@ -58,16 +57,17 @@ export function NoticeCard({
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false;
-  const isSwiped = openSwipeId === item.id;
 
   const [showRepliesSheet, setShowRepliesSheet] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.message);
   const [expanded, setExpanded] = useState(false);
+  const [deleteZoneVisible, setDeleteZoneVisible] = useState(false);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteScale = useRef(new Animated.Value(0.8)).current;
+  const isSwipedRef = useRef(false);
 
   const { mutate: updateMsg, isPending: updating } =
     useUpdateCommunicationWithRefresh();
@@ -79,36 +79,48 @@ export function NoticeCard({
     isLong && !expanded ? item.message.slice(0, 180) + "…" : item.message;
 
   const snapOpen = () => {
+    isSwipedRef.current = true;
+    setDeleteZoneVisible(true);
     Animated.spring(translateX, {
       toValue: -DELETE_REVEAL_WIDTH,
       useNativeDriver: true,
       tension: 120,
       friction: 8,
     }).start();
+    deleteScale.setValue(1);
     onSwipeOpen(item.id);
   };
 
   const snapClosed = () => {
+    isSwipedRef.current = false;
     Animated.spring(translateX, {
       toValue: 0,
       useNativeDriver: true,
       tension: 120,
       friction: 8,
-    }).start();
+    }).start(() => {
+      setDeleteZoneVisible(false);
+    });
     deleteScale.setValue(0.8);
     if (openSwipeId === item.id) onSwipeOpen(null);
   };
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        isOwn && Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
+      onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
+      onMoveShouldSetPanResponder: (_, g) => {
+        if (!isOwn) return false;
+        const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
+        return isHorizontal && Math.abs(g.dx) > 5;
+      },
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
         const dx = Math.min(0, g.dx);
-        translateX.setValue(Math.max(-(DELETE_REVEAL_WIDTH + 10), dx));
-        const progress = Math.min(1, Math.abs(dx) / DELETE_REVEAL_WIDTH);
+        const clamped = Math.max(-(DELETE_REVEAL_WIDTH + 10), dx);
+        translateX.setValue(clamped);
+        const progress = Math.min(1, Math.abs(clamped) / DELETE_REVEAL_WIDTH);
         deleteScale.setValue(0.8 + progress * 0.2);
+        if (progress > 0.05) setDeleteZoneVisible(true);
       },
       onPanResponderRelease: (_, g) => {
         if (!isOwn) return;
@@ -118,17 +130,23 @@ export function NoticeCard({
           snapClosed();
         }
       },
+      onPanResponderTerminate: () => {
+        snapClosed();
+      },
     }),
   ).current;
 
   const handleDelete = () => {
+    isSwipedRef.current = false;
+    onSwipeOpen(null);
+
     Animated.timing(translateX, {
       toValue: -500,
       duration: 260,
       useNativeDriver: true,
     }).start(() => {
+      setDeleteZoneVisible(false);
       deleteMsg(item.id);
-      onSwipeOpen(null);
     });
   };
 
@@ -147,18 +165,17 @@ export function NoticeCard({
   return (
     <View
       style={{
-        marginBottom: 6,
         paddingHorizontal: CARD_PADDING,
         paddingVertical: CARD_PADDING,
       }}
     >
-      {isOwn && (
+      {isOwn && deleteZoneVisible && (
         <View
           style={{
             position: "absolute",
-            right: CARD_PADDING, // ← inset matches padding
-            top: CARD_PADDING, // ← inset matches padding
-            bottom: CARD_PADDING, // ← inset matches padding
+            right: CARD_PADDING,
+            top: CARD_PADDING,
+            bottom: CARD_PADDING,
             width: DELETE_REVEAL_WIDTH,
             backgroundColor: "#FEE2E2",
             borderTopRightRadius: 16,
@@ -167,44 +184,43 @@ export function NoticeCard({
             justifyContent: "center",
           }}
         >
-          <Pressable
-            onPress={handleDelete}
-            disabled={deleting}
-            style={{ alignItems: "center", gap: 4 }}
-          >
-            <Animated.View style={{ transform: [{ scale: deleteScale }] }}>
-              <AppIcon name="trash-outline" size={22} color="#EF4444" />
-            </Animated.View>
-            <Text style={{ fontSize: 10, color: "#EF4444", fontWeight: "700" }}>
-              Delete
-            </Text>
-          </Pressable>
+          {deleting ? (
+            // Loading state while API is in-flight
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <ActivityIndicator size="small" color="#EF4444" />
+              <Text
+                style={{ fontSize: 10, color: "#EF4444", fontWeight: "600" }}
+              >
+                Deleting…
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handleDelete}
+              style={{ alignItems: "center", gap: 4, padding: 8 }}
+            >
+              <Animated.View style={{ transform: [{ scale: deleteScale }] }}>
+                <AppIcon name="trash-outline" size={22} color="#EF4444" />
+              </Animated.View>
+              <Text
+                style={{ fontSize: 10, color: "#EF4444", fontWeight: "700" }}
+              >
+                Delete
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
 
-      {isSwiped && (
-        <Pressable
-          onPress={snapClosed}
-          style={{
-            position: "absolute",
-            top: -2000,
-            left: -2000,
-            right: -2000,
-            bottom: -2000,
-            zIndex: 5,
-          }}
-        />
-      )}
-
-      {/* Swipeable card — zIndex 6 so it renders above the close overlay */}
+      {/* Swipeable card */}
       <Animated.View
         style={{
           transform: [{ translateX }],
           zIndex: 6,
           borderRadius: 16,
-          // Clip so card slides cleanly without overflow bleed
           overflow: "hidden",
         }}
+        className="shadow-md"
         {...(isOwn ? panResponder.panHandlers : {})}
       >
         <Card
