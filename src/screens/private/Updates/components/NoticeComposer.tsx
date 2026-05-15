@@ -95,6 +95,18 @@ export function NoticeComposer() {
               }}
             />
 
+            {mentionState && (
+              // <View style={{ zIndex: 999 }}>
+              <MentionSuggestions
+                mentionState={mentionState}
+                value={text}
+                onChangeText={setText}
+                onDismiss={() => setMentionState(null)}
+                direction="below"
+              />
+              // </View>
+            )}
+
             {/* Actions */}
             <View
               style={{
@@ -104,6 +116,7 @@ export function NoticeComposer() {
                 gap: 8,
                 paddingHorizontal: 12,
                 paddingBottom: 10,
+                paddingTop: 10,
               }}
             >
               {/* Cancel */}
@@ -185,19 +198,6 @@ export function NoticeComposer() {
           </Pressable>
         )}
       </View>
-
-      {/* ───── Mention Suggestions (IMPORTANT FIX) ───── */}
-      {mentionState && (
-        // <View style={{ zIndex: 999 }}>
-        <MentionSuggestions
-          mentionState={mentionState}
-          value={text}
-          onChangeText={setText}
-          onDismiss={() => setMentionState(null)}
-          direction="below"
-        />
-        // </View>
-      )}
     </View>
   );
 }

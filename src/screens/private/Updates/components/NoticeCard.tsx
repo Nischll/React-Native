@@ -5,6 +5,11 @@ import {
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
+import {
+  MentionState,
+  MentionSuggestions,
+  MentionTextInput,
+} from "@/src/helper/mentionTextInput";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useRef, useState } from "react";
@@ -15,7 +20,6 @@ import {
   PanResponder,
   Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
@@ -64,6 +68,7 @@ export function NoticeCard({
   const [editText, setEditText] = useState(item.message);
   const [expanded, setExpanded] = useState(false);
   const [deleteZoneVisible, setDeleteZoneVisible] = useState(false);
+  const [mentionState, setMentionState] = useState<MentionState | null>(null);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteScale = useRef(new Animated.Value(0.8)).current;
@@ -218,7 +223,7 @@ export function NoticeCard({
           transform: [{ translateX }],
           zIndex: 6,
           borderRadius: 16,
-          overflow: "hidden",
+          overflow: "visible",
         }}
         className="shadow-md"
         {...(isOwn ? panResponder.panHandlers : {})}
@@ -315,13 +320,41 @@ export function NoticeCard({
                     backgroundColor: "#FAFAF9",
                   }}
                 >
-                  <TextInput
+                  {/* <TextInput
                     value={editText}
                     onChangeText={setEditText}
                     multiline
                     autoFocus
                     style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
+                  /> */}
+                  <MentionTextInput
+                    value={editText}
+                    onChangeText={setEditText}
+                    onMentionStateChange={setMentionState}
+                    multiline
+                    autoFocus
+                    style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
                   />
+
+                  {mentionState && (
+                    // <View
+                    //   style={{
+                    //     position: "absolute",
+                    //     top: 80,
+                    //     left: 10,
+                    //     right: 10,
+                    //     zIndex: 999,
+                    //   }}
+                    // >
+                    <MentionSuggestions
+                      mentionState={mentionState}
+                      value={editText}
+                      onChangeText={setEditText}
+                      onDismiss={() => setMentionState(null)}
+                      direction="above"
+                    />
+                    // </View>
+                  )}
                   <View
                     style={{
                       flexDirection: "row",
