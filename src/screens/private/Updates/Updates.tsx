@@ -80,6 +80,7 @@ export default function Updates() {
       <FlatList
         data={allNotices}
         keyExtractor={(item) => String(item.id)}
+        keyboardShouldPersistTaps="always"
         contentContainerStyle={{
           paddingHorizontal: 6,
           // paddingTop: 12,
