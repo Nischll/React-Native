@@ -10,6 +10,7 @@ import {
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
+import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useRef, useState } from "react";
@@ -30,23 +31,6 @@ interface NoticeCardProps {
   item: CommunicationItem;
   openSwipeId: number | null;
   onSwipeOpen: (id: number | null) => void;
-}
-
-function MessageText({ text }: { text: string }) {
-  const parts = text.split(/(@\S+)/g);
-  return (
-    <Text style={{ fontSize: 14, color: "#334155", lineHeight: 22 }}>
-      {parts.map((part, i) =>
-        part.startsWith("@") ? (
-          <Text key={i} style={{ color: "#7C3AED", fontWeight: "700" }}>
-            {part}
-          </Text>
-        ) : (
-          <Text key={i}>{part}</Text>
-        ),
-      )}
-    </Text>
-  );
 }
 
 const DELETE_REVEAL_WIDTH = 80;

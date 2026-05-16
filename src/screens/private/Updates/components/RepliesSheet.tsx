@@ -6,6 +6,12 @@ import {
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import {
+  MentionState,
+  MentionSuggestions,
+  MentionTextInput,
+} from "@/src/helper/mentionTextInput";
+import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +26,6 @@ import {
   Platform,
   Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
@@ -36,6 +41,7 @@ interface ReplyRowProps {
   openSwipeId: number | null;
   onSwipeOpen: (id: number | null) => void;
   onRequestDelete: (id: number) => void;
+  onEdit: (item: CommunicationItem) => void;
 }
 
 function ReplyRow({
@@ -43,23 +49,29 @@ function ReplyRow({
   openSwipeId,
   onSwipeOpen,
   onRequestDelete,
+  onEdit,
 }: ReplyRowProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isSwiped = openSwipeId === item.id;
 
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(item.message);
+  // const [editing, setEditing] = useState(false);
+  // const [editText, setEditText] = useState(item.message);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [mentionState, setMentionState] = useState<MentionState | null>(null);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteOpacity = useRef(new Animated.Value(0)).current;
 
-  // Track swipe state locally too so PanResponder callbacks always see it
   const isSwipedRef = useRef(false);
 
   const { mutate: updateMsg, isPending: updating } =
     useUpdateCommunicationWithRefresh();
+
+  const isLong = item.message.length > 180;
+  const displayText =
+    isLong && !expanded ? item.message.slice(0, 180) + "…" : item.message;
 
   const snapOpen = () => {
     isSwipedRef.current = true;
@@ -106,9 +118,6 @@ function ReplyRow({
 
   const panResponder = useRef(
     PanResponder.create({
-      // FIX 1: Claim the gesture earlier and more aggressively.
-      // The FlatList steals vertical scrolls; we need to claim anything
-      // that is meaningfully horizontal before the scroll view gets it.
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, g) => {
         if (!isOwn) return false;
@@ -116,12 +125,10 @@ function ReplyRow({
         const hasMoved = Math.abs(g.dx) > 5;
         return isHorizontal && hasMoved;
       },
-      // Also claim when already swiped open so any tap-drag snaps it back
       onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
 
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
-        // Allow dragging left (negative dx) only
         const dx = Math.min(0, g.dx);
         const clamped = Math.max(-(REPLY_DELETE_WIDTH + 10), dx);
         translateX.setValue(clamped);
@@ -142,33 +149,20 @@ function ReplyRow({
     }),
   ).current;
 
-  const handleSaveEdit = () => {
-    const trimmed = editText.trim();
-    if (!trimmed || trimmed === item.message) {
-      setEditing(false);
-      return;
-    }
-    updateMsg(
-      { id: item.id, message: trimmed, parentId: item.parentId ?? null },
-      { onSuccess: () => setEditing(false) },
-    );
-  };
+  // const handleSaveEdit = () => {
+  //   const trimmed = editText.trim();
+  //   if (!trimmed || trimmed === item.message) {
+  //     setEditing(false);
+  //     return;
+  //   }
+  //   updateMsg(
+  //     { id: item.id, message: trimmed, parentId: item.parentId ?? null },
+  //     { onSuccess: () => setEditing(false) },
+  //   );
+  // };
 
   return (
     <View style={{ borderRadius: 12 }}>
-      {/*
-        FIX 2: The delete zone is NOT wrapped in any overlay Pressable.
-        The previous code had a full-screen Pressable (zIndex 5) for
-        tap-to-close that extended to top:-2000/left:-2000 etc.
-        That overlay was sitting above the delete zone button and eating
-        the tap before it reached the Pressable inside the delete zone.
-
-        Solution: remove the full-screen overlay entirely.
-        Instead, we close the swipe via onStartShouldSetPanResponderCapture
-        above (any new touch on the card when swiped = close it),
-        and the delete zone Pressable can now receive taps normally.
-      */}
-
       {/* Delete zone — behind the row, revealed by sliding card */}
       {isOwn && (
         <Animated.View
@@ -184,18 +178,10 @@ function ReplyRow({
             alignItems: "center",
             justifyContent: "center",
             opacity: deleteOpacity,
-            // zIndex lower than the sliding card but needs to receive taps
-            // when card is slid away — no zIndex needed, natural stacking works
           }}
         >
           <Pressable
             onPress={() => {
-              // FIX: don't call snapClosed() before requesting delete.
-              // snapClosed() called onSwipeOpen(null) which triggered useEffect
-              // which tried to snapClosed again — and the state was already
-              // being cleared causing the delete id to not propagate.
-              // Instead: directly call onRequestDelete, let the parent
-              // handle dismiss via ConfirmModal flow.
               onRequestDelete(item.id);
             }}
             style={{ alignItems: "center", gap: 4, padding: 8 }}
@@ -254,7 +240,7 @@ function ReplyRow({
                     {timeAgo(item.createdDate)}
                   </Text>
                   {isOwn && (
-                    <Pressable onPress={() => setEditing(true)} hitSlop={8}>
+                    <Pressable onPress={() => onEdit(item)} hitSlop={8}>
                       <AppIcon
                         name="pencil-outline"
                         size={13}
@@ -272,11 +258,13 @@ function ReplyRow({
                 </View>
               </View>
 
-              {editing ? (
+              {/* {editing ? (
                 <View style={{ marginTop: 6 }}>
-                  <TextInput
+                 
+                  <MentionTextInput
                     value={editText}
                     onChangeText={setEditText}
+                    onMentionStateChange={setMentionState}
                     multiline
                     autoFocus
                     style={{
@@ -289,6 +277,17 @@ function ReplyRow({
                       minHeight: 40,
                     }}
                   />
+
+                  {mentionState && (
+                  
+                    <MentionSuggestions
+                      mentionState={mentionState}
+                      value={editText}
+                      onChangeText={setEditText}
+                      onDismiss={() => setMentionState(null)}
+                      direction="above"
+                    />
+                  )}
                   <View
                     style={{
                       flexDirection: "row",
@@ -327,17 +326,27 @@ function ReplyRow({
                   </View>
                 </View>
               ) : (
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: "#334155",
-                    marginTop: 3,
-                    lineHeight: 19,
-                  }}
+                <> */}
+
+              <MessageText text={displayText} />
+              {isLong && (
+                <Pressable
+                  onPress={() => setExpanded((v) => !v)}
+                  style={{ marginTop: 4 }}
                 >
-                  {item.message}
-                </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: "#7C3AED",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {expanded ? "Show less" : "Read more"}
+                  </Text>
+                </Pressable>
               )}
+              {/* </>
+              )} */}
             </View>
           </View>
 
@@ -400,10 +409,13 @@ export function RepliesSheet({
   const [localReplies, setLocalReplies] = useState<CommunicationItem[]>(
     parentItem.replies ?? [],
   );
+  const [mentionState, setMentionState] = useState<MentionState | null>(null);
+  const [editingReply, setEditingReply] = useState<CommunicationItem | null>(
+    null,
+  );
 
-  useEffect(() => {
-    setLocalReplies(parentItem.replies ?? []);
-  }, [parentItem.replies]);
+  const { mutate: updateReply, isPending: updatingReply } =
+    useUpdateCommunicationWithRefresh();
 
   const { mutate: create, isPending: sending } =
     useCreateCommunicationWithRefresh();
@@ -413,17 +425,73 @@ export function RepliesSheet({
   const hasText = replyText.trim().length > 0;
   const flatReplies = localReplies.filter((r) => r.parentId === parentItem.id);
 
+  useEffect(() => {
+    setLocalReplies(parentItem.replies ?? []);
+  }, [parentItem.replies]);
+
+  // const handleSend = () => {
+  //   const trimmed = replyText.trim();
+  //   if (!trimmed) return;
+  //   create(
+  //     { message: trimmed, parentId: parentItem.id },
+  //     {
+  //       onSuccess: (res: any) => {
+  //         const newReply = res?.data?.data || res?.data || res;
+  //         if (newReply && newReply.id) {
+  //           setLocalReplies((prev) => [...prev, newReply]);
+  //         }
+  //         setReplyText("");
+  //       },
+  //     },
+  //   );
+  // };
+
   const handleSend = () => {
     const trimmed = replyText.trim();
+
     if (!trimmed) return;
+
+    // EDIT MODE
+    if (editingReply) {
+      updateReply(
+        {
+          id: editingReply.id,
+          message: trimmed,
+          parentId: editingReply.parentId ?? null,
+        },
+        {
+          onSuccess: () => {
+            setLocalReplies((prev) =>
+              prev.map((r) =>
+                r.id === editingReply.id
+                  ? {
+                      ...r,
+                      message: trimmed,
+                    }
+                  : r,
+              ),
+            );
+
+            setReplyText("");
+            setEditingReply(null);
+          },
+        },
+      );
+
+      return;
+    }
+
+    // CREATE MODE
     create(
       { message: trimmed, parentId: parentItem.id },
       {
         onSuccess: (res: any) => {
           const newReply = res?.data?.data || res?.data || res;
+
           if (newReply && newReply.id) {
             setLocalReplies((prev) => [...prev, newReply]);
           }
+
           setReplyText("");
         },
       },
@@ -436,7 +504,6 @@ export function RepliesSheet({
       onSuccess: () => {
         setLocalReplies((prev) => prev.filter((r) => r.id !== deleteTargetId));
         setDeleteTargetId(null);
-        // Also close whatever swipe was open
         setOpenSwipeId(null);
       },
     });
@@ -583,10 +650,6 @@ export function RepliesSheet({
                 showsVerticalScrollIndicator={false}
                 onScrollBeginDrag={() => setOpenSwipeId(null)}
                 keyboardShouldPersistTaps="handled"
-                // FIX: disableScrollViewPanResponder lets child PanResponders
-                // claim horizontal gestures before the ScrollView claims them.
-                // This is what makes swipe work on any part of the row,
-                // not just the top where there's no scroll conflict.
                 disableScrollViewPanResponder
                 ListEmptyComponent={
                   <View
@@ -608,12 +671,65 @@ export function RepliesSheet({
                     openSwipeId={openSwipeId}
                     onSwipeOpen={setOpenSwipeId}
                     onRequestDelete={setDeleteTargetId}
+                    onEdit={(reply) => {
+                      setEditingReply(reply);
+                      setReplyText(reply.message);
+                    }}
                   />
                 )}
               />
             </View>
 
             {/* Composer */}
+            {mentionState && (
+              <View style={{ paddingHorizontal: 16 }}>
+                <MentionSuggestions
+                  mentionState={mentionState}
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  onDismiss={() => setMentionState(null)}
+                  direction="below"
+                />
+              </View>
+            )}
+            {editingReply && (
+              <View
+                style={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 8,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "#7C3AED",
+                    fontWeight: "600",
+                  }}
+                >
+                  Editing reply
+                </Text>
+
+                <Pressable
+                  onPress={() => {
+                    setEditingReply(null);
+                    setReplyText("");
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#94A3B8",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+              </View>
+            )}
             <View
               style={{
                 flexDirection: "row",
@@ -629,7 +745,7 @@ export function RepliesSheet({
                 minHeight: Platform.OS === "ios" ? 80 : 64,
               }}
             >
-              <TextInput
+              {/* <TextInput
                 value={replyText}
                 onChangeText={setReplyText}
                 placeholder={`Reply to ${parentItem.createdByFullName}…`}
@@ -651,6 +767,33 @@ export function RepliesSheet({
                   minHeight: 42,
                   maxHeight: 100,
                 }}
+              /> */}
+
+              <MentionTextInput
+                value={replyText}
+                onChangeText={setReplyText}
+                onMentionStateChange={setMentionState}
+                placeholder={
+                  editingReply
+                    ? "Edit reply..."
+                    : `Reply to ${parentItem.createdByFullName}…`
+                }
+                placeholderTextColor="#CBD5E1"
+                multiline
+                style={{
+                  flex: 1,
+                  fontSize: 14,
+                  color: "#1E293B",
+                  backgroundColor: "#F8FAFC",
+                  borderWidth: 1,
+                  borderColor: "#E2E8F0",
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  paddingTop: 10,
+                  paddingBottom: 10,
+                  minHeight: 42,
+                  maxHeight: 100,
+                }}
               />
 
               <Pressable
@@ -669,7 +812,7 @@ export function RepliesSheet({
                   opacity: pressed && hasText ? 0.85 : 1,
                 })}
               >
-                {sending ? (
+                {sending || updatingReply ? (
                   <ActivityIndicator size="small" color="black" />
                 ) : (
                   <AppIcon
