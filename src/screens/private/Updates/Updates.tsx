@@ -11,6 +11,8 @@ import { NoticeComposer } from "@/src/screens/private/Updates/components/NoticeC
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -72,106 +74,116 @@ export default function Updates() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <PageHeader
-        icon="megaphone"
-        title="Updates & Notices"
-        subtitle={
-          unseenCount > 0
-            ? `${unseenCount} new update${unseenCount > 1 ? "s" : ""}`
-            : "Stay in the loop with your team"
-        }
-      />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      // keyboardVerticalOffset={90}
+    >
+      <View style={{ flex: 1 }}>
+        <PageHeader
+          icon="megaphone"
+          title="Updates & Notices"
+          subtitle={
+            unseenCount > 0
+              ? `${unseenCount} new update${unseenCount > 1 ? "s" : ""}`
+              : "Stay in the loop with your team"
+          }
+        />
 
-      <FlatList
-        data={allNotices}
-        keyExtractor={(item) => String(item.id)}
-        keyboardShouldPersistTaps="always"
-        contentContainerStyle={{
-          paddingHorizontal: 6,
-          // paddingTop: 12,
-          paddingBottom: 6,
-        }}
-        showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={() => setOpenSwipeId(null)}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            // tintColor="#7C3AED"
-            // colors={["#7C3AED"]}
-          />
-        }
-        ListHeaderComponent={<NoticeComposer />}
-        ListEmptyComponent={
-          !isLoading ? (
-            <View style={{ flex: 1 }}>
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{
-                  paddingHorizontal: 12,
-                  paddingTop: 12,
-                  paddingBottom: 24,
-                  gap: 12,
-                }}
-                showsVerticalScrollIndicator={false}
-              >
-                <View
-                  style={{
-                    height: 56,
-                    borderRadius: 14,
-                    backgroundColor: "#F1F5F9",
-                    marginBottom: 4,
+        <FlatList
+          data={allNotices}
+          keyExtractor={(item) => String(item.id)}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={{
+            paddingHorizontal: 6,
+            // paddingTop: 12,
+            paddingBottom: 6,
+          }}
+          showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={() => setOpenSwipeId(null)}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              // tintColor="#7C3AED"
+              // colors={["#7C3AED"]}
+            />
+          }
+          ListHeaderComponent={<NoticeComposer />}
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={{ flex: 1 }}>
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 12,
+                    paddingTop: 12,
+                    paddingBottom: 24,
+                    gap: 12,
                   }}
-                />
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <SkeletonCard key={i} />
-                ))}
-              </ScrollView>
-            </View>
-          ) : null
-        }
-        ListFooterComponent={
-          hasMore ? (
-            <Pressable
-              onPress={() => {
-                if (!isFetching) setPage((p) => p + 1);
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                paddingVertical: 14,
-              }}
-            >
-              {isFetching ? (
-                <Text style={{ fontSize: 13, color: "#7C3AED" }}>Loading…</Text>
-              ) : (
-                <>
-                  <AppIcon name="chevron-down" size={14} color="#7C3AED" />
-                  <Text
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View
                     style={{
-                      fontSize: 13,
-                      color: "#7C3AED",
-                      fontWeight: "600",
+                      height: 56,
+                      borderRadius: 14,
+                      backgroundColor: "#F1F5F9",
+                      marginBottom: 4,
                     }}
-                  >
-                    Load more
+                  />
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={
+            hasMore ? (
+              <Pressable
+                onPress={() => {
+                  if (!isFetching) setPage((p) => p + 1);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  paddingVertical: 14,
+                }}
+              >
+                {isFetching ? (
+                  <Text style={{ fontSize: 13, color: "#7C3AED" }}>
+                    Loading…
                   </Text>
-                </>
-              )}
-            </Pressable>
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <NoticeCard
-            item={item}
-            openSwipeId={openSwipeId}
-            onSwipeOpen={setOpenSwipeId}
-          />
-        )}
-      />
-    </View>
+                ) : (
+                  <>
+                    <AppIcon name="chevron-down" size={14} color="#7C3AED" />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#7C3AED",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Load more
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <NoticeCard
+              item={item}
+              openSwipeId={openSwipeId}
+              onSwipeOpen={setOpenSwipeId}
+            />
+          )}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }

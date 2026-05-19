@@ -472,7 +472,7 @@ export function RepliesSheet({
         />
 
         <KeyboardAvoidingView
-          behavior="padding"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={0}
           style={{ justifyContent: "flex-end" }}
         >
@@ -582,6 +582,8 @@ export function RepliesSheet({
               <FlatList
                 data={flatReplies}
                 keyExtractor={(r) => String(r.id)}
+                keyboardDismissMode="interactive"
+                automaticallyAdjustKeyboardInsets
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   paddingTop: 4,
