@@ -1,6 +1,3 @@
-// app/(private)/(tabs)/_layout.tsx
-// Replace the "modules" tab with the new "updates" tab
-
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +6,7 @@ import { Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
-  const { refreshing } = useGlobalRefresh();
+  const { refreshing, unseenUpdatesCount } = useGlobalRefresh();
   const insets = useSafeAreaInsets();
 
   return (
@@ -54,12 +51,41 @@ export default function TabsLayout() {
           options={{
             title: "Updates",
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon
-                icon="megaphone"
-                label="Updates"
-                color={color}
-                focused={focused}
-              />
+              <View>
+                <TabIcon
+                  icon="megaphone"
+                  label="Updates"
+                  color={color}
+                  focused={focused}
+                />
+
+                {unseenUpdatesCount > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: 12,
+                      minWidth: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      backgroundColor: "#EF4444",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: 5,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 10,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {unseenUpdatesCount > 99 ? "99+" : unseenUpdatesCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
             ),
           }}
         />

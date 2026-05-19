@@ -6,6 +6,9 @@ interface GlobalRefreshContextType {
   screenRefreshKey: number;
   refreshing: boolean;
   setRefreshing: React.Dispatch<React.SetStateAction<boolean>>;
+
+  unseenUpdatesCount: number;
+  setUnseenUpdatesCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const GlobalRefreshContext = createContext<GlobalRefreshContextType | null>(
@@ -22,6 +25,8 @@ export const GlobalRefreshProvider = ({
   const [screenRefreshKey, setScreenRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [unseenUpdatesCount, setUnseenUpdatesCount] = useState(0);
+
   const triggerRefresh = async () => {
     if (refreshing) return;
 
@@ -36,8 +41,11 @@ export const GlobalRefreshProvider = ({
       screenRefreshKey,
       refreshing,
       setRefreshing,
+
+      unseenUpdatesCount,
+      setUnseenUpdatesCount,
     }),
-    [screenRefreshKey, refreshing],
+    [screenRefreshKey, refreshing, unseenUpdatesCount],
   );
 
   return (

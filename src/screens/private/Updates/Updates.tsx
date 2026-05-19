@@ -5,6 +5,7 @@ import {
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppIcon from "@/src/components/ui/AppIcon";
+import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { NoticeCard } from "@/src/screens/private/Updates/components/NoticeCard";
 import { NoticeComposer } from "@/src/screens/private/Updates/components/NoticeComposer";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +24,7 @@ export default function Updates() {
   const [allNotices, setAllNotices] = useState<CommunicationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
+  const { setUnseenUpdatesCount } = useGlobalRefresh();
 
   const isResetRef = useRef(false);
 
@@ -33,6 +35,10 @@ export default function Updates() {
   const notices = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
   const unseenCount = data?.data?.unseenCount ?? 0;
+
+  useEffect(() => {
+    setUnseenUpdatesCount(unseenCount);
+  }, [unseenCount]);
 
   useEffect(() => {
     if (notices.length === 0 && page === 1) {

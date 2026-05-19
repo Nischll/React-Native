@@ -45,6 +45,7 @@ export function NoticeCard({
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false;
+  const hasUnseenReplies = item.replies.some((r) => r.seen === false);
 
   const [showRepliesSheet, setShowRepliesSheet] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -150,6 +151,11 @@ export function NoticeCard({
       { onSuccess: () => setEditing(false) },
     );
   };
+
+  const unseenReplyCount = item.replies.reduce(
+    (acc, r) => acc + (r.seen === false ? 1 : 0),
+    0,
+  );
 
   return (
     <View
@@ -422,14 +428,45 @@ export function NoticeCard({
                 onPress={() => setShowRepliesSheet(true)}
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
-                <AppIcon name="chatbubble-outline" size={15} color="#64748B" />
+                <AppIcon
+                  name="chatbubble-outline"
+                  size={15}
+                  color={hasUnseenReplies ? "#7C3AED" : "#64748B"}
+                />
                 <Text
-                  style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: hasUnseenReplies ? "#7C3AED" : "#64748B",
+                  }}
                 >
                   {item.replies.length > 0
                     ? `${item.replies.length} ${item.replies.length === 1 ? "reply" : "replies"}`
                     : "Reply"}
                 </Text>
+                {hasUnseenReplies && (
+                  <View
+                    style={{
+                      backgroundColor: "#7C3AED",
+                      borderRadius: 99,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      minWidth: 18,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: "#fff",
+                        fontWeight: "700",
+                        lineHeight: 14,
+                      }}
+                    >
+                      {unseenReplyCount}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
 
               {isOwn && (

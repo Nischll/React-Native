@@ -53,21 +53,15 @@ function ReplyRow({
 }: ReplyRowProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
-  const isSwiped = openSwipeId === item.id;
+  const isNew = item.seen === false;
 
-  // const [editing, setEditing] = useState(false);
-  // const [editText, setEditText] = useState(item.message);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [mentionState, setMentionState] = useState<MentionState | null>(null);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteOpacity = useRef(new Animated.Value(0)).current;
 
   const isSwipedRef = useRef(false);
-
-  const { mutate: updateMsg, isPending: updating } =
-    useUpdateCommunicationWithRefresh();
 
   const isLong = item.message.length > 180;
   const displayText =
@@ -149,18 +143,6 @@ function ReplyRow({
     }),
   ).current;
 
-  // const handleSaveEdit = () => {
-  //   const trimmed = editText.trim();
-  //   if (!trimmed || trimmed === item.message) {
-  //     setEditing(false);
-  //     return;
-  //   }
-  //   updateMsg(
-  //     { id: item.id, message: trimmed, parentId: item.parentId ?? null },
-  //     { onSuccess: () => setEditing(false) },
-  //   );
-  // };
-
   return (
     <View style={{ borderRadius: 12 }}>
       {/* Delete zone — behind the row, revealed by sliding card */}
@@ -204,13 +186,21 @@ function ReplyRow({
         }}
         {...(isOwn ? panResponder.panHandlers : {})}
       >
+        {isNew && (
+          <View
+            style={{
+              height: 3,
+              backgroundColor: "#7C3AED",
+            }}
+          />
+        )}
         <View
           style={{
             backgroundColor: "#F8FAFC",
             borderRadius: 12,
             padding: 12,
-            borderWidth: 1,
-            borderColor: "#F1F5F9",
+            borderWidth: isNew ? 1.5 : 1,
+            borderColor: "#E2E8F0",
           }}
         >
           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -233,12 +223,34 @@ function ReplyRow({
                 >
                   {item.createdByFullName}
                 </Text>
+
                 <View
                   style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
                 >
                   <Text style={{ fontSize: 11, color: "#94A3B8" }}>
                     {timeAgo(item.createdDate)}
                   </Text>
+                  {isNew && (
+                    <View
+                      style={{
+                        backgroundColor: "#7C3AED",
+                        borderRadius: 99,
+                        paddingHorizontal: 7,
+                        paddingVertical: 2,
+                        marginLeft: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: "#fff",
+                          fontWeight: "700",
+                        }}
+                      >
+                        NEW
+                      </Text>
+                    </View>
+                  )}
                   {isOwn && (
                     <Pressable onPress={() => onEdit(item)} hitSlop={8}>
                       <AppIcon
@@ -257,76 +269,6 @@ function ReplyRow({
                   )}
                 </View>
               </View>
-
-              {/* {editing ? (
-                <View style={{ marginTop: 6 }}>
-                 
-                  <MentionTextInput
-                    value={editText}
-                    onChangeText={setEditText}
-                    onMentionStateChange={setMentionState}
-                    multiline
-                    autoFocus
-                    style={{
-                      fontSize: 13,
-                      color: "#1E293B",
-                      borderWidth: 1,
-                      borderColor: "#7C3AED",
-                      borderRadius: 8,
-                      padding: 8,
-                      minHeight: 40,
-                    }}
-                  />
-
-                  {mentionState && (
-                  
-                    <MentionSuggestions
-                      mentionState={mentionState}
-                      value={editText}
-                      onChangeText={setEditText}
-                      onDismiss={() => setMentionState(null)}
-                      direction="above"
-                    />
-                  )}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      gap: 12,
-                      marginTop: 6,
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <Pressable
-                      onPress={() => {
-                        setEditing(false);
-                        setEditText(item.message);
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: "#94A3B8",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Cancel
-                      </Text>
-                    </Pressable>
-                    <Pressable onPress={handleSaveEdit} disabled={updating}>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          color: "#7C3AED",
-                          fontWeight: "700",
-                        }}
-                      >
-                        {updating ? "Saving…" : "Save"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <> */}
 
               <MessageText text={displayText} />
               {isLong && (
@@ -350,15 +292,15 @@ function ReplyRow({
             </View>
           </View>
 
-          {item.reactions?.length > 0 && (
-            <View style={{ marginLeft: 38 }}>
-              <ReactionBar
-                communicationId={item.id}
-                reactions={item.reactions}
-                onOpenPicker={() => setShowReactionPicker(true)}
-              />
-            </View>
-          )}
+          {/* {item.reactions?.length > 0 && ( */}
+          <View style={{ marginLeft: 38 }}>
+            <ReactionBar
+              communicationId={item.id}
+              reactions={item.reactions}
+              onOpenPicker={() => setShowReactionPicker(true)}
+            />
+          </View>
+          {/* )} */}
         </View>
       </Animated.View>
 
@@ -530,7 +472,7 @@ export function RepliesSheet({
         />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior="padding"
           keyboardVerticalOffset={0}
           style={{ justifyContent: "flex-end" }}
         >

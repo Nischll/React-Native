@@ -70,7 +70,7 @@ export function NoticeComposer() {
               letterSpacing: 0.3,
             }}
           >
-            POST A NOTICE
+            POST A MESSAGE
           </Text>
         </Pressable>
 
