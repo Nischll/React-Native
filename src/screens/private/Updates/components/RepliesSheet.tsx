@@ -462,26 +462,26 @@ export function RepliesSheet({
         onClose();
       }}
     >
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}>
-        <Pressable
-          style={{ flex: 1 }}
-          onPress={() => {
-            Keyboard.dismiss();
-            onClose();
-          }}
-        />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+        style={{ flex: 1 }}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => {
+              Keyboard.dismiss();
+              onClose();
+            }}
+          />
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
-          style={{ justifyContent: "flex-end" }}
-        >
           <View
             style={{
               backgroundColor: "#fff",
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              minHeight: "85%",
+              height: "85%",
               paddingBottom: Platform.OS === "ios" ? 32 : 16,
               shadowColor: "#000",
               shadowOffset: { width: 0, height: -4 },
@@ -594,7 +594,6 @@ export function RepliesSheet({
                 showsVerticalScrollIndicator={false}
                 onScrollBeginDrag={() => setOpenSwipeId(null)}
                 keyboardShouldPersistTaps="handled"
-                disableScrollViewPanResponder
                 ListEmptyComponent={
                   <View
                     style={{
@@ -768,8 +767,8 @@ export function RepliesSheet({
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
 
       <ConfirmModal
         visible={deleteTargetId !== null}

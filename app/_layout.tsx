@@ -10,7 +10,18 @@ import "../global.css";
 function RootLayoutInner() {
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "fade_from_bottom",
+          freezeOnBlur: true,
+          gestureEnabled: true,
+          animationDuration: 220,
+          contentStyle: {
+            backgroundColor: "#fff",
+          },
+        }}
+      />
       <Toast config={toastConfig} />
     </>
   );
