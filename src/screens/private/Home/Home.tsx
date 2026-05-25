@@ -1,4 +1,7 @@
-import { useGetDashboardStatistics } from "@/src/api/dashboard.api";
+import {
+  useGetDashboardStatistics,
+  useGetNotice,
+} from "@/src/api/dashboard.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -10,9 +13,10 @@ import { mapIcon } from "@/src/helper/mapIcon";
 import { mapToAppRoute } from "@/src/helper/mapToAppRoute";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { router } from "expo-router";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
+import { timeAgo } from "@/src/utils/timeAgo";
 import { useState } from "react";
 
 export default function Home() {
@@ -31,8 +35,11 @@ export default function Home() {
       selectedMonth,
       !!buildingId,
     );
+  const { data: noticeData } = useGetNotice(1, 5);
 
   const stats = statsData?.data;
+  const notices = noticeData?.data?.data ?? [];
+  const unseenNoticeCount = noticeData?.data?.unseenCount ?? 0;
 
   const modules = user?.moduleList ?? [];
   const ALLOWED_MODULE_CODES = ["PARCEL", "TRM", "BI"];
@@ -159,8 +166,97 @@ export default function Home() {
         </Text>
       </View>
 
+      {/* ── Notice strip ── */}
+      {notices.length > 0 && (
+        <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
+          <View
+            style={{
+              backgroundColor: "#FEF9ED",
+              borderRadius: 14,
+              borderWidth: 0.5,
+              borderColor: "#FAC775",
+              padding: 12,
+            }}
+          >
+            {/* Strip header */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                marginBottom: 10,
+              }}
+            >
+              <AppIcon name="megaphone-outline" size={14} color="#BA7517" />
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: "#BA7517",
+                  letterSpacing: 0.4,
+                }}
+              >
+                NOTICES
+              </Text>
+              {unseenNoticeCount > 0 && (
+                <View
+                  style={{
+                    marginLeft: "auto",
+                    backgroundColor: "#FAC775",
+                    borderRadius: 99,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: "700",
+                      color: "#633806",
+                    }}
+                  >
+                    {unseenNoticeCount} new
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <ScrollView
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8 }}
+            >
+              {notices.map((notice) => (
+                <View
+                  key={notice.id}
+                  style={{
+                    width: "auto",
+                    backgroundColor: "#fff",
+                    borderRadius: 10,
+                    borderWidth: 0.5,
+                    borderColor: "#FAC775",
+                    padding: 10,
+                  }}
+                >
+                  <Text
+                    className="text-md font-medium text-textPrimary"
+                    // numberOfLines={3}
+                  >
+                    {notice.message}
+                  </Text>
+                  <Text
+                    style={{ fontSize: 11, color: "#BA7517", marginTop: 6 }}
+                  >
+                    {notice.createdByFullName} · {timeAgo(notice.createdDate)}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
       {/* ── Content area ── */}
-      <View className="px-4 mt-6">
+      <View className="px-4 mt-2">
         {/* Quick Actions header */}
         <View className="mb-2 flex-row items-center justify-between">
           <Text className="text-lg font-semibold text-textPrimary">

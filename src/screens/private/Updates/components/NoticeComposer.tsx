@@ -1,10 +1,13 @@
 import { useCreateCommunicationWithRefresh } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
+import SelectField from "@/src/components/ui/SelectField";
 import {
   MentionState,
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
+import { useEmployeeOptions } from "@/src/hooks/useEmployee";
+import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
@@ -12,6 +15,12 @@ export function NoticeComposer() {
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
+  const [selectedBuildingUnit, setSelectedBuildingUnit] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState("");
+
+  const { residences, isLoading: loadingResidences } =
+    useResidencesForActiveBuilding();
+  const { employees, isLoading: loadingEmployees } = useEmployeeOptions();
 
   const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
 
@@ -22,12 +31,19 @@ export function NoticeComposer() {
     if (!trimmed) return;
 
     create(
-      { message: trimmed, parentId: null },
+      {
+        message: trimmed,
+        parentId: null,
+        buildingId: selectedBuildingUnit ? Number(selectedBuildingUnit) : null,
+        employeeId: selectedEmployee ? Number(selectedEmployee) : null,
+      },
       {
         onSuccess: () => {
           setText("");
           setExpanded(false);
           setMentionState(null);
+          setSelectedBuildingUnit("");
+          setSelectedEmployee("");
         },
       },
     );
@@ -35,7 +51,6 @@ export function NoticeComposer() {
 
   return (
     <View style={{ marginHorizontal: 6, marginBottom: 12 }}>
-      {/* ───── Composer Card ───── */}
       <View
         style={{
           borderRadius: 16,
@@ -77,6 +92,7 @@ export function NoticeComposer() {
         {/* Expanded area */}
         {(expanded || hasText) && (
           <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
+            {/* Message input */}
             <MentionTextInput
               value={text}
               onChangeText={setText}
@@ -96,7 +112,6 @@ export function NoticeComposer() {
             />
 
             {mentionState && (
-              // <View style={{ zIndex: 999 }}>
               <MentionSuggestions
                 mentionState={mentionState}
                 value={text}
@@ -104,7 +119,114 @@ export function NoticeComposer() {
                 onDismiss={() => setMentionState(null)}
                 direction="below"
               />
-              // </View>
+            )}
+
+            {/* Optional tag row */}
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 8,
+                marginBottom: 10,
+              }}
+            >
+              {/* Building / Unit selector */}
+              <View style={{ flex: 1 }}>
+                <SelectField
+                  label=""
+                  value={selectedBuildingUnit}
+                  onChange={setSelectedBuildingUnit}
+                  options={residences}
+                  placeholder="Tag a unit (optional)"
+                  // isLoading={loadingResidences}
+                />
+              </View>
+
+              {/* Employee selector */}
+              {/* <View style={{ flex: 1 }}>
+                <SelectField
+                  label=""
+                  value={selectedEmployee}
+                  onChange={setSelectedEmployee}
+                  options={employees}
+                  placeholder="Tag staff (optional)"
+                  // isLoading={loadingEmployees}
+                />
+              </View> */}
+            </View>
+
+            {/* Selected tags preview */}
+            {(selectedBuildingUnit || selectedEmployee) && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: 10,
+                }}
+              >
+                {selectedBuildingUnit && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      backgroundColor: "#EDE9FE",
+                      borderRadius: 99,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <AppIcon name="home-outline" size={11} color="#7C3AED" />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: "#7C3AED",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {residences.find((r) => r.value === selectedBuildingUnit)
+                        ?.label ?? selectedBuildingUnit}
+                    </Text>
+                    <Pressable
+                      onPress={() => setSelectedBuildingUnit("")}
+                      hitSlop={6}
+                    >
+                      <AppIcon name="close-circle" size={13} color="#7C3AED" />
+                    </Pressable>
+                  </View>
+                )}
+                {selectedEmployee && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      backgroundColor: "#EDE9FE",
+                      borderRadius: 99,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <AppIcon name="person-outline" size={11} color="#7C3AED" />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: "#7C3AED",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {employees.find((e) => e.value === selectedEmployee)
+                        ?.label ?? selectedEmployee}
+                    </Text>
+                    <Pressable
+                      onPress={() => setSelectedEmployee("")}
+                      hitSlop={6}
+                    >
+                      <AppIcon name="close-circle" size={13} color="#7C3AED" />
+                    </Pressable>
+                  </View>
+                )}
+              </View>
             )}
 
             {/* Actions */}
@@ -114,17 +236,16 @@ export function NoticeComposer() {
                 alignItems: "center",
                 justifyContent: "flex-end",
                 gap: 8,
-                paddingHorizontal: 12,
-                paddingBottom: 10,
-                paddingTop: 10,
+                paddingTop: 4,
               }}
             >
-              {/* Cancel */}
               <Pressable
                 onPress={() => {
                   setText("");
                   setExpanded(false);
                   setMentionState(null);
+                  setSelectedBuildingUnit("");
+                  setSelectedEmployee("");
                 }}
                 style={{
                   paddingHorizontal: 14,
@@ -134,17 +255,12 @@ export function NoticeComposer() {
                 }}
               >
                 <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: "#64748B",
-                  }}
+                  style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}
                 >
                   Cancel
                 </Text>
               </Pressable>
 
-              {/* Post */}
               <Pressable
                 onPress={handleSend}
                 disabled={!text.trim() || isPending}
@@ -168,7 +284,6 @@ export function NoticeComposer() {
                     color={!text.trim() ? "#94A3B8" : "#fff"}
                   />
                 )}
-
                 <Text
                   style={{
                     fontSize: 13,
@@ -183,14 +298,11 @@ export function NoticeComposer() {
           </View>
         )}
 
-        {/* Placeholder */}
+        {/* Collapsed placeholder */}
         {!expanded && !hasText && (
           <Pressable
             onPress={() => setExpanded(true)}
-            style={{
-              paddingHorizontal: 14,
-              paddingBottom: 14,
-            }}
+            style={{ paddingHorizontal: 14, paddingBottom: 14 }}
           >
             <Text style={{ fontSize: 14, color: "#CBD5E1" }}>
               Share an update with the team…

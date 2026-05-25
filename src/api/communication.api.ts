@@ -46,6 +46,8 @@ export interface CommunicationListResponse {
 export interface CreateCommunicationPayload {
   message: string;
   parentId: number | null;
+  employeeId?: number | null;
+  buildingId?: number | null;
 }
 
 export interface UpdateCommunicationPayload {

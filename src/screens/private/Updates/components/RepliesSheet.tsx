@@ -18,9 +18,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
+  KeyboardEvent,
   Modal,
   PanResponder,
   Platform,
@@ -33,6 +34,8 @@ import { ReactionBar, ReactionPicker } from "./ReactionBar";
 
 const REPLY_DELETE_WIDTH = 80;
 const REPLY_SWIPE_THRESHOLD = 50;
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const BASE_SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 // ─── Reply Row ────────────────────────────────────────────────────────────────
 
@@ -60,7 +63,6 @@ function ReplyRow({
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteOpacity = useRef(new Animated.Value(0)).current;
-
   const isSwipedRef = useRef(false);
 
   const isLong = item.message.length > 180;
@@ -103,7 +105,6 @@ function ReplyRow({
     if (openSwipeId === item.id) onSwipeOpen(null);
   };
 
-  // When another row opens, close this one
   useEffect(() => {
     if (openSwipeId !== item.id && isSwipedRef.current) {
       snapClosed();
@@ -120,7 +121,6 @@ function ReplyRow({
         return isHorizontal && hasMoved;
       },
       onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
-
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
         const dx = Math.min(0, g.dx);
@@ -145,7 +145,6 @@ function ReplyRow({
 
   return (
     <View style={{ borderRadius: 12 }}>
-      {/* Delete zone — behind the row, revealed by sliding card */}
       {isOwn && (
         <Animated.View
           style={{
@@ -163,9 +162,7 @@ function ReplyRow({
           }}
         >
           <Pressable
-            onPress={() => {
-              onRequestDelete(item.id);
-            }}
+            onPress={() => onRequestDelete(item.id)}
             style={{ alignItems: "center", gap: 4, padding: 8 }}
           >
             <AppIcon name="trash-outline" size={20} color="#EF4444" />
@@ -176,7 +173,6 @@ function ReplyRow({
         </Animated.View>
       )}
 
-      {/* Swipeable card */}
       <Animated.View
         style={{
           transform: [{ translateX }],
@@ -186,14 +182,7 @@ function ReplyRow({
         }}
         {...(isOwn ? panResponder.panHandlers : {})}
       >
-        {isNew && (
-          <View
-            style={{
-              height: 3,
-              backgroundColor: "#7C3AED",
-            }}
-          />
-        )}
+        {isNew && <View style={{ height: 3, backgroundColor: "#7C3AED" }} />}
         <View
           style={{
             backgroundColor: "#F8FAFC",
@@ -223,7 +212,6 @@ function ReplyRow({
                 >
                   {item.createdByFullName}
                 </Text>
-
                 <View
                   style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
                 >
@@ -287,12 +275,9 @@ function ReplyRow({
                   </Text>
                 </Pressable>
               )}
-              {/* </>
-              )} */}
             </View>
           </View>
 
-          {/* {item.reactions?.length > 0 && ( */}
           <View style={{ marginLeft: 38 }}>
             <ReactionBar
               communicationId={item.id}
@@ -300,7 +285,6 @@ function ReplyRow({
               onOpenPicker={() => setShowReactionPicker(true)}
             />
           </View>
-          {/* )} */}
         </View>
       </Animated.View>
 
@@ -355,10 +339,10 @@ export function RepliesSheet({
   const [editingReply, setEditingReply] = useState<CommunicationItem | null>(
     null,
   );
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const { mutate: updateReply, isPending: updatingReply } =
     useUpdateCommunicationWithRefresh();
-
   const { mutate: create, isPending: sending } =
     useCreateCommunicationWithRefresh();
   const { mutate: deleteMsg, isPending: deleting } =
@@ -367,33 +351,33 @@ export function RepliesSheet({
   const hasText = replyText.trim().length > 0;
   const flatReplies = localReplies.filter((r) => r.parentId === parentItem.id);
 
+  // Shrink sheet height when keyboard opens instead of pushing it up
+  const computedSheetHeight = BASE_SHEET_HEIGHT - keyboardHeight;
+
+  // Mention suggestions sit just above the composer; bump up when edit banner shows
+  const mentionBottom = editingReply ? 110 : 70;
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", (e: KeyboardEvent) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   useEffect(() => {
     setLocalReplies(parentItem.replies ?? []);
   }, [parentItem.replies]);
 
-  // const handleSend = () => {
-  //   const trimmed = replyText.trim();
-  //   if (!trimmed) return;
-  //   create(
-  //     { message: trimmed, parentId: parentItem.id },
-  //     {
-  //       onSuccess: (res: any) => {
-  //         const newReply = res?.data?.data || res?.data || res;
-  //         if (newReply && newReply.id) {
-  //           setLocalReplies((prev) => [...prev, newReply]);
-  //         }
-  //         setReplyText("");
-  //       },
-  //     },
-  //   );
-  // };
-
   const handleSend = () => {
     const trimmed = replyText.trim();
-
     if (!trimmed) return;
 
-    // EDIT MODE
     if (editingReply) {
       updateReply(
         {
@@ -405,35 +389,25 @@ export function RepliesSheet({
           onSuccess: () => {
             setLocalReplies((prev) =>
               prev.map((r) =>
-                r.id === editingReply.id
-                  ? {
-                      ...r,
-                      message: trimmed,
-                    }
-                  : r,
+                r.id === editingReply.id ? { ...r, message: trimmed } : r,
               ),
             );
-
             setReplyText("");
             setEditingReply(null);
           },
         },
       );
-
       return;
     }
 
-    // CREATE MODE
     create(
       { message: trimmed, parentId: parentItem.id },
       {
         onSuccess: (res: any) => {
           const newReply = res?.data?.data || res?.data || res;
-
           if (newReply && newReply.id) {
             setLocalReplies((prev) => [...prev, newReply]);
           }
-
           setReplyText("");
         },
       },
@@ -462,313 +436,271 @@ export function RepliesSheet({
         onClose();
       }}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
-        style={{ flex: 1 }}
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}>
-          <Pressable
-            style={{ flex: 1 }}
-            onPress={() => {
-              Keyboard.dismiss();
-              onClose();
-            }}
-          />
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        />
 
+        {/* Sheet — shrinks when keyboard opens */}
+        <View
+          style={{
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            height: computedSheetHeight,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 20,
+            elevation: 20,
+          }}
+        >
+          {/* Drag handle */}
           <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              height: "85%",
-              paddingBottom: Platform.OS === "ios" ? 32 : 16,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: -4 },
-              shadowOpacity: 0.12,
-              shadowRadius: 20,
-              elevation: 20,
-            }}
+            style={{ alignItems: "center", paddingTop: 10, paddingBottom: 4 }}
           >
-            {/* Drag handle */}
-            <View
-              style={{ alignItems: "center", paddingTop: 10, paddingBottom: 4 }}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: "#E2E8F0",
-                }}
-              />
-            </View>
-
-            {/* Header */}
             <View
               style={{
-                flexDirection: "row",
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: "#E2E8F0",
+              }}
+            />
+          </View>
+
+          {/* Header */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingTop: 4,
+              paddingBottom: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: "#F1F5F9",
+            }}
+          >
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 16,
+                fontWeight: "700",
+                color: "#1E293B",
+              }}
+            >
+              {flatReplies.length}{" "}
+              {flatReplies.length === 1 ? "Reply" : "Replies"}
+            </Text>
+            <Pressable
+              onPress={() => {
+                Keyboard.dismiss();
+                onClose();
+              }}
+              hitSlop={12}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: "#F1F5F9",
                 alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <AppIcon name="close" size={16} color="#64748B" />
+            </Pressable>
+          </View>
+
+          {/* Original post preview */}
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 12,
+              marginBottom: 8,
+              padding: 12,
+              backgroundColor: "#FAFAFA",
+              borderRadius: 12,
+              borderLeftWidth: 3,
+              borderLeftColor: "#7C3AED",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: "#7C3AED",
+                marginBottom: 2,
+              }}
+            >
+              {parentItem.createdByFullName}
+            </Text>
+            <Text
+              style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
+              numberOfLines={3}
+            >
+              {parentItem.message}
+            </Text>
+          </View>
+
+          {/* Reply list */}
+          <View style={{ flex: 1, minHeight: 0 }}>
+            <FlatList
+              data={flatReplies}
+              keyExtractor={(r) => String(r.id)}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{
                 paddingHorizontal: 16,
                 paddingTop: 4,
-                paddingBottom: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: "#F1F5F9",
+                paddingBottom: 8,
+                gap: 8,
+                flexGrow: 1,
+              }}
+              showsVerticalScrollIndicator={false}
+              onScrollBeginDrag={() => setOpenSwipeId(null)}
+              ListEmptyComponent={
+                <View
+                  style={{
+                    flex: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 32,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: "#94A3B8" }}>
+                    No replies yet. Be the first!
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <ReplyRow
+                  item={item}
+                  openSwipeId={openSwipeId}
+                  onSwipeOpen={setOpenSwipeId}
+                  onRequestDelete={setDeleteTargetId}
+                  onEdit={(reply) => {
+                    setEditingReply(reply);
+                    setReplyText(reply.message);
+                  }}
+                />
+              )}
+            />
+          </View>
+
+          {/* Mention suggestions */}
+          {mentionState && (
+            <MentionSuggestions
+              mentionState={mentionState}
+              value={replyText}
+              onChangeText={setReplyText}
+              onDismiss={() => setMentionState(null)}
+              direction="above"
+            />
+          )}
+
+          {/* Edit indicator */}
+          {editingReply && (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 8,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
               <Text
-                style={{
-                  flex: 1,
-                  fontSize: 16,
-                  fontWeight: "700",
-                  color: "#1E293B",
-                }}
+                style={{ fontSize: 12, color: "#7C3AED", fontWeight: "600" }}
               >
-                {flatReplies.length}{" "}
-                {flatReplies.length === 1 ? "Reply" : "Replies"}
+                Editing reply
               </Text>
               <Pressable
                 onPress={() => {
-                  Keyboard.dismiss();
-                  onClose();
-                }}
-                hitSlop={12}
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 15,
-                  backgroundColor: "#F1F5F9",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <AppIcon name="close" size={16} color="#64748B" />
-              </Pressable>
-            </View>
-
-            {/* Original post preview */}
-            <View
-              style={{
-                marginHorizontal: 16,
-                marginTop: 12,
-                marginBottom: 8,
-                padding: 12,
-                backgroundColor: "#FAFAFA",
-                borderRadius: 12,
-                borderLeftWidth: 3,
-                borderLeftColor: "#7C3AED",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: "#7C3AED",
-                  marginBottom: 2,
-                }}
-              >
-                {parentItem.createdByFullName}
-              </Text>
-              <Text
-                style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
-                numberOfLines={3}
-              >
-                {parentItem.message}
-              </Text>
-            </View>
-
-            {/* Reply list */}
-            <View style={{ flex: 1, minHeight: 0 }}>
-              <FlatList
-                data={flatReplies}
-                keyExtractor={(r) => String(r.id)}
-                keyboardDismissMode="interactive"
-                automaticallyAdjustKeyboardInsets
-                contentContainerStyle={{
-                  paddingHorizontal: 16,
-                  paddingTop: 4,
-                  paddingBottom: 8,
-                  gap: 8,
-                  flexGrow: 1,
-                }}
-                showsVerticalScrollIndicator={false}
-                onScrollBeginDrag={() => setOpenSwipeId(null)}
-                keyboardShouldPersistTaps="handled"
-                ListEmptyComponent={
-                  <View
-                    style={{
-                      flex: 1,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingVertical: 32,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, color: "#94A3B8" }}>
-                      No replies yet. Be the first!
-                    </Text>
-                  </View>
-                }
-                renderItem={({ item }) => (
-                  <ReplyRow
-                    item={item}
-                    openSwipeId={openSwipeId}
-                    onSwipeOpen={setOpenSwipeId}
-                    onRequestDelete={setDeleteTargetId}
-                    onEdit={(reply) => {
-                      setEditingReply(reply);
-                      setReplyText(reply.message);
-                    }}
-                  />
-                )}
-              />
-            </View>
-
-            {/* Composer */}
-            {mentionState && (
-              <View style={{ paddingHorizontal: 16 }}>
-                <MentionSuggestions
-                  mentionState={mentionState}
-                  value={replyText}
-                  onChangeText={setReplyText}
-                  onDismiss={() => setMentionState(null)}
-                  direction="below"
-                />
-              </View>
-            )}
-            {editingReply && (
-              <View
-                style={{
-                  paddingHorizontal: 16,
-                  paddingBottom: 8,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  setEditingReply(null);
+                  setReplyText("");
                 }}
               >
                 <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#7C3AED",
-                    fontWeight: "600",
-                  }}
+                  style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}
                 >
-                  Editing reply
+                  Cancel
                 </Text>
-
-                <Pressable
-                  onPress={() => {
-                    setEditingReply(null);
-                    setReplyText("");
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: "#94A3B8",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Cancel
-                  </Text>
-                </Pressable>
-              </View>
-            )}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                alignContent: "center",
-                paddingHorizontal: 16,
-                paddingTop: 10,
-                paddingBottom: Platform.OS === "ios" ? 32 : 16,
-                borderTopWidth: 1,
-                borderTopColor: "#F1F5F9",
-                gap: 10,
-                minHeight: Platform.OS === "ios" ? 80 : 64,
-              }}
-            >
-              {/* <TextInput
-                value={replyText}
-                onChangeText={setReplyText}
-                placeholder={`Reply to ${parentItem.createdByFullName}…`}
-                placeholderTextColor="#CBD5E1"
-                multiline
-                textAlignVertical="top"
-                style={{
-                  flex: 1,
-                  fontSize: 14,
-                  color: "#1E293B",
-                  backgroundColor: "#F8FAFC",
-                  borderWidth: 1,
-                  borderColor: "#E2E8F0",
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingTop: 10,
-                  paddingBottom: 10,
-
-                  minHeight: 42,
-                  maxHeight: 100,
-                }}
-              /> */}
-
-              <MentionTextInput
-                value={replyText}
-                onChangeText={setReplyText}
-                onMentionStateChange={setMentionState}
-                placeholder={
-                  editingReply
-                    ? "Edit reply..."
-                    : `Reply to ${parentItem.createdByFullName}…`
-                }
-                placeholderTextColor="#CBD5E1"
-                multiline
-                style={{
-                  flex: 1,
-                  fontSize: 14,
-                  color: "#1E293B",
-                  backgroundColor: "#F8FAFC",
-                  borderWidth: 1,
-                  borderColor: "#E2E8F0",
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingTop: 10,
-                  paddingBottom: 10,
-                  minHeight: 42,
-                  maxHeight: 100,
-                }}
-              />
-
-              <Pressable
-                onPress={handleSend}
-                disabled={!hasText || sending}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  minWidth: 42,
-                  minHeight: 42,
-                  borderRadius: 12,
-                  backgroundColor: hasText && !sending ? "#7C3AED" : "#E2E8F0",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  alignSelf: "flex-end",
-                  opacity: pressed && hasText ? 0.85 : 1,
-                })}
-              >
-                {sending || updatingReply ? (
-                  <ActivityIndicator size="small" color="black" />
-                ) : (
-                  <AppIcon
-                    name="send"
-                    size={18}
-                    color={hasText ? "black" : "#94A3B8"}
-                  />
-                )}
               </Pressable>
             </View>
+          )}
+
+          {/* Composer */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: Platform.OS === "ios" ? 32 : 16,
+              borderTopWidth: 1,
+              borderTopColor: "#F1F5F9",
+              gap: 10,
+            }}
+          >
+            <MentionTextInput
+              value={replyText}
+              onChangeText={setReplyText}
+              onMentionStateChange={setMentionState}
+              placeholder={
+                editingReply
+                  ? "Edit reply..."
+                  : `Reply to ${parentItem.createdByFullName}…`
+              }
+              placeholderTextColor="#CBD5E1"
+              multiline
+              style={{
+                flex: 1,
+                fontSize: 14,
+                color: "#1E293B",
+                backgroundColor: "#F8FAFC",
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingTop: 10,
+                paddingBottom: 10,
+                minHeight: 42,
+                maxHeight: 100,
+              }}
+            />
+            <Pressable
+              onPress={handleSend}
+              disabled={!hasText || sending}
+              style={({ pressed }) => ({
+                width: 42,
+                height: 42,
+                minWidth: 42,
+                minHeight: 42,
+                borderRadius: 12,
+                backgroundColor: hasText && !sending ? "#7C3AED" : "#E2E8F0",
+                alignItems: "center",
+                justifyContent: "center",
+                alignSelf: "flex-end",
+                opacity: pressed && hasText ? 0.85 : 1,
+              })}
+            >
+              {sending || updatingReply ? (
+                <ActivityIndicator size="small" color="black" />
+              ) : (
+                <AppIcon
+                  name="send"
+                  size={18}
+                  color={hasText ? "black" : "#94A3B8"}
+                />
+              )}
+            </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <ConfirmModal
         visible={deleteTargetId !== null}

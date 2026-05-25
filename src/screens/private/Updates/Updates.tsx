@@ -22,7 +22,7 @@ import {
 
 export default function Updates() {
   const [page, setPage] = useState(1);
-  const limit = 5;
+  const limit = 10;
   const [allNotices, setAllNotices] = useState<CommunicationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
@@ -81,8 +81,8 @@ export default function Updates() {
     >
       <View style={{ flex: 1 }}>
         <PageHeader
-          icon="megaphone"
-          title="Updates & Notices"
+          icon="chatbubbles"
+          title="Communications"
           subtitle={
             unseenCount > 0
               ? `${unseenCount} new update${unseenCount > 1 ? "s" : ""}`
@@ -113,7 +113,7 @@ export default function Updates() {
           }
           ListHeaderComponent={<NoticeComposer />}
           ListEmptyComponent={
-            !isLoading ? (
+            isLoading ? (
               <View style={{ flex: 1 }}>
                 <ScrollView
                   style={{ flex: 1 }}
@@ -138,7 +138,20 @@ export default function Updates() {
                   ))}
                 </ScrollView>
               </View>
-            ) : null
+            ) : (
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 48,
+                }}
+              >
+                <Text style={{ fontSize: 14, color: "#94A3B8" }}>
+                  No messages yet
+                </Text>
+              </View>
+            )
           }
           ListFooterComponent={
             hasMore ? (

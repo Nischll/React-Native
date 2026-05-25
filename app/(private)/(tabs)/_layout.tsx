@@ -46,16 +46,15 @@ export default function TabsLayout() {
           }}
         />
 
-        {/* ── REPLACED: modules → updates ── */}
         <Tabs.Screen
           name="updates"
           options={{
-            title: "Updates",
+            title: "Messages",
             tabBarIcon: ({ color, focused }) => (
               <View>
                 <TabIcon
-                  icon="megaphone"
-                  label="Updates"
+                  icon="chatbubbles"
+                  label="Messages"
                   color={color}
                   focused={focused}
                 />

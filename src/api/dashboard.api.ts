@@ -1,6 +1,7 @@
+import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-import { DashboardStatisticsResponse } from "../types/dashboard.types";
-import { ApiListResponse } from "./auth.api";
+import { DashboardStatisticsResponse, Notice } from "../types/dashboard.types";
+import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
 export const useGetDashboardStatistics = (
   buildingId: number | undefined,
@@ -17,3 +18,12 @@ export const useGetDashboardStatistics = (
       retry: 0,
     },
   );
+
+export const useGetNotice = (page: number, limit?: number) =>
+  useApiQuery<ApiListResponse<ApiPaginatedData<Notice>>>("/notice", {
+    queryParams: { page, ...(limit !== undefined ? { limit } : {}) },
+    enabled: true,
+    retry: 0,
+  });
+
+export const usePostNotice = () => useApiMutation("post", "/notice");
