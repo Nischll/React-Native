@@ -13,11 +13,12 @@ import { mapIcon } from "@/src/helper/mapIcon";
 import { mapToAppRoute } from "@/src/helper/mapToAppRoute";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { router } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
-import { timeAgo } from "@/src/utils/timeAgo";
 import { useState } from "react";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { NoticeStrip } from "./components/NoticeStrip";
 
 export default function Home() {
   const { user, buildingId, selectedBuilding, openBuildingSelectDialog } =
@@ -54,216 +55,139 @@ export default function Home() {
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   return (
-    <View className="flex-1">
-      <View className="bg-primary px-4 pt-4 pb-8 rounded-b-3xl">
-        {/* Header */}
-        <PageHeader
-          variant="dashboard"
-          icon="person"
-          title={`${user?.firstName || user?.fullName || "User"}`}
-          subtitle={user?.email || "Welcome back to your dashboard!"}
-        />
+    <KeyboardAwareScrollView
+      keyboardShouldPersistTaps="always"
+      keyboardDismissMode="none"
+      enableOnAndroid
+      enableAutomaticScroll
+      extraScrollHeight={20}
+      extraHeight={120}
+      showsVerticalScrollIndicator={false}
+    >
+      <View className="flex-1">
+        <View className="bg-primary px-4 pt-4 pb-8 rounded-b-3xl">
+          {/* Header */}
+          <PageHeader
+            variant="dashboard"
+            icon="person"
+            title={`${user?.firstName || user?.fullName || "User"}`}
+            subtitle={user?.email || "Welcome back to your dashboard!"}
+          />
 
-        {/* Search */}
-        <AppInput
-          placeholder="Search modules, parcels..."
-          leftIcon="search"
-          size="sm"
-        />
+          {/* Search */}
+          <AppInput
+            placeholder="Search modules, parcels..."
+            leftIcon="search"
+            size="sm"
+          />
 
-        {/* Active Building */}
-        <View className="flex-row items-center justify-between py-5">
-          {/* LEFT SIDE */}
-          <View className="flex-1 pr-4">
-            {/* Title */}
-            <Text className="text-sm font-semibold text-white/80">
-              Active Building
-            </Text>
+          {/* Active Building */}
+          <View className="flex-row items-center justify-between py-5">
+            {/* LEFT SIDE */}
+            <View className="flex-1 pr-4">
+              {/* Title */}
+              <Text className="text-sm font-semibold text-white/80">
+                Active Building
+              </Text>
 
-            {/* Building Name */}
-            <Text className="mt-1 text-md font-bold text-white">
-              {selectedBuilding?.label || "No building selected"}
-            </Text>
+              {/* Building Name */}
+              <Text className="mt-1 text-md font-bold text-white">
+                {selectedBuilding?.label || "No building selected"}
+              </Text>
 
-            {/* Button */}
-            <View className="flex-row items-center gap-4">
-              <AnimatedPressable
-                onPress={openBuildingSelectDialog}
-                className="mt-3 self-start rounded-xl bg-white/15 border border-white/20 px-4 py-2"
-              >
-                <Text className="text-sm font-semibold text-white">
-                  Change Building
-                </Text>
-              </AnimatedPressable>
+              {/* Button */}
+              <View className="flex-row items-center gap-4">
+                <AnimatedPressable
+                  onPress={openBuildingSelectDialog}
+                  className="mt-3 self-start rounded-xl bg-white/15 border border-white/20 px-4 py-2"
+                >
+                  <Text className="text-sm font-semibold text-white">
+                    Change Building
+                  </Text>
+                </AnimatedPressable>
 
-              <MonthYearPicker
-                value={selectedMonth}
-                onChange={(val) => setSelectedMonth(val)}
+                <MonthYearPicker
+                  value={selectedMonth}
+                  onChange={(val) => setSelectedMonth(val)}
+                />
+              </View>
+            </View>
+
+            {/* RIGHT SIDE - HEXAGON ICON */}
+            <View className="h-24 w-24 items-center justify-center">
+              <View
+                className="absolute h-full w-full bg-white"
+                style={{
+                  // transform: [{ rotate: "45deg" }],
+                  borderRadius: 100,
+                }}
               />
+
+              {/* Icon on top */}
+              <AppIcon name="business-outline" size={50} color="#453956" />
             </View>
           </View>
 
-          {/* RIGHT SIDE - HEXAGON ICON */}
-          <View className="h-24 w-24 items-center justify-center">
-            <View
-              className="absolute h-full w-full bg-white"
-              style={{
-                // transform: [{ rotate: "45deg" }],
-                borderRadius: 100,
-              }}
-            />
-
-            {/* Icon on top */}
-            <AppIcon name="business-outline" size={50} color="#453956" />
-          </View>
-        </View>
-
-        {/* ── Statistics row ── */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 8,
-            marginTop: 14,
-          }}
-        >
-          <StatCard
-            icon="calendar-outline"
-            label="Bookings"
-            value={stats?.totalBookings ?? 0}
-            loading={statsLoading}
-          />
-          <StatCard
-            icon="cash-outline"
-            label="Revenue"
-            value={
-              stats?.totalRevenue != null
-                ? `$${stats.totalRevenue.toLocaleString()}`
-                : "—"
-            }
-            loading={statsLoading}
-          />
-          <StatCard
-            icon="warning-outline"
-            label="Violations"
-            value={stats?.totalViolations ?? 0}
-            loading={statsLoading}
-          />
-        </View>
-
-        {/* Month label */}
-        <Text
-          style={{
-            textAlign: "center",
-            fontSize: 10,
-            color: "rgba(255,255,255,0.45)",
-            marginTop: 8,
-            letterSpacing: 0.5,
-          }}
-        >
-          {new Date(selectedMonth + "-01")
-            .toLocaleString("default", { month: "long", year: "numeric" })
-            .toUpperCase()}
-        </Text>
-      </View>
-
-      {/* ── Notice strip ── */}
-      {notices.length > 0 && (
-        <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
+          {/* ── Statistics row ── */}
           <View
             style={{
-              backgroundColor: "#FEF9ED",
-              borderRadius: 14,
-              borderWidth: 0.5,
-              borderColor: "#FAC775",
-              padding: 12,
+              flexDirection: "row",
+              gap: 8,
+              marginTop: 14,
             }}
           >
-            {/* Strip header */}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                marginBottom: 10,
-              }}
-            >
-              <AppIcon name="megaphone-outline" size={14} color="#BA7517" />
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: "700",
-                  color: "#BA7517",
-                  letterSpacing: 0.4,
-                }}
-              >
-                NOTICES
-              </Text>
-              {unseenNoticeCount > 0 && (
-                <View
-                  style={{
-                    marginLeft: "auto",
-                    backgroundColor: "#FAC775",
-                    borderRadius: 99,
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      fontWeight: "700",
-                      color: "#633806",
-                    }}
-                  >
-                    {unseenNoticeCount} new
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <ScrollView
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}
-            >
-              {notices.map((notice) => (
-                <View
-                  key={notice.id}
-                  style={{
-                    width: "auto",
-                    backgroundColor: "#fff",
-                    borderRadius: 10,
-                    borderWidth: 0.5,
-                    borderColor: "#FAC775",
-                    padding: 10,
-                  }}
-                >
-                  <Text
-                    className="text-md font-medium text-textPrimary"
-                    // numberOfLines={3}
-                  >
-                    {notice.message}
-                  </Text>
-                  <Text
-                    style={{ fontSize: 11, color: "#BA7517", marginTop: 6 }}
-                  >
-                    {notice.createdByFullName} · {timeAgo(notice.createdDate)}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
+            <StatCard
+              icon="calendar-outline"
+              label="Bookings"
+              value={stats?.totalBookings ?? 0}
+              loading={statsLoading}
+            />
+            <StatCard
+              icon="cash-outline"
+              label="Revenue"
+              value={
+                stats?.totalRevenue != null
+                  ? `$${stats.totalRevenue.toLocaleString()}`
+                  : "—"
+              }
+              loading={statsLoading}
+            />
+            <StatCard
+              icon="warning-outline"
+              label="Violations"
+              value={stats?.totalViolations ?? 0}
+              loading={statsLoading}
+            />
           </View>
-        </View>
-      )}
 
-      {/* ── Content area ── */}
-      <View className="px-4 mt-2">
-        {/* Quick Actions header */}
-        <View className="mb-2 flex-row items-center justify-between">
-          <Text className="text-lg font-semibold text-textPrimary">
-            Quick Actions
+          {/* Month label */}
+          <Text
+            style={{
+              textAlign: "center",
+              fontSize: 10,
+              color: "rgba(255,255,255,0.45)",
+              marginTop: 8,
+              letterSpacing: 0.5,
+            }}
+          >
+            {new Date(selectedMonth + "-01")
+              .toLocaleString("default", { month: "long", year: "numeric" })
+              .toUpperCase()}
           </Text>
+        </View>
 
-          {/* <AnimatedPressable
+        {/* ── Notice strip ── */}
+        <NoticeStrip />
+
+        {/* ── Content area ── */}
+        <View className="px-4 mt-2">
+          {/* Quick Actions header */}
+          <View className="mb-2 flex-row items-center justify-between">
+            <Text className="text-lg font-semibold text-textPrimary">
+              Quick Actions
+            </Text>
+
+            {/* <AnimatedPressable
             onPress={() => router.push("/(private)/(tabs)/modules")}
           >
             <View className="flex-row items-center gap-1">
@@ -275,32 +199,33 @@ export default function Home() {
               </View>
             </View>
           </AnimatedPressable> */}
-        </View>
+          </View>
 
-        {/* Quick Actions grid */}
-        <View className="flex-row flex-wrap justify-between">
-          {quickModules.map((item) => (
-            <AnimatedPressable
-              key={item.title}
-              onPress={() => router.push(item.route)}
-              className="mb-4 w-[49%]"
-            >
-              <Card className="flex-row justify-between items-center p-2">
-                <View className="h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <AppIcon name={item.icon} size={22} color="#453956" />
-                </View>
-                <Text
-                  className="text-xs font-semibold text-textPrimary flex-1 text-center"
-                  numberOfLines={2}
-                >
-                  {item.title}
-                </Text>
-                <AppIcon name="chevron-forward" size={16} />
-              </Card>
-            </AnimatedPressable>
-          ))}
+          {/* Quick Actions grid */}
+          <View className="flex-row flex-wrap justify-between">
+            {quickModules.map((item) => (
+              <AnimatedPressable
+                key={item.title}
+                onPress={() => router.push(item.route)}
+                className="mb-4 w-[49%]"
+              >
+                <Card className="flex-row justify-between items-center p-2">
+                  <View className="h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                    <AppIcon name={item.icon} size={22} color="#453956" />
+                  </View>
+                  <Text
+                    className="text-xs font-semibold text-textPrimary flex-1 text-center"
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
+                  <AppIcon name="chevron-forward" size={16} />
+                </Card>
+              </AnimatedPressable>
+            ))}
+          </View>
         </View>
       </View>
-    </View>
+    </KeyboardAwareScrollView>
   );
 }

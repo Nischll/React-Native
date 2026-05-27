@@ -27,3 +27,9 @@ export const useGetNotice = (page: number, limit?: number) =>
   });
 
 export const usePostNotice = () => useApiMutation("post", "/notice");
+
+export const useEditNotice = (id: number | undefined) =>
+  useApiMutation("put", `/notice/${id}`);
+
+export const useDeleteNotice = (id: number | undefined) =>
+  useApiMutation("delete", `/notice/${id}`);
