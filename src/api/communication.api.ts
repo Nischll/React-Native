@@ -29,6 +29,8 @@ export interface CommunicationItem {
   seen: boolean | null;
   reactions: Reaction[];
   replies: CommunicationItem[];
+  buildingIds: number[] | null;
+  employeeIds: number[] | null;
 }
 
 export interface CommunicationListResponse {
@@ -46,14 +48,16 @@ export interface CommunicationListResponse {
 export interface CreateCommunicationPayload {
   message: string;
   parentId: number | null;
-  employeeId?: number | null;
-  buildingId?: number | null;
+  employeeIds?: number[] | null;
+  buildingIds?: number[] | null;
 }
 
 export interface UpdateCommunicationPayload {
   id: number;
   message: string;
   parentId: number | null;
+  employeeIds?: number[] | null;
+  buildingIds?: number[] | null;
 }
 
 export interface ReactionPayload {

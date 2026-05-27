@@ -6,8 +6,7 @@ import {
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
-import { useEmployeeOptions } from "@/src/hooks/useEmployee";
-import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
@@ -15,16 +14,19 @@ export function NoticeComposer() {
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
-  const [selectedBuildingUnit, setSelectedBuildingUnit] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState("");
+  const [selectedBuildingUnit, setSelectedBuildingUnit] = useState<string[]>(
+    [],
+  );
+  const [selectedEmployee, setSelectedEmployee] = useState<string[]>([]);
 
-  const { residences, isLoading: loadingResidences } =
-    useResidencesForActiveBuilding();
-  const { employees, isLoading: loadingEmployees } = useEmployeeOptions();
-
+  const { user } = useAuth();
   const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
 
   const hasText = text.trim().length > 0;
+
+  const handleMentionSelect = (id: string) => {
+    setSelectedEmployee((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  };
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -34,21 +36,23 @@ export function NoticeComposer() {
       {
         message: trimmed,
         parentId: null,
-        buildingId: selectedBuildingUnit ? Number(selectedBuildingUnit) : null,
-        employeeId: selectedEmployee ? Number(selectedEmployee) : null,
+        buildingIds:
+          selectedBuildingUnit.length > 0
+            ? selectedBuildingUnit.map(Number)
+            : null,
+        employeeIds:
+          selectedEmployee.length > 0 ? selectedEmployee.map(Number) : null,
       },
       {
         onSuccess: () => {
           setText("");
           setExpanded(false);
           setMentionState(null);
-          setSelectedBuildingUnit("");
-          setSelectedEmployee("");
+          setSelectedBuildingUnit([]);
         },
       },
     );
   };
-
   return (
     <View style={{ marginHorizontal: 6, marginBottom: 12 }}>
       <View
@@ -118,6 +122,7 @@ export function NoticeComposer() {
                 onChangeText={setText}
                 onDismiss={() => setMentionState(null)}
                 direction="below"
+                onMentionSelect={handleMentionSelect}
               />
             )}
 
@@ -133,29 +138,18 @@ export function NoticeComposer() {
               <View style={{ flex: 1 }}>
                 <SelectField
                   label=""
+                  multi
                   value={selectedBuildingUnit}
                   onChange={setSelectedBuildingUnit}
-                  options={residences}
-                  placeholder="Tag a unit (optional)"
+                  options={user?.buildingList ?? []}
+                  placeholder="Tag buildings (optional)"
                   // isLoading={loadingResidences}
                 />
               </View>
-
-              {/* Employee selector */}
-              {/* <View style={{ flex: 1 }}>
-                <SelectField
-                  label=""
-                  value={selectedEmployee}
-                  onChange={setSelectedEmployee}
-                  options={employees}
-                  placeholder="Tag staff (optional)"
-                  // isLoading={loadingEmployees}
-                />
-              </View> */}
             </View>
 
             {/* Selected tags preview */}
-            {(selectedBuildingUnit || selectedEmployee) && (
+            {/* {selectedBuildingUnit && (
               <View
                 style={{
                   flexDirection: "row",
@@ -184,42 +178,12 @@ export function NoticeComposer() {
                         fontWeight: "600",
                       }}
                     >
-                      {residences.find((r) => r.value === selectedBuildingUnit)
-                        ?.label ?? selectedBuildingUnit}
+                      {user?.buildingList.find(
+                        (r) => r.value === selectedBuildingUnit[0],
+                      )?.label ?? selectedBuildingUnit[0]}
                     </Text>
                     <Pressable
-                      onPress={() => setSelectedBuildingUnit("")}
-                      hitSlop={6}
-                    >
-                      <AppIcon name="close-circle" size={13} color="#7C3AED" />
-                    </Pressable>
-                  </View>
-                )}
-                {selectedEmployee && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                      backgroundColor: "#EDE9FE",
-                      borderRadius: 99,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <AppIcon name="person-outline" size={11} color="#7C3AED" />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#7C3AED",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {employees.find((e) => e.value === selectedEmployee)
-                        ?.label ?? selectedEmployee}
-                    </Text>
-                    <Pressable
-                      onPress={() => setSelectedEmployee("")}
+                      onPress={() => setSelectedBuildingUnit([])}
                       hitSlop={6}
                     >
                       <AppIcon name="close-circle" size={13} color="#7C3AED" />
@@ -227,7 +191,7 @@ export function NoticeComposer() {
                   </View>
                 )}
               </View>
-            )}
+            )} */}
 
             {/* Actions */}
             <View
@@ -244,8 +208,8 @@ export function NoticeComposer() {
                   setText("");
                   setExpanded(false);
                   setMentionState(null);
-                  setSelectedBuildingUnit("");
-                  setSelectedEmployee("");
+                  setSelectedBuildingUnit([]);
+                  setSelectedEmployee([]);
                 }}
                 style={{
                   paddingHorizontal: 14,

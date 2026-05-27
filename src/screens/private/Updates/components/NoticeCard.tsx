@@ -5,12 +5,14 @@ import {
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
+import SelectField from "@/src/components/ui/SelectField";
 import {
   MentionState,
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
 import { MessageText } from "@/src/helper/messageDisplayText";
+import { useEmployeeOptions } from "@/src/hooks/useEmployee";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useRef, useState } from "react";
@@ -54,6 +56,7 @@ export function NoticeCard({
   const [expanded, setExpanded] = useState(false);
   const [deleteZoneVisible, setDeleteZoneVisible] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
+  const [editBuildingIds, setEditBuildingIds] = useState<string[]>([]);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteScale = useRef(new Animated.Value(0.8)).current;
@@ -63,6 +66,7 @@ export function NoticeCard({
     useUpdateCommunicationWithRefresh();
   const { mutate: deleteMsg, isPending: deleting } =
     useDeleteCommunicationWithRefresh();
+  const { employees } = useEmployeeOptions(1, 100);
 
   const isLong = item.message.length > 180;
   const displayText =
@@ -142,16 +146,36 @@ export function NoticeCard({
 
   const handleSaveEdit = () => {
     const trimmed = editText.trim();
-    if (!trimmed || trimmed === item.message) {
+    if (!trimmed) {
       setEditing(false);
       return;
     }
+
+    // Resolve @mentions in current text → employee IDs
+    const mentionedUsernames = (trimmed.match(/@([a-zA-Z0-9._-]+)/g) ?? []).map(
+      (m) => m.slice(1),
+    );
+    const resolvedEmployeeIds = employees
+      .filter((e) => mentionedUsernames.includes(e.username))
+      .map((e) => Number(e.value));
+
     updateMsg(
-      { id: item.id, message: trimmed, parentId: null },
-      { onSuccess: () => setEditing(false) },
+      {
+        id: item.id,
+        message: trimmed,
+        parentId: null,
+        buildingIds:
+          editBuildingIds.length > 0 ? editBuildingIds.map(Number) : [],
+        employeeIds: resolvedEmployeeIds.length > 0 ? resolvedEmployeeIds : [],
+      },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          setEditBuildingIds([]);
+        },
+      },
     );
   };
-
   const unseenReplyCount = item.replies.reduce(
     (acc, r) => acc + (r.seen === false ? 1 : 0),
     0,
@@ -289,7 +313,29 @@ export function NoticeCard({
 
               {isOwn && (
                 <Pressable
-                  onPress={() => setEditing(true)}
+                  onPress={() => {
+                    // Resolve existing employeeIds → @username mentions
+                    const existingMentions = (item.employeeIds ?? [])
+                      .map((id) =>
+                        employees.find((e) => e.value === String(id)),
+                      )
+                      .filter(Boolean)
+                      .map((e) => `@${e!.username}`)
+                      .join(" ");
+
+                    // Append mentions to message if not already there
+                    const baseText = item.message;
+                    const textWithMentions = existingMentions
+                      ? baseText.includes("@")
+                        ? baseText // already has mentions in message text
+                        : `${baseText} ${existingMentions}`.trim()
+                      : baseText;
+
+                    setEditText(textWithMentions);
+                    setEditBuildingIds(item.buildingIds?.map(String) ?? []);
+                    // setEditEmployeeIds(item.employeeIds?.map(String) ?? []);
+                    setEditing(true);
+                  }}
                   hitSlop={8}
                   style={{ paddingTop: 2 }}
                 >
@@ -310,13 +356,6 @@ export function NoticeCard({
                     backgroundColor: "#FAFAF9",
                   }}
                 >
-                  {/* <TextInput
-                    value={editText}
-                    onChangeText={setEditText}
-                    multiline
-                    autoFocus
-                    style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
-                  /> */}
                   <MentionTextInput
                     value={editText}
                     onChangeText={setEditText}
@@ -327,29 +366,34 @@ export function NoticeCard({
                   />
 
                   {mentionState && (
-                    // <View
-                    //   style={{
-                    //     position: "absolute",
-                    //     top: 80,
-                    //     left: 10,
-                    //     right: 10,
-                    //     zIndex: 999,
-                    //   }}
-                    // >
                     <MentionSuggestions
                       mentionState={mentionState}
                       value={editText}
                       onChangeText={setEditText}
                       onDismiss={() => setMentionState(null)}
                       direction="above"
+                      // onMentionSelect={handleEditMentionSelect}
                     />
-                    // </View>
                   )}
+
+                  {/* Multi-select building picker */}
+                  <View style={{ marginTop: 10 }}>
+                    <SelectField
+                      label=""
+                      multi
+                      value={editBuildingIds}
+                      onChange={setEditBuildingIds}
+                      options={user?.buildingList ?? []}
+                      placeholder="Tag buildings (optional)"
+                    />
+                  </View>
+
+                  {/* Save / Cancel */}
                   <View
                     style={{
                       flexDirection: "row",
                       gap: 12,
-                      marginTop: 8,
+                      marginTop: 10,
                       justifyContent: "flex-end",
                     }}
                   >
@@ -357,6 +401,8 @@ export function NoticeCard({
                       onPress={() => {
                         setEditing(false);
                         setEditText(item.message);
+                        setEditBuildingIds([]);
+                        // setEditEmployeeIds([]);
                       }}
                     >
                       <Text
@@ -400,6 +446,113 @@ export function NoticeCard({
                         {expanded ? "Show less" : "Read more"}
                       </Text>
                     </Pressable>
+                  )}
+
+                  {/* Employee chips — only for IDs not already @mentioned in the text */}
+                  {(() => {
+                    const mentionedUsernames = (
+                      item.message.match(/@([a-zA-Z0-9._-]+)/g) ?? []
+                    ).map((m) => m.slice(1));
+
+                    const unmentionedEmployees = (item.employeeIds ?? [])
+                      .map((id) =>
+                        employees.find((e) => e.value === String(id)),
+                      )
+                      .filter(Boolean)
+                      .filter(
+                        (emp) => !mentionedUsernames.includes(emp!.username),
+                      );
+
+                    if (unmentionedEmployees.length === 0) return null;
+
+                    return (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          marginTop: 6,
+                        }}
+                      >
+                        {unmentionedEmployees.map((emp) => (
+                          <View
+                            key={emp!.value}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 4,
+                              backgroundColor: "#EDE9FE",
+                              borderRadius: 99,
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                            }}
+                          >
+                            <AppIcon
+                              name="person-outline"
+                              size={11}
+                              color="#7C3AED"
+                            />
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: "#7C3AED",
+                                fontWeight: "600",
+                              }}
+                            >
+                              @{emp!.username}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  })()}
+
+                  {/* Building chips */}
+                  {(item.buildingIds ?? []).length > 0 && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginTop: 8,
+                      }}
+                    >
+                      {(item.buildingIds ?? []).map((id) => {
+                        const building = user?.buildingList.find(
+                          (b) => b.value === String(id),
+                        );
+                        if (!building) return null;
+                        return (
+                          <View
+                            key={id}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 4,
+                              backgroundColor: "#F0FDF4",
+                              borderRadius: 99,
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                            }}
+                          >
+                            <AppIcon
+                              name="business-outline"
+                              size={11}
+                              color="#16A34A"
+                            />
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: "#16A34A",
+                                fontWeight: "600",
+                              }}
+                            >
+                              {building.label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
                   )}
                 </>
               )}

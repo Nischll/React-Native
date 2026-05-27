@@ -66,6 +66,7 @@ interface MentionSuggestionsProps {
   onDismiss: () => void;
   direction?: "above" | "below";
   containerStyle?: StyleProp<ViewStyle>;
+  onMentionSelect?: (id: string) => void;
 }
 
 export function MentionSuggestions({
@@ -75,6 +76,7 @@ export function MentionSuggestions({
   onDismiss,
   direction = "below",
   containerStyle,
+  onMentionSelect,
 }: MentionSuggestionsProps) {
   const { user } = useAuth();
   const { employees, isLoading } = useEmployeeOptions(1, 100);
@@ -105,6 +107,7 @@ export function MentionSuggestions({
     });
 
     onChangeText(updated);
+    onMentionSelect?.(emp.value);
     onDismiss();
   };
 
