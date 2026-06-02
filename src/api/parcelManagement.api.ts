@@ -39,7 +39,7 @@ export const useAddParcel = (buildingId: number) =>
   useApiMutation<ParcelRequestPojo>("post", `/parcels/building/${buildingId}`);
 
 export const useGetParcelById = (parcelId: number) => {
-  return useApiQuery<ApiListResponse<ParcelResponse>>(`parcels/${parcelId}`, {
+  return useApiQuery<ApiListResponse<ParcelResponse>>(`/parcels/${parcelId}`, {
     enabled: parcelId != null,
     retry: 0,
     refetchOnMount: true,

@@ -19,7 +19,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Keyboard, TouchableWithoutFeedback, View } from "react-native";
+import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 interface FormValues {
@@ -33,7 +33,7 @@ interface FormValues {
 }
 
 export default function AddEditParcelScreen() {
-  const { parcelId } = useLocalSearchParams();
+  const { parcelId, scannedTrackingId } = useLocalSearchParams();
   const id = Number(parcelId);
 
   const { buildingId, user } = useAuth();
@@ -46,6 +46,8 @@ export default function AddEditParcelScreen() {
     useUpdateParcel(id, buildingId ?? undefined);
 
   const editmode = !!parcelId;
+  const trackingId =
+    typeof scannedTrackingId === "string" ? scannedTrackingId : "";
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
@@ -104,7 +106,7 @@ export default function AddEditParcelScreen() {
   if (editmode && isLoading) {
     return <LoadingState message="Parcel details loading." />;
   }
-
+  // console.log("trackingid:", trackingId);
   return (
     <View className="flex-1">
       <PageHeader
@@ -115,6 +117,10 @@ export default function AddEditParcelScreen() {
           editmode ? "Update parcel details" : "Create a new parcel record"
         }
       />
+
+      <View>
+        <Text>Tracking ID: {trackingId}</Text>
+      </View>
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView

@@ -83,19 +83,19 @@ export default function ParcelManagement() {
     });
   };
 
-  const handleDeliverParcel = () => {
-    if (!deliverParcel) return;
+  // const handleDeliverParcel = () => {
+  //   if (!deliverParcel) return;
 
-    deliverParcelMutate(undefined, {
-      onSuccess: () => {
-        setDeliverParcel(null);
-        refetch();
-      },
-      onError: () => {
-        setDeliverParcel(null);
-      },
-    });
-  };
+  //   deliverParcelMutate(undefined, {
+  //     onSuccess: () => {
+  //       setDeliverParcel(null);
+  //       refetch();
+  //     },
+  //     onError: () => {
+  //       setDeliverParcel(null);
+  //     },
+  //   });
+  // };
 
   const columns: MobileColumn<ParcelResponse>[] = [
     {
@@ -171,6 +171,13 @@ export default function ParcelManagement() {
           >
             <View className="bg-primary rounded-full p-4 elevation-5">
               <AppIcon name="add" size={24} color="#fff" />
+            </View>
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={() => router.push("/(private)/barcode-scanner")}
+          >
+            <View className="bg-blue-500 rounded-full p-4 elevation-5">
+              <AppIcon name="scan" size={24} color="#fff" />
             </View>
           </AnimatedPressable>
         </View>
