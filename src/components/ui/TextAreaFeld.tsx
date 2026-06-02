@@ -1,13 +1,19 @@
 import React from "react";
-import { TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 
 export default function TextAreaField({
+  label,
   value,
   onChangeText,
   placeholder,
 }: any) {
   return (
     <View className="w-full">
+      {label && (
+        <Text className="mb-2 text-base font-semibold text-slate-700">
+          {label}
+        </Text>
+      )}
       <TextInput
         value={value}
         onChangeText={onChangeText}

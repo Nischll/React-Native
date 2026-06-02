@@ -313,20 +313,20 @@ export default function SelectField(props: SelectFieldProps) {
           borderWidth: 1,
           borderColor: error ? "#F87171" : "#CBD5E1",
           backgroundColor: "#fff",
-          paddingHorizontal: 16,
+          paddingHorizontal: 8,
           paddingVertical: 12,
         }}
       >
         <Text
           style={{
             color: selectedLabels[0] ? "#0F172A" : "#94A3B8",
-            fontSize: 14,
+            fontSize: 13,
           }}
         >
           {selectedLabels[0] || placeholder}
         </Text>
         <Animated.View style={{ transform: [{ rotate }] }}>
-          <AppIcon name="chevron-down" size={18} color="#64748B" />
+          <AppIcon name="chevron-down" size={16} color="#64748B" />
         </Animated.View>
       </Pressable>
     );
@@ -384,14 +384,7 @@ export default function SelectField(props: SelectFieldProps) {
   return (
     <View style={{ width: "100%" }}>
       {label ? (
-        <Text
-          style={{
-            marginBottom: 8,
-            fontSize: 14,
-            fontWeight: "600",
-            color: "#334155",
-          }}
-        >
+        <Text className="mb-2 text-base font-semibold text-slate-700">
           {label}
         </Text>
       ) : null}
@@ -399,9 +392,7 @@ export default function SelectField(props: SelectFieldProps) {
       <View onLayout={measure}>{renderTrigger()}</View>
 
       {error ? (
-        <Text style={{ marginTop: 6, fontSize: 13, color: "#EF4444" }}>
-          {error}
-        </Text>
+        <Text className="mt-2 text-sm text-rose-500">{error}</Text>
       ) : null}
 
       {/* ── Modal mode ── */}

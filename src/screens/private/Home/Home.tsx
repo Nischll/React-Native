@@ -1,7 +1,4 @@
-import {
-  useGetDashboardStatistics,
-  useGetNotice,
-} from "@/src/api/dashboard.api";
+import { useGetDashboardStatistics } from "@/src/api/dashboard.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -36,14 +33,14 @@ export default function Home() {
       selectedMonth,
       !!buildingId,
     );
-  const { data: noticeData } = useGetNotice(1, 5);
+  // const { data: noticeData } = useGetNotice(1, 5);
 
   const stats = statsData?.data;
-  const notices = noticeData?.data?.data ?? [];
-  const unseenNoticeCount = noticeData?.data?.unseenCount ?? 0;
+  // const notices = noticeData?.data?.data ?? [];
+  // const unseenNoticeCount = noticeData?.data?.unseenCount ?? 0;
 
   const modules = user?.moduleList ?? [];
-  const ALLOWED_MODULE_CODES = ["PARCEL", "TRM", "BI"];
+  const ALLOWED_MODULE_CODES = ["TM", "PARCEL", "TRM", "BI"];
 
   const quickModules = flattenModules(modules)
     .filter((mod) => mod.path && ALLOWED_MODULE_CODES.includes(mod.code))

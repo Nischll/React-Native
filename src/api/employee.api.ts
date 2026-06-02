@@ -1,6 +1,10 @@
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { Employee } from "../types/employee.types";
-import { ApiListResponse, ApiPaginatedData } from "./auth.api";
+import {
+  ApiListResponse,
+  ApiListResponseArray,
+  ApiPaginatedData,
+} from "./auth.api";
 
 export const useGetStaff = (
   page?: number,
@@ -20,6 +24,15 @@ export const useGetStaff = (
       retry: 0,
       queryParams:
         Object.keys(queryParams).length > 0 ? queryParams : undefined,
+    },
+  );
+};
+
+export const useGetStaffByBuilding = (id: number | null) => {
+  return useApiQuery<ApiListResponseArray<Employee>>(
+    `/auth/user/building/${id}`,
+    {
+      retry: 0,
     },
   );
 };

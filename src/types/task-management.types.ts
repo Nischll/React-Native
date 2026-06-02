@@ -1,0 +1,134 @@
+import {
+  TaskArea,
+  TaskCommunicationMode,
+  TaskReportedBy,
+  TaskType,
+} from "../enums/taskEnums";
+
+export interface AttachmentResponse {
+  id: number;
+  taskId: number;
+  title: string;
+}
+
+export interface ReactionRequest {
+  commentId: number;
+  reactionType: string;
+  userId?: number;
+}
+
+/** User info in task API reaction */
+export interface ReactionUser {
+  userId: number;
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  email: string | null;
+  fullName: string;
+}
+
+/** Reaction shape from task API (comment.reactions) */
+export interface TaskCommentReaction {
+  reactionType: string;
+  count: number;
+  users: ReactionUser[];
+}
+
+export interface ReactionResponse {
+  id: number;
+  commentId: number;
+  reactionType: string;
+  userId: number;
+  userName?: string;
+}
+
+export interface CommentResponse {
+  id: number;
+  message: string;
+  taskId: number;
+  messageFrom: number;
+  messageFromName?: string;
+  messageTo: number;
+  parentId: number | null;
+  replies?: CommentResponse[];
+  /** Task API format: { reactionType, count, users[] } */
+  reactions?: TaskCommentReaction[];
+}
+
+export interface TaskResponse {
+  limit: number;
+  page: number;
+  total: number;
+  data: TaskResponseData[];
+}
+
+export interface TaskResponseData {
+  id: number;
+  taskNumber?: string | null;
+  title: string;
+  description: string;
+  assignedTo: number | null;
+  buildingId: number | null;
+  residentId?: number | null;
+  residentName?: string | null;
+  residentUnit?: string | null;
+  area?: TaskArea | null;
+  type?: TaskType | null;
+  subType?: string | null;
+  location?: string | null;
+  reportedBy?: TaskReportedBy | null;
+  modeOfCommunication?: TaskCommunicationMode | null;
+  taskStatusId: number | null;
+  priority?: TaskPriority;
+  createdBy: number;
+  createdDate?: string | null;
+  assignedEmail: string | null;
+  assignedFirstName: string | null;
+  assignedMiddleName: string | null;
+  assignedLastName: string | null;
+  creatorFirstName: string | null;
+  creatorMiddleName: string | null;
+  creatorLastName: string | null;
+  creatorEmail: string | null;
+  buildingName: string | null;
+  statusName: string | null;
+  deadline?: string | null;
+  actionTaken?: string | null;
+  attachmentResponsePojoList: AttachmentResponse[];
+  commentResponsePojoList: CommentResponse[];
+}
+
+export interface Comment {
+  id?: number;
+  message: string;
+  taskId: number;
+  messageTo: number | null;
+  parentId?: number;
+}
+
+export interface Column {
+  id: number;
+  title: string;
+  order: number;
+}
+
+export interface TaskStatus {
+  id: number;
+  name: string;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  sortingNumber?: number | null;
+}
+
+export interface Board {
+  id: number;
+  name: string;
+  description?: string;
+  createdAt?: string;
+}
+
+export type TaskFilterForm = {
+  search: string;
+  assignedTo?: number;
+  buildingId?: number;
+};

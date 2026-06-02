@@ -46,7 +46,7 @@ export default function AppInput({
   return (
     <View className="w-full">
       {label && (
-        <Text className="mb-2 text-sm font-semibold text-slate-700">
+        <Text className="mb-2 text-base font-semibold text-slate-700">
           {label}
         </Text>
       )}
