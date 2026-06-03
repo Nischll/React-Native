@@ -1,4 +1,5 @@
 import { useGetAllCategory } from "@/src/api/taskManagement.api";
+import EmptyState from "@/src/components/feedback/EmptyState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -37,6 +38,8 @@ export default function TaskManagement() {
     return taskStatus.filter((s) => s.categoryId === selectedCategoryId);
   }, [taskStatus, selectedCategoryId]);
 
+  const hasStatuses = !statusLoading && filteredStatuses.length > 0;
+
   const [selectedStatusValue, setSelectedStatusValue] = useState<string>("");
   useEffect(() => {
     if (filteredStatuses.length > 0) {
@@ -48,6 +51,8 @@ export default function TaskManagement() {
 
   // ── 3. Search ─────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
+
+  // ── 4. Task counts ────────────────────────────────────────────────────────
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
   const handleCountResolved = useCallback((statusId: number, count: number) => {
     setTaskCounts((prev) => {
@@ -58,7 +63,6 @@ export default function TaskManagement() {
 
   return (
     <View className="flex-1">
-      {/* Page header */}
       <PageHeader
         showBackButton
         icon="cube"
@@ -106,36 +110,45 @@ export default function TaskManagement() {
         </ScrollView>
       </View>
 
-      {/* ── Search bar ── */}
-      <TaskSearchBar onSearch={setSearch} />
+      {hasStatuses ? (
+        <>
+          {/* ── Search bar — only when statuses exist ── */}
+          <TaskSearchBar onSearch={setSearch} />
 
-      {/* ── Status tabs (filtered by selected category) ── */}
-      {!statusLoading && filteredStatuses.length > 0 && (
-        <TaskStatusTabs
-          tabs={filteredStatuses}
-          selectedValue={selectedStatusValue}
-          onSelect={setSelectedStatusValue}
-          taskCounts={taskCounts}
-        />
-      )}
-
-      {/* ── Task list — only the active status section renders cards ── */}
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {filteredStatuses.map((status) => (
-          <TaskStatusSection
-            key={status.value}
-            statusId={Number(status.value)}
-            isVisible={selectedStatusValue === status.value}
-            search={search}
-            buildingId={buildingId || undefined}
-            onCountResolved={handleCountResolved}
+          {/* ── Status tabs ── */}
+          <TaskStatusTabs
+            tabs={filteredStatuses}
+            selectedValue={selectedStatusValue}
+            onSelect={setSelectedStatusValue}
+            taskCounts={taskCounts}
           />
-        ))}
-      </ScrollView>
+
+          {/* ── Task list ── */}
+          <ScrollView
+            className="flex-1"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {filteredStatuses.map((status) => (
+              <TaskStatusSection
+                key={status.value}
+                statusId={Number(status.value)}
+                isVisible={selectedStatusValue === status.value}
+                search={search}
+                buildingId={buildingId || undefined}
+                onCountResolved={handleCountResolved}
+              />
+            ))}
+          </ScrollView>
+        </>
+      ) : (
+        !statusLoading && (
+          <EmptyState
+            title="No Statuses Found"
+            message="There are no task statuses configured for this category yet."
+          />
+        )
+      )}
 
       {/* ── FAB — Add task ── */}
       <View className="absolute bottom-6 right-6 z-50">
