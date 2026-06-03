@@ -1,0 +1,132 @@
+import AppIcon from "@/src/components/ui/AppIcon";
+import { TaskResponseData } from "@/src/types/task-management.types";
+import { router } from "expo-router";
+import { Text, TouchableOpacity, View } from "react-native";
+
+interface TaskCardProps {
+  task: TaskResponseData;
+}
+
+const PRIORITY_STYLES: Record<
+  string,
+  { bg: string; text: string; label: string }
+> = {
+  high: { bg: "bg-red-100", text: "text-red-600", label: "High" },
+  medium: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Medium" },
+  low: { bg: "bg-green-100", text: "text-green-700", label: "Low" },
+};
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+export default function TaskCard({ task }: TaskCardProps) {
+  const priority =
+    PRIORITY_STYLES[task.priority?.toLowerCase() ?? ""] ??
+    PRIORITY_STYLES.medium;
+
+  const assigneeName =
+    [task.assignedTo, task.assignedTo].filter(Boolean).join(" ") || "null null";
+
+  const creatorName =
+    [task.createdBy, task.createdBy].filter(Boolean).join(" ") || "—";
+
+  return (
+    <View className="bg-white rounded-2xl mx-4 mb-3 p-4 shadow-md border border-gray-100">
+      {/* Top row: task code + edit icon */}
+      <View className="flex-row justify-between items-center mb-2">
+        <View className="flex-row items-center gap-2">
+          <AppIcon name="reorder-three" size={16} color="#9CA3AF" />
+          <Text className="text-xs text-gray-400 font-medium">
+            {task.taskNumber ?? `TASK-${task.id}`}
+          </Text>
+        </View>
+        <AppIcon name="pencil-outline" size={16} color="#9CA3AF" />
+      </View>
+
+      {/* Task title */}
+      <Text className="text-base font-semibold text-gray-800 mb-2">
+        {task.title}
+      </Text>
+
+      {/* Priority + Category tags */}
+      <View className="flex-row flex-wrap gap-2 mb-3">
+        <View className={`px-3 py-1 rounded-full ${priority.bg}`}>
+          <Text className={`text-xs font-semibold ${priority.text}`}>
+            {priority.label}
+          </Text>
+        </View>
+        {/* {task.?.name && (
+          <View className="px-3 py-1 rounded-full bg-gray-100">
+            <Text className="text-xs font-medium text-gray-600">
+              {task.category.name}
+            </Text>
+          </View>
+        )} */}
+      </View>
+
+      {/* To / By */}
+      <View className="mb-2 gap-0.5">
+        <Text className="text-xs text-gray-500">
+          <Text className="font-medium">To:</Text> {assigneeName}
+        </Text>
+        <Text className="text-xs text-gray-500">
+          <Text className="font-medium">By:</Text> {creatorName}
+        </Text>
+      </View>
+
+      {/* Dates row */}
+      <View className="flex-row gap-3 mb-3">
+        <View className="flex-row items-center gap-1">
+          <AppIcon name="calendar-outline" size={13} color="#6B7280" />
+          <Text className="text-xs text-gray-500">
+            {formatDate(task.createdDate)}
+          </Text>
+        </View>
+        <View className="flex-row items-center gap-1">
+          <AppIcon name="time-outline" size={13} color="#6B7280" />
+          <Text className="text-xs text-gray-500">
+            {formatDate(task.deadline)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Status badge */}
+      <View className="mb-3 border border-gray-200 rounded-lg px-3 py-2 flex-row justify-between items-center">
+        <Text className="text-xs text-gray-600 font-medium">Status:</Text>
+        <Text className="text-xs text-gray-700">{task.statusName ?? "—"}</Text>
+        <AppIcon name="chevron-down" size={14} color="#6B7280" />
+      </View>
+
+      {/* Description */}
+      {task.description ? (
+        <Text className="text-xs text-gray-500 mb-3" numberOfLines={2}>
+          {task.description}
+        </Text>
+      ) : null}
+
+      {/* Attachments & Comments button */}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        className="border border-gray-200 rounded-xl py-2.5 flex-row justify-center items-center gap-2"
+        onPress={() =>
+          router.push({
+            pathname: "/(private)/task-management/task-comments",
+            params: { taskId: String(task.id) },
+          })
+        }
+      >
+        <AppIcon name="chatbubble-outline" size={15} color="#6B7280" />
+        <Text className="text-xs font-medium text-gray-600">
+          View Attachments & Comments
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}

@@ -40,8 +40,6 @@ export default function ScreenContainer({
   const insets = useSafeAreaInsets();
 
   const onRefresh = useCallback(async () => {
-    if (!refreshable || refreshing) return;
-
     try {
       setRefreshing(true);
       await triggerRefresh();
@@ -50,7 +48,7 @@ export default function ScreenContainer({
     }
   }, [refreshable, refreshing, triggerRefresh, setRefreshing]);
 
-  const shouldScroll = scrollable ?? (virtualized ? false : true); // auto rule
+  const shouldScroll = scrollable ?? (virtualized ? false : true);
 
   const content = (
     <View
@@ -82,6 +80,18 @@ export default function ScreenContainer({
           }
           showsVerticalScrollIndicator={false}
           {...props}
+        >
+          {content}
+        </ScrollView>
+      ) : refreshable ? (
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
+          scrollEnabled={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
         >
           {content}
         </ScrollView>

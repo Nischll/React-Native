@@ -4,7 +4,7 @@ import { useGetAllTaskStatus } from "../api/taskManagement.api";
 export interface EmployeeOption {
   label: string;
   value: string;
-  username: string;
+  categoryId: number;
 }
 
 export const useTaskStatusOptions = () => {
@@ -20,7 +20,7 @@ export const useTaskStatusOptions = () => {
         return {
           label: fullName,
           value: String(status.id),
-          // username: status.username,
+          categoryId: status.categoryId,
         };
       }) || []
     );

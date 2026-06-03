@@ -7,7 +7,11 @@ export default function TaskManagementPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container">
+      <ScreenContainer
+        key="static-container"
+        scrollable={false}
+        refreshable={false}
+      >
         <TaskManagement key={screenRefreshKey} />
       </ScreenContainer>
 

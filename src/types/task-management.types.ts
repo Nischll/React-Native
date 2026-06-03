@@ -132,3 +132,8 @@ export type TaskFilterForm = {
   assignedTo?: number;
   buildingId?: number;
 };
+
+export interface CategoryResponse {
+  id: number;
+  name: string;
+}

@@ -1,9 +1,7 @@
 import { useAddTask } from "@/src/api/taskManagement.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
-import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
-import Card from "@/src/components/ui/Card";
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
@@ -20,96 +18,62 @@ import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding"
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { useAuth } from "@/src/providers/AuthProvider";
-
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import {
-  Keyboard,
-  Pressable,
-  Text,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface FormValues {
   area: string;
   residentId: string;
-
   type: string;
   subType: string;
-
   location: string;
-
   reportedBy: string;
   modeOfCommunication: string;
-
   title: string;
   description: string;
-
   assignedTo: string;
   taskStatusId: string;
-
   priority: string;
-
   deadline: string;
-
   actionTaken: string;
-
   attachment: PickedFile | null;
 }
 
 const PRIORITY_OPTIONS = [
-  {
-    label: "Low",
-    value: "LOW",
-  },
-  {
-    label: "Medium",
-    value: "MEDIUM",
-  },
-  {
-    label: "High",
-    value: "HIGH",
-  },
+  { label: "Low", value: "LOW" },
+  { label: "Medium", value: "MEDIUM" },
+  { label: "High", value: "HIGH" },
 ];
 
 export default function TaskAddEdit() {
-  const { buildingId, user, openBuildingSelectDialog, selectedBuilding } =
-    useAuth();
+  const insets = useSafeAreaInsets();
+  const { buildingId } = useAuth();
 
   const { residences } = useResidencesForActiveBuilding();
   const { employees } = useEmployeeByBuildingOptions(buildingId);
   const { taskStatus } = useTaskStatusOptions();
-
   const { mutate: addTask, isPending } = useAddTask();
 
   const { control, handleSubmit, watch, setValue } = useForm<FormValues>({
     defaultValues: {
       area: "",
       residentId: "",
-
       type: "",
       subType: "",
-
       location: "",
-
       reportedBy: "",
       modeOfCommunication: "",
-
       title: "",
       description: "",
-
       assignedTo: "",
       taskStatusId: "",
-
       priority: "",
-
       deadline: "",
-
       actionTaken: "",
-
       attachment: null,
     },
   });
@@ -130,38 +94,24 @@ export default function TaskAddEdit() {
 
     formData.append("area", values.area);
     formData.append("type", values.type);
-
-    if (values.subType) {
-      formData.append("subType", values.subType);
-    }
-
+    if (values.subType) formData.append("subType", values.subType);
     formData.append("location", values.location);
-
     formData.append("reportedBy", values.reportedBy);
-
     formData.append("modeOfCommunication", values.modeOfCommunication);
-
     formData.append("title", values.title);
-
     formData.append("description", values.description);
-
     formData.append("assignedTo", values.assignedTo);
-
     formData.append("taskStatusId", values.taskStatusId);
-
     formData.append("buildingId", String(buildingId));
-
     formData.append("priority", values.priority);
-
     formData.append("deadline", values.deadline);
-
     formData.append("actionTaken", values.actionTaken);
 
     if (values.area === "IN_SUITE" && values.residentId) {
       formData.append("residentId", values.residentId);
     }
 
-    if (values.attachment && values.attachment.isLocal) {
+    if (values.attachment?.isLocal) {
       formData.append("attachmentRequestPojoList[0].file", {
         uri: values.attachment.uri,
         name: values.attachment.name,
@@ -170,14 +120,12 @@ export default function TaskAddEdit() {
     }
 
     addTask(formData, {
-      onSuccess: () => {
-        router.back();
-      },
+      onSuccess: () => router.back(),
     });
   };
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-white">
       <PageHeader
         showBackButton
         icon="clipboard"
@@ -185,51 +133,19 @@ export default function TaskAddEdit() {
         subtitle="Create and assign a task"
       />
 
-      {user?.buildingList && (user.buildingList as any[]).length > 0 && (
-        <Card className="px-4 py-3 mb-4">
-          <Pressable
-            onPress={openBuildingSelectDialog}
-            style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-          >
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                backgroundColor: "#EEF2FF",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <AppIcon name="business" size={16} color="#4F46E5" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{ fontSize: 13, fontWeight: "600", color: "#374151" }}
-              >
-                {selectedBuilding?.label || "No building assigned"}
-              </Text>
-              <Text style={{ fontSize: 11, color: "#9CA3AF", marginTop: 1 }}>
-                Active building · tap to switch
-              </Text>
-            </View>
-            <AppIcon name="chevron-forward" size={15} color="#9CA3AF" />
-          </Pressable>
-        </Card>
-      )}
-
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
-          className="flex-1"
+          style={{ flex: 1 }}
           enableOnAndroid
           keyboardShouldPersistTaps="handled"
           extraScrollHeight={20}
           contentContainerStyle={{
             paddingHorizontal: 10,
-            paddingBottom: 30,
+            paddingTop: 8,
+            paddingBottom: 16,
           }}
         >
-          {/* Type + Area */}
+          {/* Area + Task Type */}
           <View className="flex-row gap-3">
             <View className="flex-1">
               <Controller
@@ -246,7 +162,6 @@ export default function TaskAddEdit() {
                 )}
               />
             </View>
-
             <View className="flex-1">
               <Controller
                 control={control}
@@ -264,8 +179,9 @@ export default function TaskAddEdit() {
             </View>
           </View>
 
+          {/* Unit — only when IN_SUITE */}
           {selectedArea === "IN_SUITE" && (
-            <View className="mt-3 flex-row gap-3">
+            <View className="mt-3">
               <Controller
                 control={control}
                 name="residentId"
@@ -282,9 +198,9 @@ export default function TaskAddEdit() {
             </View>
           )}
 
-          {/*  Sub Type */}
+          {/* Sub Type — only when options exist */}
           {subTypeOptions.length > 0 && (
-            <View className="mt-3 flex-row gap-3">
+            <View className="mt-3">
               <Controller
                 control={control}
                 name="subType"
@@ -301,7 +217,7 @@ export default function TaskAddEdit() {
             </View>
           )}
 
-          {/* TITLE */}
+          {/* Title */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -317,7 +233,7 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* DESCRIPTION */}
+          {/* Description */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -335,7 +251,7 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* LOCATION */}
+          {/* Location */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -368,7 +284,6 @@ export default function TaskAddEdit() {
                 )}
               />
             </View>
-
             <View className="flex-1">
               <Controller
                 control={control}
@@ -386,8 +301,8 @@ export default function TaskAddEdit() {
             </View>
           </View>
 
-          {/* Assigned To + Status */}
-          <View className="mt-3 flex-row gap-3">
+          {/* Task Status */}
+          <View className="mt-3">
             <Controller
               control={control}
               name="taskStatusId"
@@ -403,7 +318,7 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Priority + Deadline */}
+          {/* Assigned To + Priority */}
           <View className="mt-3 flex-row gap-3">
             <View className="flex-1">
               <Controller
@@ -437,11 +352,11 @@ export default function TaskAddEdit() {
             </View>
           </View>
 
-          <View className="mt-3 flex-1">
+          {/* Deadline */}
+          <View className="mt-3">
             <Text className="mb-2 text-base font-semibold text-slate-700">
               Deadline
             </Text>
-
             <Controller
               control={control}
               name="deadline"
@@ -451,7 +366,7 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* ACTION TAKEN */}
+          {/* Action Taken */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -469,8 +384,8 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* ATTACHMENT */}
-          <View className="mt-3 mb-6">
+          {/* Attachment */}
+          <View className="mt-3">
             <Controller
               control={control}
               name="attachment"
@@ -485,19 +400,13 @@ export default function TaskAddEdit() {
               )}
             />
           </View>
-
-          {/* <View className="fixed bottom-0 left-0 right-0 ">
-            <AppButton loading={isPending} onPress={handleSubmit(onSubmit)}>
-              Create Task
-            </AppButton>
-          </View> */}
         </KeyboardAwareScrollView>
       </TouchableWithoutFeedback>
+
+      {/* Pinned submit button — always visible above the home indicator */}
       <View
-        className="border-t border-slate-200 bg-white px-4 py-3"
-        style={{
-          paddingBottom: 20,
-        }}
+        className="border-t border-slate-200 bg-white px-4 pt-3"
+        style={{ paddingBottom: Math.max(insets.bottom, 16) }}
       >
         <AppButton loading={isPending} onPress={handleSubmit(onSubmit)}>
           Create Task

@@ -7,7 +7,7 @@ export default function TradeManagementPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container" virtualized>
+      <ScreenContainer key="static-container" virtualized refreshable={false}>
         <TradeManagement key={screenRefreshKey} />
       </ScreenContainer>
 

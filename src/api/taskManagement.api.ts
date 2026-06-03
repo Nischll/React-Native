@@ -1,6 +1,10 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-import { TaskResponse, TaskStatus } from "../types/task-management.types";
+import {
+  CategoryResponse,
+  TaskResponse,
+  TaskStatus,
+} from "../types/task-management.types";
 import { ApiListResponse, ApiListResponseArray } from "./auth.api";
 
 // TASK API
@@ -11,6 +15,11 @@ export const useGetAllTaskStatus = () =>
     // staleTime: 1000 * 60,
     // refetchOnMount: true,
     // refetchOnWindowFocus: true,
+    retry: 0,
+  });
+
+export const useGetAllCategory = () =>
+  useApiQuery<ApiListResponseArray<CategoryResponse>>("/category", {
     retry: 0,
   });
 

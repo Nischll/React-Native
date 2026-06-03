@@ -7,7 +7,7 @@ export default function BuildingImprovementPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container" virtualized>
+      <ScreenContainer key="static-container" virtualized refreshable={false}>
         <BuildingImprovements key={screenRefreshKey} />
       </ScreenContainer>
 
