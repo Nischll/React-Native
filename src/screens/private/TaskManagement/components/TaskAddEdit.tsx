@@ -22,9 +22,10 @@ import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding"
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { AttachmentResponse } from "@/src/types/task-management.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -35,6 +36,7 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AttachmentManager from "./AttachmentManager";
 
 interface FormValues {
   area: string;
@@ -51,7 +53,7 @@ interface FormValues {
   priority: string;
   deadline: string;
   actionTaken: string;
-  attachment: PickedFile | null;
+  attachments: PickedFile[];
 }
 
 const PRIORITY_OPTIONS = [
@@ -72,6 +74,9 @@ export default function TaskAddEdit() {
   }>();
   const isEditMode = mode === "edit";
   const parsedTaskId = taskId ? Number(taskId) : undefined;
+  const [existingAttachments, setExistingAttachments] = useState<
+    AttachmentResponse[]
+  >([]);
 
   // ── Prefill data for edit ─────────────────────────────────────────────────
   const { data: taskData, isLoading: isLoadingTask } = useGetTaskById(
@@ -109,7 +114,7 @@ export default function TaskAddEdit() {
         priority: "",
         deadline: "",
         actionTaken: "",
-        attachment: null,
+        attachments: [],
       },
     },
   );
@@ -131,8 +136,11 @@ export default function TaskAddEdit() {
         priority: existingTask.priority ?? "",
         deadline: existingTask.deadline ?? "",
         actionTaken: existingTask.actionTaken ?? "",
-        attachment: null,
+        attachments: [],
       });
+      if (existingTask.attachmentResponsePojoList?.length) {
+        setExistingAttachments(existingTask.attachmentResponsePojoList);
+      }
     }
   }, [existingTask, isEditMode]);
 
@@ -157,17 +165,6 @@ export default function TaskAddEdit() {
   );
 
   const refetchTaskQueries = async () => {
-    // if (__DEV__) {
-    //   const allKeys = queryClient
-    //     .getQueryCache()
-    //     .getAll()
-    //     .map((q) => q.queryKey);
-    //   console.log(
-    //     "[TaskAddEdit] All query keys:",
-    //     JSON.stringify(allKeys, null, 2),
-    //   );
-    // }
-
     await queryClient.refetchQueries({
       predicate: (query) =>
         String(query.queryKey[0]).includes("/task/task-status/"),
@@ -197,13 +194,15 @@ export default function TaskAddEdit() {
       formData.append("residentId", values.residentId);
     }
 
-    if (values.attachment?.isLocal) {
-      formData.append("attachmentRequestPojoList[0].file", {
-        uri: values.attachment.uri,
-        name: values.attachment.name,
-        type: values.attachment.mimeType,
-      } as any);
-    }
+    values.attachments.forEach((file, index) => {
+      if (file.isLocal) {
+        formData.append(`attachmentRequestPojoList[${index}].file`, {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType,
+        } as any);
+      }
+    });
 
     const onSuccess = async () => {
       await refetchTaskQueries();
@@ -217,7 +216,6 @@ export default function TaskAddEdit() {
     }
   };
 
-  // ── Loading state (edit prefill) ──────────────────────────────────────────
   if (isEditMode && isLoadingTask) {
     return (
       <View className="flex-1 bg-white">
@@ -486,17 +484,33 @@ export default function TaskAddEdit() {
             />
           </View>
 
+          {/* Existing attachments (edit mode only) */}
+          {isEditMode && existingAttachments.length > 0 && (
+            <View className="mt-3">
+              <AttachmentManager
+                attachments={existingAttachments}
+                taskId={parsedTaskId!}
+                onDeleted={(id) =>
+                  setExistingAttachments((prev) =>
+                    prev.filter((a) => a.id !== id),
+                  )
+                }
+              />
+            </View>
+          )}
+
+          {/* New file uploads */}
           <View className="mt-3">
             <Controller
               control={control}
-              name="attachment"
+              name="attachments"
               render={({ field: { value, onChange } }) => (
                 <FilePicker
-                  compact
+                  multiple
                   accept="all"
-                  label="Attachment"
-                  value={value}
-                  onChange={onChange}
+                  label="Add Attachments"
+                  values={value}
+                  onChangeMultiple={onChange}
                 />
               )}
             />

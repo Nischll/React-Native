@@ -18,8 +18,13 @@ interface FilePickerProps {
   accept?: FilePickerAccept;
   label?: string;
   hint?: string;
-  value: PickedFile | null;
-  onChange: (file: PickedFile | null) => void;
+  // ── single mode (legacy) ──
+  value?: PickedFile | null;
+  onChange?: (file: PickedFile | null) => void;
+  // ── multi mode ──
+  multiple?: boolean;
+  values?: PickedFile[];
+  onChangeMultiple?: (files: PickedFile[]) => void;
   accentColor?: string;
   accentBg?: string;
   height?: number;
@@ -36,6 +41,152 @@ function truncate(str: string, max = 30) {
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
 }
 
+function getMimeTypes(accept: FilePickerAccept) {
+  if (accept === "images") return ["image/*"];
+  if (accept === "files") return ["*/*"];
+  return ["image/*", "*/*"];
+}
+
+// ─── Multi-file compact list ──────────────────────────────────────────────────
+
+function MultiFileCompact({
+  values,
+  onChangeMultiple,
+  accept,
+  accentColor,
+  accentBg,
+  label,
+  hint,
+}: {
+  values: PickedFile[];
+  onChangeMultiple: (files: PickedFile[]) => void;
+  accept: FilePickerAccept;
+  accentColor: string;
+  accentBg: string;
+  label?: string;
+  hint?: string;
+}) {
+  async function handleAdd() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: getMimeTypes(accept),
+      copyToCacheDirectory: true,
+      multiple: true,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const newFiles: PickedFile[] = result.assets.map((a) => ({
+      uri: a.uri,
+      name: a.name,
+      mimeType: a.mimeType ?? "application/octet-stream",
+      isLocal: true,
+    }));
+    onChangeMultiple([...values, ...newFiles]);
+  }
+
+  function handleRemove(index: number) {
+    onChangeMultiple(values.filter((_, i) => i !== index));
+  }
+
+  return (
+    <View>
+      {label && (
+        <Text
+          style={{
+            fontSize: 13,
+            fontWeight: "600",
+            color: "#374151",
+            marginBottom: 6,
+          }}
+        >
+          {label}
+        </Text>
+      )}
+
+      {/* Existing picked files */}
+      {values.map((file, index) => (
+        <View
+          key={`${file.uri}-${index}`}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            borderWidth: 1.5,
+            borderColor: "#D1D5DB",
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            backgroundColor: "#fff",
+            gap: 10,
+            marginBottom: 8,
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              backgroundColor: "#F3F4F6",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {isImage(file.mimeType) ? (
+              <Image
+                source={{ uri: file.uri }}
+                style={{ width: 36, height: 36, borderRadius: 8 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons
+                name="document-text-outline"
+                size={20}
+                color="#6B7280"
+              />
+            )}
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{ fontSize: 13, fontWeight: "600", color: "#111827" }}
+              numberOfLines={1}
+            >
+              {truncate(file.name)}
+            </Text>
+            <Text style={{ fontSize: 11, color: "#9CA3AF", marginTop: 1 }}>
+              {file.isLocal ? "New — ready to upload" : "Existing file"}
+            </Text>
+          </View>
+
+          <TouchableOpacity onPress={() => handleRemove(index)}>
+            <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {/* Add more button */}
+      <TouchableOpacity
+        onPress={handleAdd}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          borderWidth: 1.5,
+          borderColor: accentColor,
+          borderStyle: "dashed",
+          borderRadius: 10,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          backgroundColor: accentBg,
+          gap: 10,
+        }}
+      >
+        <Ionicons name="add-circle-outline" size={22} color={accentColor} />
+        <Text style={{ fontSize: 13, color: accentColor, fontWeight: "600" }}>
+          {hint ??
+            (values.length > 0 ? "Add more files" : "Tap to choose files")}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FilePicker({
@@ -44,28 +195,39 @@ export function FilePicker({
   hint,
   value,
   onChange,
+  multiple = false,
+  values = [],
+  onChangeMultiple,
   accentColor = "#4F46E5",
   accentBg = "#EEF2FF",
   height = 140,
   compact = false,
 }: FilePickerProps) {
-  async function handlePick() {
-    const mimeTypes =
-      accept === "images"
-        ? ["image/*"]
-        : accept === "files"
-          ? ["*/*"]
-          : ["image/*", "*/*"];
+  // ── Multi mode ────────────────────────────────────────────────────────────
+  if (multiple && onChangeMultiple) {
+    return (
+      <MultiFileCompact
+        values={values}
+        onChangeMultiple={onChangeMultiple}
+        accept={accept}
+        accentColor={accentColor}
+        accentBg={accentBg}
+        label={label}
+        hint={hint}
+      />
+    );
+  }
 
+  // ── Single compact mode ───────────────────────────────────────────────────
+  async function handlePick() {
     const result = await DocumentPicker.getDocumentAsync({
-      type: mimeTypes,
+      type: getMimeTypes(accept),
       copyToCacheDirectory: true,
       multiple: false,
     });
-
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
-    onChange({
+    onChange?.({
       uri: asset.uri,
       name: asset.name,
       mimeType: asset.mimeType ?? "application/octet-stream",
@@ -74,10 +236,8 @@ export function FilePicker({
   }
 
   function handleRemove() {
-    onChange(null);
+    onChange?.(null);
   }
-
-  // ── Compact strip ─────────────────────────────────────────────────────────
 
   if (compact) {
     return (
@@ -187,7 +347,6 @@ export function FilePicker({
   }
 
   // ── Tall box ──────────────────────────────────────────────────────────────
-
   const showImagePreview = value && isImage(value.mimeType);
 
   return (
@@ -287,10 +446,6 @@ export function FilePicker({
                 backgroundColor: "#fff",
                 alignItems: "center",
                 justifyContent: "center",
-                shadowColor: "#000",
-                shadowOpacity: 0.06,
-                shadowRadius: 4,
-                shadowOffset: { width: 0, height: 2 },
               }}
             >
               <Ionicons
@@ -302,7 +457,6 @@ export function FilePicker({
             <Text
               style={{ fontSize: 12, fontWeight: "600", color: "#374151" }}
               numberOfLines={2}
-              textBreakStrategy="balanced"
             >
               {truncate(value.name, 36)}
             </Text>
@@ -365,10 +519,6 @@ export function FilePicker({
                 backgroundColor: "#fff",
                 alignItems: "center",
                 justifyContent: "center",
-                shadowColor: "#000",
-                shadowOpacity: 0.06,
-                shadowRadius: 4,
-                shadowOffset: { width: 0, height: 2 },
               }}
             >
               <Ionicons

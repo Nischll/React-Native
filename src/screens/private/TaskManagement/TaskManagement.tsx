@@ -17,20 +17,23 @@ export default function TaskManagement() {
   const { selectedBuilding } = useAuth();
   const buildingId = Number(selectedBuilding?.value);
 
-  // ── 1. Categories ────────────────────────────────────────────────────────
   const { data: categoryData } = useGetAllCategory();
   const categories = categoryData?.data ?? [];
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
     null,
   );
+  const [search, setSearch] = useState("");
+
+  const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+  const [selectedStatusValue, setSelectedStatusValue] = useState<string>("");
+
   useEffect(() => {
     if (categories.length > 0 && selectedCategoryId === null) {
       setSelectedCategoryId(categories[0].id);
     }
   }, [categories]);
 
-  // ── 2. Task statuses — filtered by selected category ─────────────────────
   const { taskStatus, isLoading: statusLoading } = useTaskStatusOptions();
 
   const filteredStatuses = useMemo(() => {
@@ -40,7 +43,6 @@ export default function TaskManagement() {
 
   const hasStatuses = !statusLoading && filteredStatuses.length > 0;
 
-  const [selectedStatusValue, setSelectedStatusValue] = useState<string>("");
   useEffect(() => {
     if (filteredStatuses.length > 0) {
       setSelectedStatusValue(filteredStatuses[0].value);
@@ -48,12 +50,6 @@ export default function TaskManagement() {
       setSelectedStatusValue("");
     }
   }, [filteredStatuses]);
-
-  // ── 3. Search ─────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState("");
-
-  // ── 4. Task counts ────────────────────────────────────────────────────────
-  const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
   const handleCountResolved = useCallback((statusId: number, count: number) => {
     setTaskCounts((prev) => {
       if (prev[String(statusId)] === count) return prev;
