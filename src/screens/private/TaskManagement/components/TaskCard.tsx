@@ -31,14 +31,18 @@ export default function TaskCard({ task }: TaskCardProps) {
     PRIORITY_STYLES[task.priority?.toLowerCase() ?? ""] ??
     PRIORITY_STYLES.medium;
 
-  const assigneeName =
-    [task.assignedTo, task.assignedTo].filter(Boolean).join(" ") || "null null";
+  const assigneeName = task.assignedTo || "—";
+  const creatorName = task.createdBy || "—";
 
-  const creatorName =
-    [task.createdBy, task.createdBy].filter(Boolean).join(" ") || "—";
+  const handleEdit = () => {
+    router.push({
+      pathname: "/(private)/task-management/task-add-edit",
+      params: { mode: "edit", taskId: String(task.id) },
+    });
+  };
 
   return (
-    <View className="bg-white rounded-2xl mx-4 mb-3 p-4 shadow-md border border-gray-100">
+    <View className="bg-slate-100 rounded-2xl mb-3 p-4 shadow-md border border-gray-100">
       {/* Top row: task code + edit icon */}
       <View className="flex-row justify-between items-center mb-2">
         <View className="flex-row items-center gap-2">
@@ -47,7 +51,9 @@ export default function TaskCard({ task }: TaskCardProps) {
             {task.taskNumber ?? `TASK-${task.id}`}
           </Text>
         </View>
-        <AppIcon name="pencil-outline" size={16} color="#9CA3AF" />
+        <TouchableOpacity onPress={handleEdit} hitSlop={8} activeOpacity={0.6}>
+          <AppIcon name="pencil-outline" size={16} color="#6366F1" />
+        </TouchableOpacity>
       </View>
 
       {/* Task title */}
@@ -55,20 +61,13 @@ export default function TaskCard({ task }: TaskCardProps) {
         {task.title}
       </Text>
 
-      {/* Priority + Category tags */}
+      {/* Priority tag */}
       <View className="flex-row flex-wrap gap-2 mb-3">
         <View className={`px-3 py-1 rounded-full ${priority.bg}`}>
           <Text className={`text-xs font-semibold ${priority.text}`}>
             {priority.label}
           </Text>
         </View>
-        {/* {task.?.name && (
-          <View className="px-3 py-1 rounded-full bg-gray-100">
-            <Text className="text-xs font-medium text-gray-600">
-              {task.category.name}
-            </Text>
-          </View>
-        )} */}
       </View>
 
       {/* To / By */}

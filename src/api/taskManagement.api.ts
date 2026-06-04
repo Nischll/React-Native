@@ -50,3 +50,21 @@ export const useGetTaskByStatusId = (
     },
   );
 };
+
+export const useUpdateTaskDetails = (taskId: number | undefined) =>
+  useApiMutation("put", `/task/update/${taskId}`);
+
+export const useGetTaskById = (
+  taskId: number | undefined,
+  enabled: boolean = true,
+) =>
+  useApiQuery<ApiListResponse<TaskResponse>>(`/task/${taskId}`, {
+    enabled: enabled && !!taskId,
+    retry: 0,
+  });
+
+export const useUpdateTaskStatus = (taskId: number | undefined) =>
+  useApiMutation("put", `/task/${taskId}`);
+
+export const useDeleteAtachment = (attachmentId: number | undefined) =>
+  useApiMutation("delete", `/attachment/delete/${attachmentId}`);

@@ -1,4 +1,8 @@
-import { useAddTask } from "@/src/api/taskManagement.api";
+import {
+  useAddTask,
+  useGetTaskById,
+  useUpdateTaskDetails,
+} from "@/src/api/taskManagement.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
@@ -18,10 +22,17 @@ import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding"
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { router } from "expo-router";
-import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
+import {
+  ActivityIndicator,
+  Keyboard,
+  Text,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -52,43 +63,118 @@ const PRIORITY_OPTIONS = [
 export default function TaskAddEdit() {
   const insets = useSafeAreaInsets();
   const { buildingId } = useAuth();
+  const queryClient = useQueryClient();
 
+  // ── Route params ──────────────────────────────────────────────────────────
+  const { mode, taskId } = useLocalSearchParams<{
+    mode: "create" | "edit";
+    taskId?: string;
+  }>();
+  const isEditMode = mode === "edit";
+  const parsedTaskId = taskId ? Number(taskId) : undefined;
+
+  // ── Prefill data for edit ─────────────────────────────────────────────────
+  const { data: taskData, isLoading: isLoadingTask } = useGetTaskById(
+    parsedTaskId,
+    isEditMode,
+  );
+  const existingTask = taskData?.data?.data?.[0];
+
+  // ── API mutations ─────────────────────────────────────────────────────────
+  const { mutate: addTask, isPending: isAdding } = useAddTask();
+  const { mutate: updateTask, isPending: isUpdating } =
+    useUpdateTaskDetails(parsedTaskId);
+  const isPending = isAdding || isUpdating;
+
+  // ── Hooks ─────────────────────────────────────────────────────────────────
   const { residences } = useResidencesForActiveBuilding();
   const { employees } = useEmployeeByBuildingOptions(buildingId);
   const { taskStatus } = useTaskStatusOptions();
-  const { mutate: addTask, isPending } = useAddTask();
 
-  const { control, handleSubmit, watch, setValue } = useForm<FormValues>({
-    defaultValues: {
-      area: "",
-      residentId: "",
-      type: "",
-      subType: "",
-      location: "",
-      reportedBy: "",
-      modeOfCommunication: "",
-      title: "",
-      description: "",
-      assignedTo: "",
-      taskStatusId: "",
-      priority: "",
-      deadline: "",
-      actionTaken: "",
-      attachment: null,
+  // ── Form ──────────────────────────────────────────────────────────────────
+  const { control, handleSubmit, watch, setValue, reset } = useForm<FormValues>(
+    {
+      defaultValues: {
+        area: "",
+        residentId: "",
+        type: "",
+        subType: "",
+        location: "",
+        reportedBy: "",
+        modeOfCommunication: "",
+        title: "",
+        description: "",
+        assignedTo: "",
+        taskStatusId: "",
+        priority: "",
+        deadline: "",
+        actionTaken: "",
+        attachment: null,
+      },
     },
-  });
+  );
+
+  useEffect(() => {
+    if (isEditMode && existingTask) {
+      reset({
+        area: existingTask.area ?? "",
+        residentId: String(existingTask.residentId ?? ""),
+        type: existingTask.type ?? "",
+        subType: existingTask.subType ?? "",
+        location: existingTask.location ?? "",
+        reportedBy: existingTask.reportedBy ?? "",
+        modeOfCommunication: existingTask.modeOfCommunication ?? "",
+        title: existingTask.title ?? "",
+        description: existingTask.description ?? "",
+        assignedTo: String(existingTask.assignedTo ?? ""),
+        taskStatusId: String(existingTask.taskStatusId ?? ""),
+        priority: existingTask.priority ?? "",
+        deadline: existingTask.deadline ?? "",
+        actionTaken: existingTask.actionTaken ?? "",
+        attachment: null,
+      });
+    }
+  }, [existingTask, isEditMode]);
 
   const selectedArea = watch("area");
   const selectedTaskType = watch("type");
 
+  const prevTaskType = useRef<string>("");
+
   useEffect(() => {
+    const prev = prevTaskType.current;
+    prevTaskType.current = selectedTaskType;
+
+    if (!prev) return;
+
+    if (prev === selectedTaskType) return;
+
     setValue("subType", "");
-  }, [selectedTaskType, setValue]);
+  }, [selectedTaskType]);
 
   const subTypeOptions = getSubTypeOptionsForTaskType(
     selectedTaskType as TaskType,
   );
 
+  const refetchTaskQueries = async () => {
+    // if (__DEV__) {
+    //   const allKeys = queryClient
+    //     .getQueryCache()
+    //     .getAll()
+    //     .map((q) => q.queryKey);
+    //   console.log(
+    //     "[TaskAddEdit] All query keys:",
+    //     JSON.stringify(allKeys, null, 2),
+    //   );
+    // }
+
+    await queryClient.refetchQueries({
+      predicate: (query) =>
+        String(query.queryKey[0]).includes("/task/task-status/"),
+    });
+  };
+
+  // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = (values: FormValues) => {
     const formData = new FormData();
 
@@ -119,18 +205,44 @@ export default function TaskAddEdit() {
       } as any);
     }
 
-    addTask(formData, {
-      onSuccess: () => router.back(),
-    });
+    const onSuccess = async () => {
+      await refetchTaskQueries();
+      router.back();
+    };
+
+    if (isEditMode) {
+      updateTask(formData, { onSuccess });
+    } else {
+      addTask(formData, { onSuccess });
+    }
   };
+
+  // ── Loading state (edit prefill) ──────────────────────────────────────────
+  if (isEditMode && isLoadingTask) {
+    return (
+      <View className="flex-1 bg-white">
+        <PageHeader
+          showBackButton
+          icon="clipboard"
+          title="Edit Task"
+          subtitle="Update task details"
+        />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#6366F1" />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-white">
       <PageHeader
         showBackButton
         icon="clipboard"
-        title="Add Task"
-        subtitle="Create and assign a task"
+        title={isEditMode ? "Edit Task" : "Add Task"}
+        subtitle={
+          isEditMode ? "Update task details" : "Create and assign a task"
+        }
       />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -179,7 +291,6 @@ export default function TaskAddEdit() {
             </View>
           </View>
 
-          {/* Unit — only when IN_SUITE */}
           {selectedArea === "IN_SUITE" && (
             <View className="mt-3">
               <Controller
@@ -198,7 +309,6 @@ export default function TaskAddEdit() {
             </View>
           )}
 
-          {/* Sub Type — only when options exist */}
           {subTypeOptions.length > 0 && (
             <View className="mt-3">
               <Controller
@@ -217,7 +327,6 @@ export default function TaskAddEdit() {
             </View>
           )}
 
-          {/* Title */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -233,7 +342,6 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Description */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -251,7 +359,6 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Location */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -267,7 +374,6 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Reported By + Communication */}
           <View className="mt-3 flex-row gap-3">
             <View className="flex-1">
               <Controller
@@ -301,7 +407,6 @@ export default function TaskAddEdit() {
             </View>
           </View>
 
-          {/* Task Status */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -318,7 +423,6 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Assigned To + Priority */}
           <View className="mt-3 flex-row gap-3">
             <View className="flex-1">
               <Controller
@@ -352,7 +456,6 @@ export default function TaskAddEdit() {
             </View>
           </View>
 
-          {/* Deadline */}
           <View className="mt-3">
             <Text className="mb-2 text-base font-semibold text-slate-700">
               Deadline
@@ -366,7 +469,6 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Action Taken */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -384,7 +486,6 @@ export default function TaskAddEdit() {
             />
           </View>
 
-          {/* Attachment */}
           <View className="mt-3">
             <Controller
               control={control}
@@ -403,13 +504,12 @@ export default function TaskAddEdit() {
         </KeyboardAwareScrollView>
       </TouchableWithoutFeedback>
 
-      {/* Pinned submit button — always visible above the home indicator */}
       <View
         className="border-t border-slate-200 bg-white px-4 pt-3"
         style={{ paddingBottom: Math.max(insets.bottom, 16) }}
       >
         <AppButton loading={isPending} onPress={handleSubmit(onSubmit)}>
-          Create Task
+          {isEditMode ? "Update Task" : "Create Task"}
         </AppButton>
       </View>
     </View>
