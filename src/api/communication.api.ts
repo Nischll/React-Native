@@ -89,9 +89,9 @@ export function useCreateCommunication() {
   // Note: call qc.invalidateQueries in onSuccess at the call site, or wrap:
 }
 
-// Wrapper that auto-invalidates — consume this in components
 export function useCreateCommunicationWithRefresh() {
   const qc = useQueryClient();
+
   const mutation = useApiMutation<CreateCommunicationPayload>(
     "post",
     COMMUNICATION_KEY,
@@ -102,7 +102,11 @@ export function useCreateCommunicationWithRefresh() {
     mutation.mutate(vars, {
       ...opts,
       onSuccess: (...args) => {
-        qc.invalidateQueries({ queryKey: [COMMUNICATION_KEY] });
+        qc.invalidateQueries({
+          queryKey: [COMMUNICATION_KEY],
+          exact: false,
+        });
+
         opts?.onSuccess?.(...args);
       },
     });
@@ -110,7 +114,6 @@ export function useCreateCommunicationWithRefresh() {
 
   return { ...mutation, mutate: mutateWithRefresh };
 }
-
 // ─── PUT: update ─────────────────────────────────────────────────────────────
 
 export function useUpdateCommunicationWithRefresh() {
@@ -170,6 +173,7 @@ export function useDeleteCommunicationWithRefresh() {
 
 export function useToggleReactionWithRefresh() {
   const qc = useQueryClient();
+
   const mutation = useApiMutation<ReactionPayload>(
     "post",
     "/communication-reaction",
@@ -183,7 +187,11 @@ export function useToggleReactionWithRefresh() {
     mutation.mutate(payload, {
       ...opts,
       onSuccess: (...args) => {
-        qc.invalidateQueries({ queryKey: [COMMUNICATION_KEY] });
+        qc.invalidateQueries({
+          queryKey: [COMMUNICATION_KEY],
+          exact: false,
+        });
+
         opts?.onSuccess?.(...args);
       },
     });

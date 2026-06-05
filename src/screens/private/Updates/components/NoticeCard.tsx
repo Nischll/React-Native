@@ -15,6 +15,7 @@ import { MessageText } from "@/src/helper/messageDisplayText";
 import { useEmployeeOptions } from "@/src/hooks/useEmployee";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
+import { router } from "expo-router";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -27,7 +28,6 @@ import {
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
-import { RepliesSheet } from "./RepliesSheet";
 
 interface NoticeCardProps {
   item: CommunicationItem;
@@ -49,7 +49,7 @@ export function NoticeCard({
   const isNew = item.seen === false;
   const hasUnseenReplies = item.replies.some((r) => r.seen === false);
 
-  const [showRepliesSheet, setShowRepliesSheet] = useState(false);
+  // const [showRepliesSheet, setShowRepliesSheet] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.message);
@@ -578,7 +578,14 @@ export function NoticeCard({
               }}
             >
               <Pressable
-                onPress={() => setShowRepliesSheet(true)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(private)/messages/updates-replies",
+                    params: {
+                      parentItem: JSON.stringify(item),
+                    },
+                  })
+                }
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
                 <AppIcon
@@ -673,11 +680,11 @@ export function NoticeCard({
       </Modal>
 
       {/* Replies sheet */}
-      <RepliesSheet
+      {/* <RepliesSheet
         visible={showRepliesSheet}
         parentItem={item}
         onClose={() => setShowRepliesSheet(false)}
-      />
+      /> */}
     </View>
   );
 }

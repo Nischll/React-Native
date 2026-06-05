@@ -47,7 +47,7 @@ interface ReplyRowProps {
   onEdit: (item: CommunicationItem) => void;
 }
 
-function ReplyRow({
+export function ReplyRow({
   item,
   openSwipeId,
   onSwipeOpen,
@@ -144,7 +144,7 @@ function ReplyRow({
   ).current;
 
   return (
-    <View style={{ borderRadius: 12 }}>
+    <View style={{ borderRadius: 12, marginBottom: 4 }}>
       {isOwn && (
         <Animated.View
           style={{
@@ -352,7 +352,7 @@ export function RepliesSheet({
   const flatReplies = localReplies.filter((r) => r.parentId === parentItem.id);
 
   // Shrink sheet height when keyboard opens instead of pushing it up
-  const computedSheetHeight = BASE_SHEET_HEIGHT - keyboardHeight;
+  const computedSheetHeight = BASE_SHEET_HEIGHT;
 
   // Mention suggestions sit just above the composer; bump up when edit banner shows
   const mentionBottom = editingReply ? 110 : 70;
@@ -634,6 +634,7 @@ export function RepliesSheet({
           )}
 
           {/* Composer */}
+
           <View
             style={{
               flexDirection: "row",
