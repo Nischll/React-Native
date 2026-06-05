@@ -21,11 +21,7 @@ export default function TaskStatusTabs({
 }: TaskStatusTabsProps) {
   return (
     <View className="border-b border-gray-200 bg-white">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName=""
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {tabs.map((tab) => {
           const isSelected = selectedValue === tab.value;
           const count = taskCounts[tab.value] ?? 0;

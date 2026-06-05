@@ -1,5 +1,5 @@
 import ScreenContainer from "@/src/components/layout/ScreenContainer";
-import TaskAddEdit from "@/src/screens/private/TaskManagement/components/TaskAddEdit";
+import TaskAddEdit from "@/src/screens/private/TaskManagement/TaskAddEdit";
 
 export default function TaskAddEditPage() {
   return (

@@ -1,7 +1,11 @@
+import { useUpdateTaskStatus } from "@/src/api/taskManagement.api";
 import AppIcon from "@/src/components/ui/AppIcon";
+import SelectField from "@/src/components/ui/SelectField";
+import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { TaskResponseData } from "@/src/types/task-management.types";
+import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 interface TaskCardProps {
   task: TaskResponseData;
@@ -27,6 +31,11 @@ function formatDate(dateStr?: string | null): string {
 }
 
 export default function TaskCard({ task }: TaskCardProps) {
+  const queryClient = useQueryClient();
+  const { taskStatus } = useTaskStatusOptions();
+  const { mutate: updateStatus, isPending: isUpdatingStatus } =
+    useUpdateTaskStatus(task.id);
+
   const priority =
     PRIORITY_STYLES[task.priority?.toLowerCase() ?? ""] ??
     PRIORITY_STYLES.medium;
@@ -40,6 +49,27 @@ export default function TaskCard({ task }: TaskCardProps) {
       params: { mode: "edit", taskId: String(task.id) },
     });
   };
+
+  const handleStatusChange = (value: string) => {
+    const newStatusId = Number(value);
+    if (newStatusId === task.taskStatusId) return;
+
+    updateStatus(
+      { taskStatusId: newStatusId },
+      {
+        onSuccess: () => {
+          queryClient.refetchQueries({
+            predicate: (query) =>
+              String(query.queryKey[0]).includes("/task/task-status/"),
+          });
+        },
+      },
+    );
+  };
+
+  const count =
+    task.commentResponsePojoList?.length +
+      task.attachmentResponsePojoList?.length || 0;
 
   return (
     <View className="bg-slate-100 rounded-2xl mb-3 p-4 shadow-md border border-gray-100">
@@ -96,11 +126,32 @@ export default function TaskCard({ task }: TaskCardProps) {
         </View>
       </View>
 
-      {/* Status badge */}
-      <View className="mb-3 border border-gray-200 rounded-lg px-3 py-2 flex-row justify-between items-center">
-        <Text className="text-xs text-gray-600 font-medium">Status:</Text>
-        <Text className="text-xs text-gray-700">{task.statusName ?? "—"}</Text>
-        <AppIcon name="chevron-down" size={14} color="#6B7280" />
+      {/* Action Taken */}
+      {task.actionTaken ? (
+        <View className="flex-row items-center gap-2 mb-3">
+          <AppIcon name="checkbox-outline" size={14} color="#6B7280" />
+          <Text className="text-xs text-gray-600 flex-1" numberOfLines={2}>
+            {task.actionTaken}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Status dropdown — shows spinner while update API is in flight */}
+      <View className="mb-3">
+        {isUpdatingStatus ? (
+          <View className="border border-gray-200 rounded-xl px-3 py-3 flex-row items-center gap-2 bg-white">
+            <ActivityIndicator size="small" color="#6366F1" />
+            <Text className="text-xs text-gray-400">Updating status...</Text>
+          </View>
+        ) : (
+          <SelectField
+            mode="dropdown"
+            options={taskStatus}
+            value={String(task.taskStatusId)}
+            onChange={handleStatusChange}
+            placeholder="Select Status"
+          />
+        )}
       </View>
 
       {/* Description */}
@@ -113,18 +164,28 @@ export default function TaskCard({ task }: TaskCardProps) {
       {/* Attachments & Comments button */}
       <TouchableOpacity
         activeOpacity={0.7}
-        className="border border-gray-200 rounded-xl py-2.5 flex-row justify-center items-center gap-2"
+        className="border border-gray-200 bg-white rounded-xl py-2.5 flex-row justify-center items-center gap-2"
         onPress={() =>
           router.push({
-            pathname: "/(private)/task-management/task-comments",
+            pathname: "/(private)/task-management/task-attachments-comments",
             params: { taskId: String(task.id) },
           })
         }
       >
         <AppIcon name="chatbubble-outline" size={15} color="#6B7280" />
-        <Text className="text-xs font-medium text-gray-600">
-          View Attachments & Comments
-        </Text>
+
+        <View className="flex-row items-center gap-1.5">
+          <Text className="text-xs font-medium text-gray-600">
+            View Attachments & Comments
+          </Text>
+          <View
+            className={`rounded-full px-1.5 py-0.5 min-w-5 items-center bg-gray-200`}
+          >
+            <Text className={`text-xs font-semibold text-gray-500}`}>
+              {count}
+            </Text>
+          </View>
+        </View>
       </TouchableOpacity>
     </View>
   );
