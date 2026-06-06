@@ -1,3 +1,4 @@
+// PageHeader.tsx — unchanged from original, back button stays as router.back()
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Text, View } from "react-native";
@@ -10,6 +11,7 @@ interface PageHeaderProps {
   icon: React.ComponentProps<typeof Ionicons>["name"];
   variant?: "default" | "dashboard";
   showBackButton?: boolean;
+  onBack?: () => void;
 }
 
 export default function PageHeader({
@@ -18,6 +20,7 @@ export default function PageHeader({
   icon,
   variant = "default",
   showBackButton = false,
+  onBack,
 }: PageHeaderProps) {
   const isDashboard = variant === "dashboard";
 
@@ -28,7 +31,6 @@ export default function PageHeader({
         ${isDashboard ? "bg-primary" : "pb-2 border-b border-slate-300 border-opacity-50"}
       `}
     >
-      {/* Icon */}
       <View className="items-center justify-center">
         <AppIcon
           name={icon}
@@ -37,7 +39,6 @@ export default function PageHeader({
         />
       </View>
 
-      {/* Title + Subtitle */}
       <View className="flex-1">
         <Text
           className={`text-xl font-bold ${
@@ -46,7 +47,6 @@ export default function PageHeader({
         >
           {title}
         </Text>
-
         {subtitle ? (
           <Text
             className={`text-base ${
@@ -58,9 +58,11 @@ export default function PageHeader({
         ) : null}
       </View>
 
-      {/* Back Button (ANIMATED) */}
       {showBackButton && (
-        <AnimatedPressable onPress={() => router.back()} className="mt-1">
+        <AnimatedPressable
+          onPress={onBack ?? (() => router.back())}
+          className="mt-1"
+        >
           <View
             className={`
               h-10 w-10 items-center justify-center rounded-xl

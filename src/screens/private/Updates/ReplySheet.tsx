@@ -5,7 +5,7 @@ import {
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
   FlatList,
@@ -30,7 +30,11 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useState } from "react";
 import { ReplyRow } from "./components/RepliesSheet";
 
-export function ReplySheet() {
+interface ReplySheetProps {
+  onBack?: () => void;
+}
+
+export function ReplySheet({ onBack }: ReplySheetProps) {
   const { parentItem } = useLocalSearchParams();
   const parsedParent: CommunicationItem = JSON.parse(parentItem as string);
 
@@ -117,19 +121,42 @@ export function ReplySheet() {
       keyboardVerticalOffset={80}
     >
       <View style={{ flex: 1 }}>
-        <PageHeader title="Replies" subtitle="" icon="chatbox" showBackButton />
+        <PageHeader
+          title={` ${replies.length === 1 ? "Reply" : "Replies"} ${replies.length > 0 ? `(${replies.length})` : ""}`}
+          subtitle=""
+          icon="chatbox"
+          showBackButton
+          onBack={() => router.replace("/(private)/(tabs)/updates")}
+        />
 
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={{ flex: 1 }}>
             {/* ORIGINAL POST */}
-            <View style={{ paddingHorizontal: 12 }}>
+            <View
+              style={{
+                marginBottom: 12,
+                padding: 12,
+                backgroundColor: "#FAFAFA",
+                borderRadius: 12,
+                borderLeftWidth: 3,
+                borderLeftColor: "#7C3AED",
+              }}
+            >
               <Text
-                style={{ fontSize: 14, fontWeight: "700", color: "#7C3AED" }}
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: "#7C3AED",
+                  marginBottom: 2,
+                }}
               >
                 {parsedParent.createdByFullName}
               </Text>
 
-              <Text style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>
+              <Text
+                style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
+                numberOfLines={3}
+              >
                 {parsedParent.message}
               </Text>
             </View>
@@ -139,7 +166,14 @@ export function ReplySheet() {
               <FlatList
                 data={replies}
                 keyExtractor={(item) => String(item.id)}
+                keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{
+                  paddingTop: 4,
+                  paddingBottom: 8,
+                  gap: 8,
+                  flexGrow: 1,
+                }}
                 renderItem={({ item }) => (
                   <ReplyRow
                     item={item}
@@ -152,10 +186,21 @@ export function ReplySheet() {
                     }}
                   />
                 )}
+                showsVerticalScrollIndicator={false}
+                onScrollBeginDrag={() => setOpenSwipeId(null)}
                 ListEmptyComponent={
-                  <Text style={{ color: "#94A3B8", textAlign: "center" }}>
-                    No replies yet
-                  </Text>
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 32,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: "#94A3B8" }}>
+                      No replies yet. Be the first!
+                    </Text>
+                  </View>
                 }
               />
             </View>
@@ -181,7 +226,13 @@ export function ReplySheet() {
                   justifyContent: "space-between",
                 }}
               >
-                <Text style={{ color: "#7C3AED", fontSize: 12 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "#7C3AED",
+                    fontWeight: "600",
+                  }}
+                >
                   Editing reply
                 </Text>
 
@@ -191,7 +242,15 @@ export function ReplySheet() {
                     setReplyText("");
                   }}
                 >
-                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>Cancel</Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#94A3B8",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Cancel
+                  </Text>
                 </Pressable>
               </View>
             )}
@@ -213,7 +272,12 @@ export function ReplySheet() {
                   value={replyText}
                   onChangeText={setReplyText}
                   onMentionStateChange={setMentionState}
-                  placeholder="Write a reply..."
+                  placeholder={
+                    editingReply
+                      ? "Edit reply..."
+                      : `Reply to ${parsedParent.createdByFullName ?? "post"}…`
+                  }
+                  placeholderTextColor="#CBD5E1"
                   multiline
                   style={{
                     flex: 1,
@@ -236,8 +300,8 @@ export function ReplySheet() {
                     width: 42,
                     height: 42,
                     borderRadius: 12,
-                    backgroundColor:
-                      hasText && !sending ? "#7C3AED" : "#E2E8F0",
+                    // backgroundColor:
+                    //   hasText && !sending ? "#7C3AED" : "#E2E8F0",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
