@@ -1,14 +1,26 @@
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, useSegments } from "expo-router";
 import { Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const { refreshing, unseenUpdatesCount } = useGlobalRefresh();
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
 
+  const isOnReplies = segments.includes("replies" as never);
+  const tabBarStyle = isOnReplies
+    ? { display: "none" as const }
+    : {
+        height: 60 + (Platform.OS === "android" ? insets.bottom : 0),
+        paddingTop: 8,
+        paddingBottom: Platform.OS === "android" ? insets.bottom : 8,
+        borderTopWidth: 1,
+        borderTopColor: "#E2E8F0",
+        backgroundColor: "#FFFFFF",
+      };
   return (
     <>
       <Tabs
@@ -17,14 +29,7 @@ export default function TabsLayout() {
           animation: "shift",
           tabBarActiveTintColor: "#453956",
           tabBarInactiveTintColor: "#94A3B8",
-          tabBarStyle: {
-            height: 60 + (Platform.OS === "android" ? insets.bottom : 0),
-            paddingTop: 8,
-            paddingBottom: Platform.OS === "android" ? insets.bottom : 8,
-            borderTopWidth: 1,
-            borderTopColor: "#E2E8F0",
-            backgroundColor: "#FFFFFF",
-          },
+          tabBarStyle: tabBarStyle,
           tabBarLabelStyle: {
             display: "none",
           },
@@ -47,7 +52,7 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
-          name="updates"
+          name="(updates)"
           options={{
             title: "Messages",
             tabBarIcon: ({ color, focused }) => (

@@ -21,7 +21,7 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/app-icon.png"
       },
-      "softwareKeyboardLayoutMode": "resize",
+      "softwareKeyboardLayoutMode": "pan",
       "predictiveBackGestureEnabled": false
     },
     "androidNavigationBar": {

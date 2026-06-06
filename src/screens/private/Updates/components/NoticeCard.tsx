@@ -580,7 +580,7 @@ export function NoticeCard({
               <Pressable
                 onPress={() =>
                   router.push({
-                    pathname: "/(private)/updates-replies",
+                    pathname: "/(private)/(tabs)/(updates)/replies",
                     params: {
                       parentItem: JSON.stringify(item),
                     },
