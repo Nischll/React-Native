@@ -1,7 +1,9 @@
 import { useGetTaskByStatusId } from "@/src/api/taskManagement.api";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import TaskCard from "./TaskCard";
+
+const PAGE_LIMIT = 1;
 
 interface TaskStatusSectionProps {
   statusId: number;
@@ -11,6 +13,25 @@ interface TaskStatusSectionProps {
   onCountResolved?: (statusId: number, count: number) => void;
 }
 
+// Fetches a single page
+function useTaskPage(
+  statusId: number,
+  page: number,
+  search: string | undefined,
+  buildingId: number | undefined,
+  isVisible: boolean,
+) {
+  return useGetTaskByStatusId(
+    statusId,
+    page,
+    PAGE_LIMIT,
+    search,
+    undefined,
+    buildingId,
+    isVisible,
+  );
+}
+
 export default function TaskStatusSection({
   statusId,
   isVisible,
@@ -18,28 +39,50 @@ export default function TaskStatusSection({
   buildingId,
   onCountResolved,
 }: TaskStatusSectionProps) {
-  const { data, isLoading, isError } = useGetTaskByStatusId(
+  const [page, setPage] = useState(1);
+  const [allTasks, setAllTasks] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+
+  useEffect(() => {
+    setPage(1);
+    setAllTasks([]);
+    setHasMore(true);
+  }, [search, statusId]);
+
+  const { data, isLoading, isFetching, isError } = useTaskPage(
     statusId,
-    1,
-    50,
+    page,
     search,
-    undefined,
     buildingId,
     isVisible,
   );
 
-  const tasks = data?.data?.data ?? [];
-  const total = data?.data?.total ?? tasks.length;
-
   useEffect(() => {
-    if (data !== undefined && onCountResolved) {
+    if (!data) return;
+    const newTasks = data?.data?.data ?? [];
+    const total = data?.data?.total ?? 0;
+
+    setAllTasks((prev) => {
+      const updated = page === 1 ? newTasks : [...prev, ...newTasks];
+      setHasMore(updated.length < total);
+      return updated;
+    });
+
+    if (onCountResolved) {
       onCountResolved(statusId, total);
     }
-  }, [data, total, statusId]);
+  }, [data, page]);
+
+  const loadMore = () => {
+    if (!isFetching && hasMore) {
+      setPage((p) => p + 1);
+    }
+  };
 
   if (!isVisible) return null;
 
-  if (isLoading) {
+  // Initial load
+  if (isLoading && page === 1) {
     return (
       <View className="items-center py-10">
         <ActivityIndicator size="small" color="#6366F1" />
@@ -48,7 +91,7 @@ export default function TaskStatusSection({
     );
   }
 
-  if (isError) {
+  if (isError && allTasks.length === 0) {
     return (
       <View className="items-center py-10">
         <Text className="text-sm text-red-400">Failed to load tasks.</Text>
@@ -56,7 +99,7 @@ export default function TaskStatusSection({
     );
   }
 
-  if (tasks.length === 0) {
+  if (!isLoading && allTasks.length === 0) {
     return (
       <View className="items-center py-14">
         <Text className="text-sm text-gray-400">No tasks found.</Text>
@@ -66,12 +109,31 @@ export default function TaskStatusSection({
 
   return (
     <View className="pt-3">
-      {tasks.map((task) => (
+      {allTasks.map((task) => (
         <TaskCard key={task.id} task={task} />
       ))}
-      <Text className="text-center text-xs text-gray-400 pb-6 pt-1">
-        No more data to load
-      </Text>
+
+      {/* Load more trigger */}
+      {hasMore ? (
+        <View className="items-center py-4">
+          {isFetching ? (
+            <ActivityIndicator size="small" color="#6366F1" />
+          ) : (
+            <Text
+              className="text-xs text-primary font-medium py-2 px-4"
+              onPress={loadMore}
+            >
+              Load more
+            </Text>
+          )}
+        </View>
+      ) : (
+        allTasks.length > 0 && (
+          <Text className="text-center text-xs text-gray-400 pb-6 pt-1">
+            No more data to load
+          </Text>
+        )
+      )}
     </View>
   );
 }
