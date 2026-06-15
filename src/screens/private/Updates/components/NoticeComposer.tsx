@@ -1,6 +1,5 @@
 import { useCreateCommunicationWithRefresh } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
-import SelectField from "@/src/components/ui/SelectField";
 import {
   MentionState,
   MentionSuggestions,
@@ -8,24 +7,48 @@ import {
 } from "@/src/helper/mentionTextInput";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+function stripMentions(text: string): string {
+  return text
+    .replace(/@[\w._-]+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 export function NoticeComposer() {
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
-  const [selectedBuildingUnit, setSelectedBuildingUnit] = useState<string[]>(
-    [],
-  );
-  const [selectedEmployee, setSelectedEmployee] = useState<string[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [isAllBuildings, setIsAllBuildings] = useState(false);
 
-  const { user } = useAuth();
+  const { selectedBuilding } = useAuth();
   const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
 
   const hasText = text.trim().length > 0;
 
   const handleMentionSelect = (id: string) => {
-    setSelectedEmployee((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setSelectedEmployeeIds((prev) =>
+      prev.includes(Number(id)) ? prev : [...prev, Number(id)],
+    );
+  };
+
+  const handleToggleAllBuildings = () => {
+    const next = !isAllBuildings;
+    setIsAllBuildings(next);
+
+    if (next) {
+      setText((prev) => stripMentions(prev));
+      setSelectedEmployeeIds([]);
+      setMentionState(null);
+    }
   };
 
   const handleSend = () => {
@@ -36,23 +59,33 @@ export function NoticeComposer() {
       {
         message: trimmed,
         parentId: null,
-        buildingIds:
-          selectedBuildingUnit.length > 0
-            ? selectedBuildingUnit.map(Number)
-            : null,
-        employeeIds:
-          selectedEmployee.length > 0 ? selectedEmployee.map(Number) : null,
+        buildingIds: isAllBuildings
+          ? []
+          : selectedBuilding
+            ? [Number(selectedBuilding.value)]
+            : [],
+        employeeIds: isAllBuildings ? [] : selectedEmployeeIds,
       },
       {
         onSuccess: () => {
           setText("");
           setExpanded(false);
           setMentionState(null);
-          setSelectedBuildingUnit([]);
+          setSelectedEmployeeIds([]);
+          setIsAllBuildings(false);
         },
       },
     );
   };
+
+  const handleCancel = () => {
+    setText("");
+    setExpanded(false);
+    setMentionState(null);
+    setSelectedEmployeeIds([]);
+    setIsAllBuildings(false);
+  };
+
   return (
     <View style={{ marginHorizontal: 6, marginBottom: 12 }}>
       <View
@@ -96,12 +129,63 @@ export function NoticeComposer() {
         {/* Expanded area */}
         {(expanded || hasText) && (
           <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-            {/* Message input */}
+            {/* ── All Buildings toggle ── */}
+            <TouchableOpacity
+              onPress={handleToggleAllBuildings}
+              activeOpacity={0.7}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 10,
+                alignSelf: "flex-start",
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 99,
+                borderWidth: 1.5,
+                borderColor: isAllBuildings ? "#7C3AED" : "#E2E8F0",
+                backgroundColor: isAllBuildings ? "#F5F3FF" : "#FAFAFA",
+              }}
+            >
+              <View
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  borderWidth: 1.5,
+                  borderColor: isAllBuildings ? "#7C3AED" : "#CBD5E1",
+                  backgroundColor: isAllBuildings ? "#7C3AED" : "#fff",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {isAllBuildings && (
+                  <AppIcon name="checkmark" size={10} color="#fff" />
+                )}
+              </View>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: isAllBuildings ? "#7C3AED" : "#64748B",
+                }}
+              >
+                All Buildings
+              </Text>
+            </TouchableOpacity>
+
+            {/* ── Message input ── */}
             <MentionTextInput
               value={text}
               onChangeText={setText}
-              onMentionStateChange={setMentionState}
-              placeholder="Share an update with the team…"
+              onMentionStateChange={
+                isAllBuildings ? undefined : setMentionState
+              }
+              placeholder={
+                isAllBuildings
+                  ? "Enter message… (mentions disabled for all buildings)"
+                  : "Enter message…. Type @ to mention someone"
+              }
               placeholderTextColor="#CBD5E1"
               multiline
               autoFocus={expanded}
@@ -115,7 +199,8 @@ export function NoticeComposer() {
               }}
             />
 
-            {mentionState && (
+            {/* Mention suggestions  */}
+            {mentionState && !isAllBuildings && (
               <MentionSuggestions
                 mentionState={mentionState}
                 value={text}
@@ -126,74 +211,28 @@ export function NoticeComposer() {
               />
             )}
 
-            {/* Optional tag row */}
+            {/* ── Scope indicator ── */}
             <View
               style={{
                 flexDirection: "row",
-                gap: 8,
-                marginBottom: 10,
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 8,
               }}
             >
-              {/* Building / Unit selector */}
-              <View style={{ flex: 1 }}>
-                <SelectField
-                  label=""
-                  multi
-                  value={selectedBuildingUnit}
-                  onChange={setSelectedBuildingUnit}
-                  options={user?.buildingList ?? []}
-                  placeholder="Tag buildings (optional)"
-                  // isLoading={loadingResidences}
-                />
-              </View>
+              <AppIcon
+                name={isAllBuildings ? "globe-outline" : "business-outline"}
+                size={12}
+                color="#94A3B8"
+              />
+              <Text style={{ fontSize: 11, color: "#94A3B8" }}>
+                {isAllBuildings
+                  ? "Sending to all buildings"
+                  : `Sending to ${selectedBuilding?.label ?? "current building"}`}
+              </Text>
             </View>
 
-            {/* Selected tags preview */}
-            {/* {selectedBuildingUnit && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginBottom: 10,
-                }}
-              >
-                {selectedBuildingUnit && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                      backgroundColor: "#EDE9FE",
-                      borderRadius: 99,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <AppIcon name="home-outline" size={11} color="#7C3AED" />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#7C3AED",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {user?.buildingList.find(
-                        (r) => r.value === selectedBuildingUnit[0],
-                      )?.label ?? selectedBuildingUnit[0]}
-                    </Text>
-                    <Pressable
-                      onPress={() => setSelectedBuildingUnit([])}
-                      hitSlop={6}
-                    >
-                      <AppIcon name="close-circle" size={13} color="#7C3AED" />
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            )} */}
-
-            {/* Actions */}
+            {/* ── Actions ── */}
             <View
               style={{
                 flexDirection: "row",
@@ -204,13 +243,7 @@ export function NoticeComposer() {
               }}
             >
               <Pressable
-                onPress={() => {
-                  setText("");
-                  setExpanded(false);
-                  setMentionState(null);
-                  setSelectedBuildingUnit([]);
-                  setSelectedEmployee([]);
-                }}
+                onPress={handleCancel}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 7,

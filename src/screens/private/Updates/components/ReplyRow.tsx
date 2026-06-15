@@ -40,7 +40,7 @@ export function ReplyRow({
 }: ReplyRowProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
-  const isNew = item.seen === false;
+  const isNew = item.seen === false && !isOwn;
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [expanded, setExpanded] = useState(false);

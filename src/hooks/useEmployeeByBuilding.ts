@@ -19,6 +19,7 @@ export const useEmployeeByBuildingOptions = (buildingId: number | null) => {
           label: fullName,
           value: String(employee.id),
           username: employee.username,
+          email: employee.email,
         };
       }) || []
     );

@@ -1,4 +1,3 @@
-import { useEmployeeOptions } from "@/src/hooks/useEmployee";
 import { useAuth } from "@/src/providers/AuthProvider";
 import React, { forwardRef, useMemo } from "react";
 import {
@@ -12,6 +11,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import { useEmployeeByBuildingOptions } from "../hooks/useEmployeeByBuilding";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ export interface MentionState {
 }
 
 interface MentionTextInputProps extends TextInputProps {
-  onMentionStateChange: (state: MentionState | null) => void;
+  onMentionStateChange?: (state: MentionState | null) => void;
 }
 
 // ─── TextInput ───────────────────────────────────────────
@@ -35,12 +35,12 @@ export const MentionTextInput = forwardRef<TextInput, MentionTextInputProps>(
       if (match) {
         const atIndex = text.lastIndexOf("@");
 
-        onMentionStateChange({
+        onMentionStateChange?.({
           query: match[1],
           startIndex: atIndex,
         });
       } else {
-        onMentionStateChange(null);
+        onMentionStateChange?.(null);
       }
     };
 
@@ -78,8 +78,10 @@ export function MentionSuggestions({
   containerStyle,
   onMentionSelect,
 }: MentionSuggestionsProps) {
-  const { user } = useAuth();
-  const { employees, isLoading } = useEmployeeOptions(1, 100);
+  const { user, selectedBuilding } = useAuth();
+  const { employees, isLoading } = useEmployeeByBuildingOptions(
+    Number(selectedBuilding?.value),
+  );
 
   const filtered = useMemo(() => {
     if (!mentionState) return [];
@@ -93,7 +95,8 @@ export function MentionSuggestions({
 
       return (
         e.label.toLowerCase().includes(q) ||
-        e.username.toLowerCase().includes(q)
+        e.username.toLowerCase().includes(q) ||
+        e.email.toLowerCase().includes(q)
       );
     });
   }, [employees, mentionState, user]);
@@ -103,7 +106,7 @@ export function MentionSuggestions({
   const handleSelect = (emp: any) => {
     const updated = value.replace(/(?:^|\s)@([a-zA-Z0-9._-]*)$/, (m) => {
       const leading = m.startsWith(" ") ? " " : "";
-      return `${leading}@${emp.username} `;
+      return `${leading}@${emp.email} `;
     });
 
     onChangeText(updated);

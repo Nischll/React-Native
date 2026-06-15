@@ -31,6 +31,7 @@ export interface CommunicationItem {
   replies: CommunicationItem[];
   buildingIds: number[] | null;
   employeeIds: number[] | null;
+  replyUnseenCount: number;
 }
 
 export interface CommunicationListResponse {
@@ -40,6 +41,8 @@ export interface CommunicationListResponse {
     total: number;
     page: number;
     limit: number;
+    replyUnseenCount: number;
+    seenCount: number;
     unseenCount: number;
     data: CommunicationItem[];
   };

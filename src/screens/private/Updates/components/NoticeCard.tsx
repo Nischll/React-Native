@@ -5,7 +5,6 @@ import {
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
-import SelectField from "@/src/components/ui/SelectField";
 import {
   MentionState,
   MentionSuggestions,
@@ -46,17 +45,20 @@ export function NoticeCard({
 }: NoticeCardProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
-  const isNew = item.seen === false;
-  const hasUnseenReplies = item.replies.some((r) => r.seen === false);
+  const isNew = item.seen === false && !isOwn;
 
-  // const [showRepliesSheet, setShowRepliesSheet] = useState(false);
+  const hasUnseenReplies = item.replyUnseenCount > 0;
+  const unseenReplyCount = item.replyUnseenCount;
+
+  // buildingIds empty array = sent to all buildings
+  const isAllBuildings = (item.buildingIds ?? []).length === 0;
+
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.message);
   const [expanded, setExpanded] = useState(false);
   const [deleteZoneVisible, setDeleteZoneVisible] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
-  const [editBuildingIds, setEditBuildingIds] = useState<string[]>([]);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteScale = useRef(new Animated.Value(0.8)).current;
@@ -92,9 +94,7 @@ export function NoticeCard({
       useNativeDriver: true,
       tension: 120,
       friction: 8,
-    }).start(() => {
-      setDeleteZoneVisible(false);
-    });
+    }).start(() => setDeleteZoneVisible(false));
     deleteScale.setValue(0.8);
     if (openSwipeId === item.id) onSwipeOpen(null);
   };
@@ -104,13 +104,14 @@ export function NoticeCard({
       onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
       onMoveShouldSetPanResponder: (_, g) => {
         if (!isOwn) return false;
-        const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
-        return isHorizontal && Math.abs(g.dx) > 5;
+        return Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 5;
       },
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
-        const dx = Math.min(0, g.dx);
-        const clamped = Math.max(-(DELETE_REVEAL_WIDTH + 10), dx);
+        const clamped = Math.max(
+          -(DELETE_REVEAL_WIDTH + 10),
+          Math.min(0, g.dx),
+        );
         translateX.setValue(clamped);
         const progress = Math.min(1, Math.abs(clamped) / DELETE_REVEAL_WIDTH);
         deleteScale.setValue(0.8 + progress * 0.2);
@@ -118,22 +119,15 @@ export function NoticeCard({
       },
       onPanResponderRelease: (_, g) => {
         if (!isOwn) return;
-        if (g.dx < -SWIPE_THRESHOLD) {
-          snapOpen();
-        } else {
-          snapClosed();
-        }
+        g.dx < -SWIPE_THRESHOLD ? snapOpen() : snapClosed();
       },
-      onPanResponderTerminate: () => {
-        snapClosed();
-      },
+      onPanResponderTerminate: () => snapClosed(),
     }),
   ).current;
 
   const handleDelete = () => {
     isSwipedRef.current = false;
     onSwipeOpen(null);
-
     Animated.timing(translateX, {
       toValue: -500,
       duration: 260,
@@ -151,7 +145,6 @@ export function NoticeCard({
       return;
     }
 
-    // Resolve @mentions in current text → employee IDs
     const mentionedUsernames = (trimmed.match(/@([a-zA-Z0-9._-]+)/g) ?? []).map(
       (m) => m.slice(1),
     );
@@ -164,29 +157,20 @@ export function NoticeCard({
         id: item.id,
         message: trimmed,
         parentId: null,
-        buildingIds:
-          editBuildingIds.length > 0 ? editBuildingIds.map(Number) : [],
+        buildingIds: item.buildingIds,
         employeeIds: resolvedEmployeeIds.length > 0 ? resolvedEmployeeIds : [],
       },
       {
         onSuccess: () => {
           setEditing(false);
-          setEditBuildingIds([]);
         },
       },
     );
   };
-  const unseenReplyCount = item.replies.reduce(
-    (acc, r) => acc + (r.seen === false ? 1 : 0),
-    0,
-  );
 
   return (
     <View
-      style={{
-        paddingHorizontal: CARD_PADDING,
-        paddingVertical: CARD_PADDING,
-      }}
+      style={{ paddingHorizontal: CARD_PADDING, paddingVertical: CARD_PADDING }}
     >
       {isOwn && deleteZoneVisible && (
         <View
@@ -204,7 +188,6 @@ export function NoticeCard({
           }}
         >
           {deleting ? (
-            // Loading state while API is in-flight
             <View style={{ alignItems: "center", gap: 6 }}>
               <ActivityIndicator size="small" color="#EF4444" />
               <Text
@@ -231,7 +214,6 @@ export function NoticeCard({
         </View>
       )}
 
-      {/* Swipeable card */}
       <Animated.View
         style={{
           transform: [{ translateX }],
@@ -306,15 +288,48 @@ export function NoticeCard({
                     </View>
                   )}
                 </View>
-                <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 1 }}>
-                  {timeAgo(item.createdDate)}
-                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: "#94A3B8" }}>
+                    {timeAgo(item.createdDate)}
+                  </Text>
+                  {/* All Buildings badge */}
+                  {isAllBuildings && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 3,
+                        backgroundColor: "#F0FDF4",
+                        borderRadius: 99,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                      }}
+                    >
+                      <AppIcon name="globe-outline" size={10} color="#16A34A" />
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: "#16A34A",
+                          fontWeight: "600",
+                        }}
+                      >
+                        All Buildings
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
 
               {isOwn && (
                 <Pressable
                   onPress={() => {
-                    // Resolve existing employeeIds → @username mentions
                     const existingMentions = (item.employeeIds ?? [])
                       .map((id) =>
                         employees.find((e) => e.value === String(id)),
@@ -322,18 +337,13 @@ export function NoticeCard({
                       .filter(Boolean)
                       .map((e) => `@${e!.username}`)
                       .join(" ");
-
-                    // Append mentions to message if not already there
                     const baseText = item.message;
                     const textWithMentions = existingMentions
                       ? baseText.includes("@")
-                        ? baseText // already has mentions in message text
+                        ? baseText
                         : `${baseText} ${existingMentions}`.trim()
                       : baseText;
-
                     setEditText(textWithMentions);
-                    setEditBuildingIds(item.buildingIds?.map(String) ?? []);
-                    // setEditEmployeeIds(item.employeeIds?.map(String) ?? []);
                     setEditing(true);
                   }}
                   hitSlop={8}
@@ -364,7 +374,6 @@ export function NoticeCard({
                     autoFocus
                     style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
                   />
-
                   {mentionState && (
                     <MentionSuggestions
                       mentionState={mentionState}
@@ -372,23 +381,9 @@ export function NoticeCard({
                       onChangeText={setEditText}
                       onDismiss={() => setMentionState(null)}
                       direction="above"
-                      // onMentionSelect={handleEditMentionSelect}
                     />
                   )}
 
-                  {/* Multi-select building picker */}
-                  <View style={{ marginTop: 10 }}>
-                    <SelectField
-                      label=""
-                      multi
-                      value={editBuildingIds}
-                      onChange={setEditBuildingIds}
-                      options={user?.buildingList ?? []}
-                      placeholder="Tag buildings (optional)"
-                    />
-                  </View>
-
-                  {/* Save / Cancel */}
                   <View
                     style={{
                       flexDirection: "row",
@@ -401,8 +396,6 @@ export function NoticeCard({
                       onPress={() => {
                         setEditing(false);
                         setEditText(item.message);
-                        setEditBuildingIds([]);
-                        // setEditEmployeeIds([]);
                       }}
                     >
                       <Text
@@ -448,12 +441,11 @@ export function NoticeCard({
                     </Pressable>
                   )}
 
-                  {/* Employee chips — only for IDs not already @mentioned in the text */}
+                  {/* Employee chips */}
                   {(() => {
                     const mentionedUsernames = (
                       item.message.match(/@([a-zA-Z0-9._-]+)/g) ?? []
                     ).map((m) => m.slice(1));
-
                     const unmentionedEmployees = (item.employeeIds ?? [])
                       .map((id) =>
                         employees.find((e) => e.value === String(id)),
@@ -462,9 +454,7 @@ export function NoticeCard({
                       .filter(
                         (emp) => !mentionedUsernames.includes(emp!.username),
                       );
-
                     if (unmentionedEmployees.length === 0) return null;
-
                     return (
                       <View
                         style={{
@@ -507,8 +497,8 @@ export function NoticeCard({
                     );
                   })()}
 
-                  {/* Building chips */}
-                  {(item.buildingIds ?? []).length > 0 && (
+                  {/* Building chips — only when specific buildings tagged (not all) */}
+                  {!isAllBuildings && (item.buildingIds ?? []).length > 0 && (
                     <View
                       style={{
                         flexDirection: "row",
@@ -558,7 +548,6 @@ export function NoticeCard({
               )}
             </View>
 
-            {/* Reactions */}
             <ReactionBar
               communicationId={item.id}
               reactions={item.reactions}
@@ -581,9 +570,7 @@ export function NoticeCard({
                 onPress={() =>
                   router.push({
                     pathname: "/(private)/(tabs)/(updates)/replies",
-                    params: {
-                      parentItem: JSON.stringify(item),
-                    },
+                    params: { parentItem: JSON.stringify(item) },
                   })
                 }
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
@@ -604,6 +591,7 @@ export function NoticeCard({
                     ? `${item.replies.length} ${item.replies.length === 1 ? "reply" : "replies"}`
                     : "Reply"}
                 </Text>
+                {/* Use replyUnseenCount from API directly */}
                 {hasUnseenReplies && (
                   <View
                     style={{
@@ -653,7 +641,6 @@ export function NoticeCard({
         </Card>
       </Animated.View>
 
-      {/* Reaction Picker */}
       <Modal
         visible={showReactionPicker}
         transparent
@@ -678,13 +665,6 @@ export function NoticeCard({
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* Replies sheet */}
-      {/* <RepliesSheet
-        visible={showRepliesSheet}
-        parentItem={item}
-        onClose={() => setShowRepliesSheet(false)}
-      /> */}
     </View>
   );
 }
