@@ -1,73 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface ReactionUser {
-  userId: number;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  email: string;
-  fullName: string;
-}
-
-export interface Reaction {
-  reactionType: string;
-  count: number;
-  users: ReactionUser[];
-}
-
-export interface CommunicationItem {
-  id: number;
-  message: string;
-  createdDate: string;
-  parentId: number | null;
-  createdBy: number;
-  createdByFullName: string;
-  seen: boolean | null;
-  reactions: Reaction[];
-  replies: CommunicationItem[];
-  buildingIds: number[] | null;
-  employeeIds: number[] | null;
-  replyUnseenCount: number;
-}
-
-export interface CommunicationListResponse {
-  statusCode: number;
-  message: string;
-  data: {
-    total: number;
-    page: number;
-    limit: number;
-    replyUnseenCount: number;
-    seenCount: number;
-    unseenCount: number;
-    data: CommunicationItem[];
-  };
-}
-
-export interface CreateCommunicationPayload {
-  message: string;
-  parentId: number | null;
-  employeeIds?: number[] | null;
-  buildingIds?: number[] | null;
-}
-
-export interface UpdateCommunicationPayload {
-  id: number;
-  message: string;
-  parentId: number | null;
-  employeeIds?: number[] | null;
-  buildingIds?: number[] | null;
-}
-
-export interface ReactionPayload {
-  communicationId: number;
-  reactionType: string;
-  userId: number;
-}
+import {
+  CommunicationListResponse,
+  CreateCommunicationPayload,
+  ReactionPayload,
+  SeenStatus,
+  UpdateCommunicationPayload,
+} from "../types/communication.types";
 
 // ─── Query Key ────────────────────────────────────────────────────────────────
 
@@ -75,9 +15,19 @@ export const COMMUNICATION_KEY = "/communication";
 
 // ─── GET: list ────────────────────────────────────────────────────────────────
 
-export function useGetCommunications(page = 1, limit = 20) {
+export function useGetCommunications(
+  page = 1,
+  limit = 10,
+  seenStatus: SeenStatus = "all",
+  buildingId?: number,
+) {
   return useApiQuery<CommunicationListResponse>(COMMUNICATION_KEY, {
-    queryParams: { page, limit },
+    queryParams: {
+      page,
+      limit,
+      seenStatus,
+      ...(buildingId ? { buildingId } : {}),
+    },
   });
 }
 

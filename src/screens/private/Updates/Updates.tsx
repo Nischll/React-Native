@@ -1,13 +1,12 @@
-import {
-  CommunicationItem,
-  useGetCommunications,
-} from "@/src/api/communication.api";
+import { useGetCommunications } from "@/src/api/communication.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { NoticeCard } from "@/src/screens/private/Updates/components/NoticeCard";
 import { NoticeComposer } from "@/src/screens/private/Updates/components/NoticeComposer";
+import { CommunicationItem, SeenStatus } from "@/src/types/communication.types";
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
@@ -20,9 +19,22 @@ import {
   View,
 } from "react-native";
 
+const TABS: { label: string; value: SeenStatus }[] = [
+  { label: "All", value: "all" },
+  { label: "Unseen", value: "unseen" },
+  { label: "Seen", value: "seen" },
+];
+
+const LIMIT = 10;
+
 export default function Updates() {
+  const { selectedBuilding } = useAuth();
+  const buildingId = selectedBuilding
+    ? Number(selectedBuilding.value)
+    : undefined;
+
+  const [activeTab, setActiveTab] = useState<SeenStatus>("all");
   const [page, setPage] = useState(1);
-  const limit = 10;
   const [allNotices, setAllNotices] = useState<CommunicationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
@@ -32,11 +44,22 @@ export default function Updates() {
 
   const { data, isLoading, isFetching, refetch } = useGetCommunications(
     page,
-    limit,
+    LIMIT,
+    activeTab,
+    buildingId,
   );
+
   const notices = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
   const unseenCount = data?.data?.unseenCount ?? 0;
+  const seenCount = data?.data?.seenCount ?? 0;
+
+  const activeTabTotal =
+    activeTab === "unseen"
+      ? unseenCount
+      : activeTab === "seen"
+        ? seenCount
+        : total;
 
   useEffect(() => {
     setUnseenUpdatesCount(unseenCount);
@@ -58,13 +81,25 @@ export default function Updates() {
       });
     }
   }, [notices]);
-  const hasMore = allNotices.length > 0 && allNotices.length < total;
+
+  const hasMore =
+    !isLoading &&
+    !isFetching &&
+    allNotices.length > 0 &&
+    allNotices.length < activeTabTotal;
+
+  const handleTabChange = (tab: SeenStatus) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setPage(1);
+    setAllNotices([]);
+    isResetRef.current = true;
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     setOpenSwipeId(null);
     isResetRef.current = true;
-
     if (page !== 1) {
       setPage(1);
     } else {
@@ -77,7 +112,6 @@ export default function Updates() {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      // keyboardVerticalOffset={90}
     >
       <View style={{ flex: 1 }}>
         <PageHeader
@@ -90,28 +124,84 @@ export default function Updates() {
           }
         />
 
+        <NoticeComposer />
+
+        {/* ── Seen status tabs ── */}
+        <View
+          style={{
+            flexDirection: "row",
+            borderBottomWidth: 1,
+            borderBottomColor: "#E2E8F0",
+            backgroundColor: "#fff",
+            paddingHorizontal: 16,
+          }}
+        >
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.value;
+            return (
+              <Pressable
+                key={tab.value}
+                onPress={() => handleTabChange(tab.value)}
+                style={{
+                  marginRight: 20,
+                  paddingVertical: 6,
+                  borderBottomWidth: 2,
+                  borderBottomColor: isActive ? "#7C3AED" : "transparent",
+                }}
+              >
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: isActive ? "#7C3AED" : "#94A3B8",
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                  {/* Show unseen badge on the Unseen tab */}
+                  {tab.value === "unseen" && unseenCount > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: "#7C3AED",
+                        borderRadius: 99,
+                        paddingHorizontal: 5,
+                        paddingVertical: 1,
+                        minWidth: 16,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 9,
+                          color: "#fff",
+                          fontWeight: "700",
+                        }}
+                      >
+                        {unseenCount > 99 ? "99+" : unseenCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <FlatList
           data={allNotices}
           keyExtractor={(item) => String(item.id)}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
-          contentContainerStyle={{
-            paddingHorizontal: 6,
-            // paddingTop: 12,
-            paddingBottom: 6,
-          }}
+          contentContainerStyle={{ paddingHorizontal: 6, paddingBottom: 6 }}
           showsVerticalScrollIndicator={false}
           onScrollBeginDrag={() => setOpenSwipeId(null)}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              // tintColor="#7C3AED"
-              // colors={["#7C3AED"]}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
-          ListHeaderComponent={<NoticeComposer />}
           ListEmptyComponent={
             isLoading ? (
               <View style={{ flex: 1 }}>
@@ -148,7 +238,11 @@ export default function Updates() {
                 }}
               >
                 <Text style={{ fontSize: 14, color: "#94A3B8" }}>
-                  No messages yet
+                  {activeTab === "unseen"
+                    ? "You're all caught up!"
+                    : activeTab === "seen"
+                      ? "No read messages yet"
+                      : "No messages yet"}
                 </Text>
               </View>
             )
