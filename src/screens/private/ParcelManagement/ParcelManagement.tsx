@@ -1,6 +1,5 @@
 import {
   useDeleteParcel,
-  useDeliverParcel,
   useGetParcels,
   useRemindParcel,
 } from "@/src/api/parcelManagement.api";
@@ -18,8 +17,9 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
+import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 
 export default function ParcelManagement() {
   const { user, buildingId } = useAuth();
@@ -28,9 +28,13 @@ export default function ParcelManagement() {
   const [trackingId, setTrackingId] = useState("");
   const [deleteParcel, setDeleteParcel] = useState<ParcelResponse | null>(null);
   const [remindParcel, setRemindParcel] = useState<ParcelResponse | null>(null);
-  const [deliverParcel, setDeliverParcel] = useState<ParcelResponse | null>(
-    null,
-  );
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [residentId, setResidentId] = useState<number>();
+  const [dateType, setDateType] = useState<
+    "today" | "week" | "month" | "custom"
+  >("month");
+  const [fromDate, setFromDate] = useState<string>();
+  const [toDate, setToDate] = useState<string>();
 
   const { data, isLoading, refetch, isRefetching } = useGetParcels(
     {
@@ -38,6 +42,9 @@ export default function ParcelManagement() {
       limit: 10,
       buildingId: buildingId ?? undefined,
       trackingId: trackingId || undefined,
+      residentId: residentId,
+      fromDate: fromDate,
+      toDate: toDate,
     },
     !!user?.userId,
   );
@@ -49,9 +56,6 @@ export default function ParcelManagement() {
 
   const { mutate: remindParcelMutate, isPending: remindParcelPending } =
     useRemindParcel(remindParcel?.id, buildingId ?? undefined);
-
-  const { mutate: deliverParcelMutate, isPending: deliverParcelPending } =
-    useDeliverParcel(deliverParcel?.id, buildingId ?? undefined);
 
   const parcels = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
@@ -96,6 +100,44 @@ export default function ParcelManagement() {
   //     },
   //   });
   // };
+  const formatDateOnly = (date: Date) => date.toISOString().split("T")[0];
+
+  const applyPreset = (type: "today" | "week" | "month" | "custom") => {
+    const today = new Date();
+
+    if (type === "today") {
+      const value = formatDateOnly(today);
+
+      setFromDate(value);
+      setToDate(value);
+    }
+
+    if (type === "week") {
+      const start = new Date(today);
+      start.setDate(today.getDate() - today.getDay());
+
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+
+      setFromDate(formatDateOnly(start));
+      setToDate(formatDateOnly(end));
+    }
+
+    if (type === "month") {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      setFromDate(formatDateOnly(start));
+      setToDate(formatDateOnly(end));
+    }
+
+    setDateType(type);
+  };
+
+  useEffect(() => {
+    applyPreset("month");
+  }, []);
 
   const columns: MobileColumn<ParcelResponse>[] = [
     {
@@ -160,7 +202,14 @@ export default function ParcelManagement() {
           title="Parcel Management"
           subtitle="View and manage all parcels delivered to your building."
         />
-        <View className="absolute bottom-6 right-6 z-50">
+        <View className="absolute bottom-6 right-6 z-50 gap-2">
+          <AnimatedPressable
+            onPress={() => router.push("/(private)/barcode-scanner")}
+          >
+            <View className="bg-blue-500 rounded-full p-4 elevation-5">
+              <AppIcon name="scan" size={24} color="#fff" />
+            </View>
+          </AnimatedPressable>
           <AnimatedPressable
             onPress={() =>
               router.push({
@@ -171,13 +220,6 @@ export default function ParcelManagement() {
           >
             <View className="bg-primary rounded-full p-4 elevation-5">
               <AppIcon name="add" size={24} color="#fff" />
-            </View>
-          </AnimatedPressable>
-          <AnimatedPressable
-            onPress={() => router.push("/(private)/barcode-scanner")}
-          >
-            <View className="bg-blue-500 rounded-full p-4 elevation-5">
-              <AppIcon name="scan" size={24} color="#fff" />
             </View>
           </AnimatedPressable>
         </View>
@@ -203,6 +245,7 @@ export default function ParcelManagement() {
               setPage(1);
               setTrackingId(value);
             }}
+            onFilterPress={() => setFilterVisible(true)}
             pagination={{
               page,
               pageSize: 10,
@@ -267,6 +310,18 @@ export default function ParcelManagement() {
             }}
           />
         </View>
+        <TaskFilterModal
+          visible={filterVisible}
+          onClose={() => setFilterVisible(false)}
+          residentId={residentId}
+          setResidentId={setResidentId}
+          dateType={dateType}
+          fromDate={fromDate}
+          toDate={toDate}
+          setFromDate={setFromDate}
+          setToDate={setToDate}
+          applyPreset={applyPreset}
+        />
         <ConfirmModal
           visible={!!deleteParcel}
           title="Delete Parcel"

@@ -1,4 +1,5 @@
 import { useUpdateTaskStatus } from "@/src/api/taskManagement.api";
+import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import SelectField from "@/src/components/ui/SelectField";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
@@ -133,7 +134,7 @@ export default function TaskInformationCard({ task }: Props) {
           </Text>
         </View>
 
-        <Text
+        <AppButton
           onPress={() =>
             router.push({
               pathname: "/(private)/task-management/task-add-edit",
@@ -143,10 +144,11 @@ export default function TaskInformationCard({ task }: Props) {
               },
             })
           }
-          className="text-primary font-medium"
+          size="sm"
+          leftIcon="pencil-outline"
         >
           Edit
-        </Text>
+        </AppButton>
       </View>
 
       {/* Status */}

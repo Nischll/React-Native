@@ -13,6 +13,8 @@ export const useGetParcels = (
     trackingId?: string;
     buildingId?: number;
     residentId?: number;
+    fromDate?: string;
+    toDate?: string;
   },
   enabled = true,
 ) => {
@@ -23,6 +25,8 @@ export const useGetParcels = (
     queryParams.trackingId = params.trackingId.trim();
   if (params.buildingId != null) queryParams.buildingId = params.buildingId;
   if (params.residentId != null) queryParams.residentId = params.residentId;
+  if (params.fromDate != null) queryParams.fromDate = params.fromDate;
+  if (params.toDate != null) queryParams.toDate = params.toDate;
 
   return useApiQuery<ApiListResponse<ApiPaginatedData<ParcelResponse>>>(
     "/parcels",

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import EmptyState from "../feedback/EmptyState";
 import { SkeletonCard } from "../feedback/SkeletonCard";
+import AppIcon from "../ui/AppIcon";
 import AppInput from "../ui/AppInput";
 import Card from "../ui/Card";
 
@@ -56,6 +57,7 @@ interface MobileDataListProps<T> {
   emptyMessage?: string;
 
   renderActions?: (row: T) => React.ReactNode;
+  onFilterPress?: () => void;
 }
 
 export function MobileDataList<T>({
@@ -73,6 +75,7 @@ export function MobileDataList<T>({
   keyExtractor,
   emptyMessage = "No data found",
   renderActions,
+  onFilterPress,
 }: MobileDataListProps<T>) {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<keyof T>();
@@ -148,13 +151,26 @@ export function MobileDataList<T>({
     <View className="flex-1 gap-3 px-1">
       {/* Search */}
       {searchable && (
-        <AppInput
-          placeholder="Search..."
-          value={search}
-          onChangeText={setSearch}
-          // className="mb-3"
-          size="sm"
-        />
+        <View className="mb-2 flex-row items-center gap-2">
+          <View className="flex-1">
+            <AppInput
+              placeholder="Search..."
+              value={search}
+              onChangeText={setSearch}
+              // className="mb-3"
+              size="sm"
+            />
+          </View>
+
+          {onFilterPress && (
+            <TouchableOpacity
+              onPress={onFilterPress}
+              className="h-12 w-12 rounded-xl border border-gray-200 bg-white items-center justify-center"
+            >
+              <AppIcon name="options-outline" size={20} color="#64748B" />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
       {/* Sort Buttons */}

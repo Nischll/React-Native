@@ -37,7 +37,7 @@ export default function BarcodeScannerScreen() {
           router.replace({
             pathname: "/(private)/parcel-management/parcel-add-edit",
             params: {
-              scannedTrackingId: scannedValue,
+              scannedValue: scannedValue,
             },
           });
         }}

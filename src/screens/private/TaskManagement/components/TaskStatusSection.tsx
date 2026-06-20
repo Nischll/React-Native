@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import TaskCard from "./TaskCard";
 
-const PAGE_LIMIT = 1;
+const PAGE_LIMIT = 10;
 
 interface TaskStatusSectionProps {
   statusId: number;

@@ -33,7 +33,7 @@ interface FormValues {
 }
 
 export default function AddEditParcelScreen() {
-  const { parcelId, scannedTrackingId } = useLocalSearchParams();
+  const { parcelId, scannedValue } = useLocalSearchParams();
   const id = Number(parcelId);
 
   const { buildingId, user } = useAuth();
@@ -46,8 +46,7 @@ export default function AddEditParcelScreen() {
     useUpdateParcel(id, buildingId ?? undefined);
 
   const editmode = !!parcelId;
-  const trackingId =
-    typeof scannedTrackingId === "string" ? scannedTrackingId : "";
+  const barcodeData = typeof scannedValue === "string" ? scannedValue : "";
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
@@ -106,7 +105,7 @@ export default function AddEditParcelScreen() {
   if (editmode && isLoading) {
     return <LoadingState message="Parcel details loading." />;
   }
-  // console.log("trackingid:", trackingId);
+  console.log("barcodeData:", barcodeData);
   return (
     <View className="flex-1">
       <PageHeader
@@ -119,7 +118,7 @@ export default function AddEditParcelScreen() {
       />
 
       <View>
-        <Text>Tracking ID: {trackingId}</Text>
+        <Text>Tracking ID: {barcodeData}</Text>
       </View>
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
