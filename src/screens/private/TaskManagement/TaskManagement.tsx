@@ -9,6 +9,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import BuildingHeader from "./components/BuildingHeader";
+import { TaskFilterModal } from "./components/TaskFilterModal";
 import TaskSearchBar from "./components/TaskSearchBar";
 import TaskStatusSection from "./components/TaskStatusSection";
 import TaskStatusTabs from "./components/TaskStatusTabs";
@@ -24,9 +25,15 @@ export default function TaskManagement() {
     null,
   );
   const [search, setSearch] = useState("");
-
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
   const [selectedStatusValue, setSelectedStatusValue] = useState<string>("");
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [residentId, setResidentId] = useState<number>();
+  const [dateType, setDateType] = useState<
+    "today" | "week" | "month" | "custom"
+  >("month");
+  const [fromDate, setFromDate] = useState<string>();
+  const [toDate, setToDate] = useState<string>();
 
   useEffect(() => {
     if (categories.length > 0 && selectedCategoryId === null) {
@@ -55,6 +62,45 @@ export default function TaskManagement() {
       if (prev[String(statusId)] === count) return prev;
       return { ...prev, [String(statusId)]: count };
     });
+  }, []);
+
+  const formatDateOnly = (date: Date) => date.toISOString().split("T")[0];
+
+  const applyPreset = (type: "today" | "week" | "month" | "custom") => {
+    const today = new Date();
+
+    if (type === "today") {
+      const value = formatDateOnly(today);
+
+      setFromDate(value);
+      setToDate(value);
+    }
+
+    if (type === "week") {
+      const start = new Date(today);
+      start.setDate(today.getDate() - today.getDay());
+
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+
+      setFromDate(formatDateOnly(start));
+      setToDate(formatDateOnly(end));
+    }
+
+    if (type === "month") {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      setFromDate(formatDateOnly(start));
+      setToDate(formatDateOnly(end));
+    }
+
+    setDateType(type);
+  };
+
+  useEffect(() => {
+    applyPreset("month");
   }, []);
 
   return (
@@ -109,7 +155,10 @@ export default function TaskManagement() {
       {hasStatuses ? (
         <>
           {/* ── Search bar — only when statuses exist ── */}
-          <TaskSearchBar onSearch={setSearch} />
+          <TaskSearchBar
+            onSearch={setSearch}
+            onFilterPress={() => setFilterVisible(true)}
+          />
 
           {/* ── Status tabs ── */}
           <TaskStatusTabs
@@ -132,6 +181,9 @@ export default function TaskManagement() {
                 isVisible={selectedStatusValue === status.value}
                 search={search}
                 buildingId={buildingId || undefined}
+                residentId={residentId}
+                fromDate={fromDate}
+                toDate={toDate}
                 onCountResolved={handleCountResolved}
               />
             ))}
@@ -161,6 +213,19 @@ export default function TaskManagement() {
           </View>
         </AnimatedPressable>
       </View>
+
+      <TaskFilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        residentId={residentId}
+        setResidentId={setResidentId}
+        dateType={dateType}
+        fromDate={fromDate}
+        toDate={toDate}
+        setFromDate={setFromDate}
+        setToDate={setToDate}
+        applyPreset={applyPreset}
+      />
     </View>
   );
 }

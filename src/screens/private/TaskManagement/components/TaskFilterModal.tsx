@@ -1,0 +1,143 @@
+import DatePickerField from "@/src/components/ui/DatePickerField";
+import SelectField from "@/src/components/ui/SelectField";
+import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
+
+interface TaskFilterModalProps {
+  visible: boolean;
+  onClose: () => void;
+
+  residentId?: number;
+  setResidentId: (value?: number) => void;
+
+  dateType: "today" | "week" | "month" | "custom";
+  fromDate?: string;
+  toDate?: string;
+
+  setFromDate: (value?: string) => void;
+  setToDate: (value?: string) => void;
+
+  applyPreset: (type: "today" | "week" | "month" | "custom") => void;
+}
+
+export const TaskFilterModal = ({
+  visible,
+  onClose,
+  residentId,
+  setResidentId,
+  dateType,
+  fromDate,
+  toDate,
+  setFromDate,
+  setToDate,
+  applyPreset,
+}: TaskFilterModalProps) => {
+  const { residences } = useResidencesForActiveBuilding();
+
+  const handleFromDateChange = (value: string) => {
+    setFromDate(value.split("T")[0]);
+  };
+
+  const handleToDateChange = (value: string) => {
+    setToDate(value.split("T")[0]);
+  };
+  return (
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+      >
+        <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
+          <Pressable
+            className="bg-white rounded-t-3xl p-5"
+            style={{
+              minHeight: 420,
+              maxHeight: "80%",
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text className="text-lg font-bold mb-4">Filters</Text>
+            <SelectField
+              label="Resident"
+              value={residentId?.toString()}
+              onChange={(v) => setResidentId(Number(v))}
+              options={residences}
+              placeholder="All Residents"
+            />
+
+            {/* chips */}
+            <Text className="text-sm font-medium text-gray-700 mt-4 mb-2">
+              Date Range
+            </Text>
+
+            <View className="flex-row flex-wrap gap-2 mb-4">
+              {[
+                { key: "today", label: "Today" },
+                { key: "week", label: "This Week" },
+                { key: "month", label: "This Month" },
+                { key: "custom", label: "Custom" },
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => applyPreset(item.key as any)}
+                  className={`px-4 py-2 rounded-full ${
+                    dateType === item.key ? "bg-primary" : "bg-gray-100"
+                  }`}
+                >
+                  <Text
+                    className={
+                      dateType === item.key ? "text-white" : "text-gray-600"
+                    }
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* date pickers */}
+            {dateType === "custom" && (
+              <>
+                <DatePickerField
+                  value={fromDate}
+                  onChange={handleFromDateChange}
+                  placeholder="From Date"
+                />
+
+                <View className="h-3" />
+
+                <DatePickerField
+                  value={toDate}
+                  onChange={handleToDateChange}
+                  placeholder="To Date"
+                />
+              </>
+            )}
+
+            {/* buttons */}
+            <View className="flex-row gap-3 mt-5">
+              <TouchableOpacity
+                className="flex-1 border border-gray-300 rounded-xl py-3"
+                onPress={() => {
+                  setResidentId(undefined);
+                  applyPreset("month");
+                }}
+              >
+                <Text className="text-center">Reset</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="flex-1 bg-primary rounded-xl py-3"
+                onPress={onClose}
+              >
+                <Text className="text-center text-white">Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+};

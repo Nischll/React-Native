@@ -23,6 +23,34 @@ export const useGetAllCategory = () =>
     retry: 0,
   });
 
+// export const useGetTaskByStatusId = (
+//   statusId: number | undefined,
+//   page?: number,
+//   limit?: number,
+//   search?: string,
+//   assignedTo?: number,
+//   buildingId?: number,
+//   enabled?: boolean,
+// ) => {
+//   // Build query params, only including defined values
+//   const queryParams: Record<string, any> = {};
+
+//   if (page !== undefined) queryParams.page = page;
+//   if (limit !== undefined) queryParams.limit = limit;
+//   if (search !== undefined && search !== "") queryParams.search = search;
+//   if (assignedTo !== undefined) queryParams.assignedTo = assignedTo;
+//   if (buildingId !== undefined) queryParams.buildingId = buildingId;
+
+//   return useApiQuery<ApiListResponse<TaskResponse>>(
+//     `/task/task-status/${statusId}`,
+//     {
+//       enabled: enabled !== false && !!statusId,
+//       retry: 0,
+//       queryParams,
+//     },
+//   );
+// };
+
 export const useGetTaskByStatusId = (
   statusId: number | undefined,
   page?: number,
@@ -30,16 +58,23 @@ export const useGetTaskByStatusId = (
   search?: string,
   assignedTo?: number,
   buildingId?: number,
+  residentId?: number,
+  fromDate?: string,
+  toDate?: string,
   enabled?: boolean,
 ) => {
-  // Build query params, only including defined values
   const queryParams: Record<string, any> = {};
 
   if (page !== undefined) queryParams.page = page;
   if (limit !== undefined) queryParams.limit = limit;
-  if (search !== undefined && search !== "") queryParams.search = search;
-  if (assignedTo !== undefined) queryParams.assignedTo = assignedTo;
-  if (buildingId !== undefined) queryParams.buildingId = buildingId;
+
+  if (search) queryParams.search = search;
+  if (assignedTo) queryParams.assignedTo = assignedTo;
+  if (buildingId) queryParams.buildingId = buildingId;
+
+  if (residentId) queryParams.residentId = residentId;
+  if (fromDate) queryParams.fromDate = fromDate;
+  if (toDate) queryParams.toDate = toDate;
 
   return useApiQuery<ApiListResponse<TaskResponse>>(
     `/task/task-status/${statusId}`,

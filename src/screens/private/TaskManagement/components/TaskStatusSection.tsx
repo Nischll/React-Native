@@ -11,6 +11,9 @@ interface TaskStatusSectionProps {
   search?: string;
   buildingId?: number;
   onCountResolved?: (statusId: number, count: number) => void;
+  residentId?: number;
+  fromDate?: string;
+  toDate?: string;
 }
 
 // Fetches a single page
@@ -19,6 +22,9 @@ function useTaskPage(
   page: number,
   search: string | undefined,
   buildingId: number | undefined,
+  residentId: number | undefined,
+  fromDate: string | undefined,
+  toDate: string | undefined,
   isVisible: boolean,
 ) {
   return useGetTaskByStatusId(
@@ -28,6 +34,9 @@ function useTaskPage(
     search,
     undefined,
     buildingId,
+    residentId,
+    fromDate,
+    toDate,
     isVisible,
   );
 }
@@ -37,6 +46,9 @@ export default function TaskStatusSection({
   isVisible,
   search,
   buildingId,
+  residentId,
+  fromDate,
+  toDate,
   onCountResolved,
 }: TaskStatusSectionProps) {
   const [page, setPage] = useState(1);
@@ -47,13 +59,16 @@ export default function TaskStatusSection({
     setPage(1);
     setAllTasks([]);
     setHasMore(true);
-  }, [search, statusId]);
+  }, [search, statusId, residentId, fromDate, toDate]);
 
   const { data, isLoading, isFetching, isError } = useTaskPage(
     statusId,
     page,
     search,
     buildingId,
+    residentId,
+    fromDate,
+    toDate,
     isVisible,
   );
 

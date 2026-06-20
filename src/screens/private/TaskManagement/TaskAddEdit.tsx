@@ -1,7 +1,7 @@
 import {
-    useAddTask,
-    useGetTaskById,
-    useUpdateTaskDetails,
+  useAddTask,
+  useGetTaskById,
+  useUpdateTaskDetails,
 } from "@/src/api/taskManagement.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
@@ -11,12 +11,12 @@ import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
 import {
-    getSubTypeOptionsForTaskType,
-    TASK_AREA_OPTIONS,
-    TASK_MODE_OPTIONS,
-    TASK_REPORTED_BY_OPTIONS,
-    TASK_TYPE_OPTIONS,
-    TaskType,
+  getSubTypeOptionsForTaskType,
+  TASK_AREA_OPTIONS,
+  TASK_MODE_OPTIONS,
+  TASK_REPORTED_BY_OPTIONS,
+  TASK_TYPE_OPTIONS,
+  TaskType,
 } from "@/src/enums/taskEnums";
 import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
@@ -28,11 +28,11 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
-    ActivityIndicator,
-    Keyboard,
-    Text,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Keyboard,
+  Text,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -206,7 +206,7 @@ export default function TaskAddEdit() {
 
     const onSuccess = async () => {
       await refetchTaskQueries();
-      router.back();
+      router.replace("/(private)/task-management");
     };
 
     if (isEditMode) {
