@@ -142,13 +142,7 @@ export default function TaskStatusSection({
             </Text>
           )}
         </View>
-      ) : (
-        allTasks.length > 0 && (
-          <Text className="text-center text-xs text-gray-400 pb-6 pt-1">
-            No more data to load
-          </Text>
-        )
-      )}
+      ) : null}
     </View>
   );
 }

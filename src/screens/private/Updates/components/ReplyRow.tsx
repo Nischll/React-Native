@@ -1,7 +1,7 @@
-import { CommunicationItem } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { CommunicationItem } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useEffect, useRef, useState } from "react";
 import {

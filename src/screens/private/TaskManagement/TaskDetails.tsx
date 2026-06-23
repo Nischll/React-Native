@@ -1,11 +1,14 @@
 import { useGetTaskById } from "@/src/api/taskManagement.api";
+import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppIcon from "@/src/components/ui/AppIcon";
+import { CommentResponse } from "@/src/types/task-management.types";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import TaskInformationCard from "./components/TaskInfoCard";
 import TaskAttachments from "./TaskAttachments";
+import TaskComments from "./TaskComments";
 
 const TABS = [
   { key: "info", label: "Info", icon: "information-circle-outline" },
@@ -27,7 +30,13 @@ export const TaskDetails = () => {
   const task = taskData?.data?.data?.[0];
 
   const attachmentCount = task?.attachmentResponsePojoList?.length ?? 0;
-  const commentCount = task?.commentResponsePojoList?.length ?? 0;
+  const getTotalComments = (comments: CommentResponse[] = []): number =>
+    comments.reduce(
+      (count, comment) => count + 1 + getTotalComments(comment.replies ?? []),
+      0,
+    );
+
+  const commentCount = getTotalComments(task?.commentResponsePojoList ?? []);
 
   const getBadge = (key: TabKey) => {
     if (key === "attachments") return attachmentCount;
@@ -48,7 +57,24 @@ export const TaskDetails = () => {
         }
       />
 
-      {!isLoadingTask && task && (
+      {isLoadingTask ? (
+        <>
+          <View className="bg-white border-b border-slate-200 flex-row px-3 py-2">
+            {[1, 2, 3].map((item) => (
+              <View
+                key={item}
+                className="flex-1 h-8 mx-1 rounded-lg bg-gray-200"
+              />
+            ))}
+          </View>
+
+          <ScrollView className="flex-1 p-3">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </ScrollView>
+        </>
+      ) : (
         <View className="flex-1">
           {/* ── Tab Bar ── */}
           <View className="bg-white border-b border-slate-200 flex-row gap-4">
@@ -95,27 +121,25 @@ export const TaskDetails = () => {
           </View>
 
           {/* ── Tab Content ── */}
-          <ScrollView
-            className="flex-1"
-            contentContainerClassName="p-3 pb-8"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {activeTab === "info" && <TaskInformationCard task={task} />}
-
-            {activeTab === "attachments" && (
-              <TaskAttachments attachments={task.attachmentResponsePojoList} />
-            )}
-
-            {activeTab === "comments" && (
-              <View className="flex-1 items-center justify-center py-16">
-                <AppIcon name="chatbubble-outline" size={40} color="#CBD5E1" />
-                <Text className="text-slate-400 text-sm mt-3">
-                  Comments coming soon
-                </Text>
-              </View>
-            )}
-          </ScrollView>
+          {activeTab !== "comments" ? (
+            <ScrollView
+              className="flex-1"
+              contentContainerClassName="p-3 pb-8"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {activeTab === "info" && task && (
+                <TaskInformationCard task={task} />
+              )}
+              {activeTab === "attachments" && task && (
+                <TaskAttachments
+                  attachments={task?.attachmentResponsePojoList}
+                />
+              )}
+            </ScrollView>
+          ) : (
+            task && <TaskComments task={task} />
+          )}
         </View>
       )}
     </View>

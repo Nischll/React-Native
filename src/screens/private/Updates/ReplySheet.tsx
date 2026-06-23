@@ -1,5 +1,4 @@
 import {
-  CommunicationItem,
   useCreateCommunicationWithRefresh,
   useDeleteCommunicationWithRefresh,
   useGetCommunications,
@@ -13,6 +12,7 @@ import {
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
+import { CommunicationItem } from "@/src/types/communication.types";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {

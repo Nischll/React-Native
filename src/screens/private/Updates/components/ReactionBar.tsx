@@ -1,8 +1,6 @@
-import {
-  Reaction,
-  useToggleReactionWithRefresh,
-} from "@/src/api/communication.api";
+import { useToggleReactionWithRefresh } from "@/src/api/communication.api";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { Reaction } from "@/src/types/communication.types";
 import { useRef, useState } from "react";
 import {
   Animated,

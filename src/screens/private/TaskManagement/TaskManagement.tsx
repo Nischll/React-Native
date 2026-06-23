@@ -1,5 +1,6 @@
 import { useGetAllCategory } from "@/src/api/taskManagement.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
+import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -103,6 +104,48 @@ export default function TaskManagement() {
     applyPreset("month");
   }, []);
 
+  const isPageLoading =
+    statusLoading || !categoryData || selectedCategoryId === null;
+
+  if (isPageLoading) {
+    return (
+      <View className="flex-1">
+        <PageHeader
+          showBackButton
+          icon="cube"
+          title="Task Management"
+          subtitle="Organize and track tasks across statuses with comments, and attachments."
+        />
+
+        <BuildingHeader buildingName={selectedBuilding?.label ?? ""} />
+
+        {/* Category pills skeleton */}
+        <View className="flex-row p-4 gap-4">
+          {[1, 2, 3].map((item) => (
+            <View key={item} className="h-9 w-24 rounded-full bg-gray-200" />
+          ))}
+        </View>
+
+        {/* Search skeleton */}
+        <View className="mx-4 mt-3 h-12 rounded-xl bg-gray-200" />
+
+        {/* Tabs skeleton */}
+        <View className="flex-row gap-2 px-4 mt-3">
+          {[1, 2, 3].map((item) => (
+            <View key={item} className="h-10 flex-1 rounded-lg bg-gray-200" />
+          ))}
+        </View>
+
+        {/* Task cards skeleton */}
+        <ScrollView className="flex-1 px-4 mt-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1">
       <PageHeader
@@ -126,7 +169,7 @@ export default function TaskManagement() {
             height: 52,
           }}
         >
-          {categories.map((cat) => {
+          {categories?.map((cat) => {
             const isSelected = selectedCategoryId === cat.id;
             return (
               <TouchableOpacity

@@ -1,7 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import {
   CategoryResponse,
+  Comment,
   TaskResponse,
   TaskStatus,
 } from "../types/task-management.types";
@@ -115,3 +117,44 @@ export const useGetAttachmentById = (
       retry: 0,
     },
   );
+
+export const useAddComment = () => useApiMutation<Comment>("post", "/comment");
+
+export const useDeleteComment = (commentId: number | undefined) =>
+  useApiMutation("delete", `/comment/${commentId}`);
+
+export const useUpdateComment = (commentId: number | undefined) =>
+  useApiMutation<Comment>("put", `/comment/${commentId}`);
+
+interface CommentReactionPayload {
+  commentId: number;
+  reactionType: string;
+  userId: number;
+}
+
+export function useToggleCommentReaction() {
+  const qc = useQueryClient();
+
+  const mutation = useApiMutation<CommentReactionPayload>(
+    "post",
+    "/comment-reaction",
+    { showSuccessToast: false },
+  );
+
+  const mutateWithRefresh = (
+    payload: CommentReactionPayload,
+    opts?: Parameters<typeof mutation.mutate>[1],
+  ) => {
+    mutation.mutate(payload, {
+      ...opts,
+      onSuccess: (...args) => {
+        qc.invalidateQueries({
+          predicate: (q) => String(q.queryKey[0]).includes("/task"),
+        });
+        opts?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return { ...mutation, mutate: mutateWithRefresh };
+}

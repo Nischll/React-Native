@@ -49,9 +49,10 @@ export interface CommentResponse {
   messageFrom: number;
   messageFromName?: string;
   messageTo: number;
+  messageToFullName?: string | null;
+  messageFromFullName?: string | null;
   parentId: number | null;
   replies?: CommentResponse[];
-  /** Task API format: { reactionType, count, users[] } */
   reactions?: TaskCommentReaction[];
 }
 
@@ -103,6 +104,7 @@ export interface Comment {
   message: string;
   taskId: number;
   messageTo: number | null;
+  messageFrom?: number | null;
   parentId?: number;
 }
 
