@@ -103,3 +103,15 @@ export const useUpdateTaskStatus = (taskId: number | undefined) =>
 
 export const useDeleteAtachment = (attachmentId: number | undefined) =>
   useApiMutation("delete", `/attachment/delete/${attachmentId}`);
+
+export const useGetAttachmentById = (
+  attachmentId: number | undefined,
+  attachmentTitle: string | undefined,
+) =>
+  useApiQuery<ApiListResponse<TaskResponse>>(
+    `/attachment/${attachmentId}/${attachmentTitle}`,
+    {
+      enabled: !!attachmentId && !!attachmentTitle,
+      retry: 0,
+    },
+  );

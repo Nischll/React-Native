@@ -3,7 +3,7 @@ import { TaskDetails } from "@/src/screens/private/TaskManagement/TaskDetails";
 
 export default function TaskDetailsPage() {
   return (
-    <ScreenContainer refreshable={false}>
+    <ScreenContainer refreshable={false} scrollable={false}>
       <TaskDetails />
     </ScreenContainer>
   );

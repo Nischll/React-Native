@@ -46,6 +46,14 @@
           }
         }
       ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow access to save attachments to your library.",
+          "savePhotosPermission": "Allow saving files to your library.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-web-browser",
       "expo-font"
