@@ -15,7 +15,7 @@ import { Text, View } from "react-native";
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
 import { useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { NoticeStrip } from "./components/NoticeStrip";
+import { ActivityBar } from "./components/ActivityBar";
 
 export default function Home() {
   const { user, buildingId, selectedBuilding, openBuildingSelectDialog } =
@@ -174,7 +174,7 @@ export default function Home() {
         </View>
 
         {/* ── Notice strip ── */}
-        <NoticeStrip />
+        <ActivityBar />
 
         {/* ── Content area ── */}
         <View className="px-4 mt-2">

@@ -19,6 +19,7 @@ export type ApiPaginatedData<T> = {
   page: number;
   limit: number;
   unseenCount?: number;
+  seenCount?: number;
   data: T[];
 };
 

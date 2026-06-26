@@ -1,4 +1,4 @@
-import { Reaction } from "../api/communication.api";
+import { Reaction } from "./communication.types";
 
 export interface DashboardStatisticsResponse {
   buildingId: number;
