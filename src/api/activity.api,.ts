@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import {
@@ -7,9 +8,9 @@ import {
 import { Notice } from "../types/dashboard.types";
 import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
-export const useGetNotice = (page: number, limit?: number) =>
+export const useGetNotice = (page: number, limit: number, seenStatus: string) =>
   useApiQuery<ApiListResponse<ApiPaginatedData<Notice>>>("/notice", {
-    queryParams: { page, ...(limit !== undefined ? { limit } : {}) },
+    queryParams: { page, limit, seenStatus },
     enabled: true,
     retry: 0,
   });
@@ -34,3 +35,36 @@ export const useGetReminders = (
     },
   );
 };
+
+export type NoticeReactionPayload = {
+  noticeId: number;
+  reactionType: string;
+  userId: number;
+};
+
+export function useToggleNoticeReaction() {
+  const qc = useQueryClient();
+
+  const mutation = useApiMutation<NoticeReactionPayload>(
+    "post",
+    "/notice-reaction",
+    { showSuccessToast: false },
+  );
+
+  const mutateWithRefresh = (
+    payload: NoticeReactionPayload,
+    opts?: Parameters<typeof mutation.mutate>[1],
+  ) => {
+    mutation.mutate(payload, {
+      ...opts,
+      onSuccess: (...args) => {
+        qc.invalidateQueries({
+          predicate: (q) => String(q.queryKey[0]).includes("/notice"),
+        });
+        opts?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return { ...mutation, mutate: mutateWithRefresh };
+}

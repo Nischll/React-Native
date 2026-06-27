@@ -21,6 +21,10 @@ import {
   TextInput,
   View,
 } from "react-native";
+import {
+  NoticeReactionBar,
+  NoticeReactionPicker,
+} from "./components/NoticeReactionBar";
 
 type Filter = "all" | "unseen" | "seen";
 
@@ -44,18 +48,29 @@ export function NoticesTab() {
   const noticesMapRef = useRef<Map<number, Notice>>(new Map());
   const [allNotices, setAllNotices] = useState<Notice[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  // tracks whether we're in a "reset pending" state waiting for page 1 data
   const pendingResetRef = useRef(false);
+
+  const pageRef = useRef(page);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  const filterRef = useRef(filter);
+  useEffect(() => {
+    filterRef.current = filter;
+  }, [filter]);
 
   const [composing, setComposing] = useState(false);
   const [composeText, setComposeText] = useState("");
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
   const [editText, setEditText] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [openPickerId, setOpenPickerId] = useState<number | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useGetNotice(
     page,
     PAGE_SIZE,
+    filter,
   );
 
   const notices = data?.data?.data ?? [];
@@ -67,20 +82,25 @@ export function NoticesTab() {
 
     const { total, page: responsePage, limit } = data.data;
 
-    // Only process if this response matches the page we're on
-    if (responsePage !== page) return;
+    if (responsePage !== pageRef.current) return;
 
-    if (page === 1 || pendingResetRef.current) {
-      // Full reset — replace everything with fresh page 1 data
+    if (responsePage === 1 || pendingResetRef.current) {
       pendingResetRef.current = false;
       noticesMapRef.current = new Map(notices.map((n) => [n.id, n]));
     } else {
-      // Append page
       notices.forEach((n) => noticesMapRef.current.set(n.id, n));
     }
 
     setAllNotices(Array.from(noticesMapRef.current.values()));
-    setHasMore(responsePage * limit < total);
+
+    const tabTotal =
+      filterRef.current === "seen"
+        ? (data.data.seenCount ?? 0)
+        : filterRef.current === "unseen"
+          ? (data.data.unseenCount ?? 0)
+          : total;
+
+    setHasMore(responsePage * limit < tabTotal);
   }, [data]);
 
   const { mutate: postNotice, isPending: posting } = usePostNotice();
@@ -92,17 +112,25 @@ export function NoticesTab() {
   );
 
   const resetAndRefetch = useCallback(() => {
-    // Mark that next page-1 response should fully replace data
     pendingResetRef.current = true;
     noticesMapRef.current = new Map();
-    // Don't clear allNotices here — keep showing stale data until fresh arrives
-    setHasMore(true);
-    if (page !== 1) {
-      setPage(1); // query key changes → auto refetch
+
+    if (pageRef.current !== 1) {
+      setPage(1);
     } else {
-      refetch(); // already on page 1 → manually trigger
+      refetch();
     }
-  }, [refetch, page]);
+  }, [refetch]);
+
+  const handleFilterChange = useCallback((newFilter: Filter) => {
+    if (newFilter === filterRef.current) return;
+    pendingResetRef.current = true;
+    noticesMapRef.current = new Map();
+    setAllNotices([]);
+    setHasMore(true);
+    setFilter(newFilter);
+    setPage(1);
+  }, []);
 
   const handlePost = () => {
     const trimmed = composeText.trim();
@@ -154,14 +182,9 @@ export function NoticesTab() {
     }
   }, [isFetching, hasMore]);
 
-  const filtered = allNotices.filter((n) => {
-    if (filter === "unseen") return !n.seen;
-    if (filter === "seen") return n.seen;
-    return true;
-  });
-
   const renderNotice = ({ item: notice }: { item: Notice }) => {
     const isEditing = editingNotice?.id === notice.id;
+    const isPickerOpen = openPickerId === notice.id;
 
     return (
       <View
@@ -227,12 +250,32 @@ export function NoticesTab() {
                 </View>
               )}
             </View>
+
             <Text
               className="text-[11px] mt-1.5"
               style={{ color: notice.seen ? "#94A3B8" : "#BA7517" }}
             >
               {notice.createdByFullName} · {timeAgo(notice.createdDate)}
             </Text>
+
+            {/* ── Reaction bar ── */}
+            <NoticeReactionBar
+              noticeId={notice.id}
+              reactions={notice.reactions}
+              onOpenPicker={() =>
+                setOpenPickerId((prev) =>
+                  prev === notice.id ? null : notice.id,
+                )
+              }
+            />
+
+            {/* ── Inline emoji picker (toggles per card) ── */}
+            {isPickerOpen && (
+              <NoticeReactionPicker
+                noticeId={notice.id}
+                onClose={() => setOpenPickerId(null)}
+              />
+            )}
           </>
         )}
       </View>
@@ -248,7 +291,7 @@ export function NoticesTab() {
         {FILTERS.map((f) => (
           <Pressable
             key={f.key}
-            onPress={() => setFilter(f.key)}
+            onPress={() => handleFilterChange(f.key)}
             className={`px-3 py-1.5 rounded-full border ${
               filter === f.key
                 ? "bg-primary border-primary"
@@ -342,7 +385,7 @@ export function NoticesTab() {
             <SkeletonCard key={i} />
           ))}
         </View>
-      ) : filtered.length === 0 ? (
+      ) : allNotices.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-2">
           <AppIcon name="megaphone-outline" size={36} color="#CBD5E1" />
           <Text className="text-sm text-slate-400">
@@ -355,7 +398,7 @@ export function NoticesTab() {
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={allNotices}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderNotice}
           contentContainerStyle={{ paddingTop: 4, paddingBottom: 32 }}
@@ -365,19 +408,16 @@ export function NoticesTab() {
               onRefresh={handleRefresh}
             />
           }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.3}
           ListFooterComponent={
-            isFetching && page > 1 ? (
-              // Loading next page
-              <ActivityIndicator
-                size="small"
-                color="#BA7517"
-                style={{ marginVertical: 12 }}
-              />
-            ) : hasMore && !isFetching ? (
-              // Fallback manual button — catches cases where list is too
-              // short to trigger onEndReached automatically
+            isFetching ? (
+              page > 1 ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#BA7517"
+                  style={{ marginVertical: 12 }}
+                />
+              ) : null
+            ) : hasMore ? (
               <Pressable
                 onPress={handleLoadMore}
                 className="mx-4 mb-4 py-3 rounded-xl border border-gray-200 bg-white items-center"

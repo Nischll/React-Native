@@ -119,30 +119,19 @@ export function CommentRow({
   // close swipe when another opens
   if (openSwipeId !== comment.id && isSwipedRef.current) snapClosed();
 
-  const authorName = (() => {
-    if (comment.messageFrom === task.createdBy) {
-      return [
-        task.creatorFirstName,
-        task.creatorMiddleName,
-        task.creatorLastName,
-      ]
-        .filter(Boolean)
-        .join(" ");
-    }
-    if (comment.messageFrom === task.assignedTo) {
-      return [
-        task.assignedFirstName,
-        task.assignedMiddleName,
-        task.assignedLastName,
-      ]
-        .filter(Boolean)
-        .join(" ");
-    }
-    return comment.authorName ?? "Unknown";
-  })();
+  const authorName =
+    comment.messageFromFullName?.trim() ||
+    [
+      comment.messageFromFirstName,
+      comment.messageFromMiddleName,
+      comment.messageFromLastName,
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    "Unknown";
 
   // Cap indent
-  const indentLeft = Math.min(depth, 2) * 16;
+  const indentLeft = Math.min(depth, 2) * 2;
   return (
     <View style={{ marginLeft: indentLeft, marginBottom: 8 }}>
       {/* Thread line for nested */}
@@ -208,10 +197,7 @@ export function CommentRow({
           >
             {/* Header row */}
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <Avatar
-                name={comment.authorName ?? "U"}
-                size={depth === 0 ? 34 : 28}
-              />
+              <Avatar name={authorName || "U"} size={depth === 0 ? 34 : 28} />
               <View style={{ flex: 1 }}>
                 <View
                   style={{
@@ -228,7 +214,7 @@ export function CommentRow({
                     }}
                     numberOfLines={1}
                   >
-                    {comment.authorName}
+                    {authorName}
                   </Text>
                   <View
                     style={{

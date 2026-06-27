@@ -19,7 +19,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
+import { Keyboard, TouchableWithoutFeedback, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 interface FormValues {
@@ -33,7 +33,7 @@ interface FormValues {
 }
 
 export default function AddEditParcelScreen() {
-  const { parcelId, scannedValue } = useLocalSearchParams();
+  const { parcelId } = useLocalSearchParams();
   const id = Number(parcelId);
 
   const { buildingId, user } = useAuth();
@@ -46,7 +46,7 @@ export default function AddEditParcelScreen() {
     useUpdateParcel(id, buildingId ?? undefined);
 
   const editmode = !!parcelId;
-  const barcodeData = typeof scannedValue === "string" ? scannedValue : "";
+  // const barcodeData = typeof scannedValue === "string" ? scannedValue : "";
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
@@ -105,7 +105,7 @@ export default function AddEditParcelScreen() {
   if (editmode && isLoading) {
     return <LoadingState message="Parcel details loading." />;
   }
-  console.log("barcodeData:", barcodeData);
+  // console.log("barcodeData:", barcodeData);
   return (
     <View className="flex-1">
       <PageHeader
@@ -117,9 +117,9 @@ export default function AddEditParcelScreen() {
         }
       />
 
-      <View>
+      {/* <View>
         <Text>Tracking ID: {barcodeData}</Text>
-      </View>
+      </View> */}
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView

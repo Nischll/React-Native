@@ -41,21 +41,27 @@ export interface ReactionResponse {
   userId: number;
   userName?: string;
 }
-
 export interface CommentResponse {
   id: number;
   message: string;
   taskId: number;
   messageFrom: number;
-  messageFromName?: string;
-  messageTo: number;
-  messageToFullName?: string | null;
+  messageFromFirstName?: string | null;
+  messageFromMiddleName?: string | null;
+  messageFromLastName?: string | null;
   messageFromFullName?: string | null;
+  messageFromEmail?: string | null;
+  messageTo: number;
+  messageToFirstName?: string | null;
+  messageToMiddleName?: string | null;
+  messageToLastName?: string | null;
+  messageToFullName?: string | null;
+  messageToEmail?: string | null;
   parentId: number | null;
+  createdDate?: string | null;
   replies?: CommentResponse[];
   reactions?: TaskCommentReaction[];
 }
-
 export interface TaskResponse {
   limit: number;
   page: number;

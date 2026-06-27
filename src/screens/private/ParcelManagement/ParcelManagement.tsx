@@ -203,13 +203,13 @@ export default function ParcelManagement() {
           subtitle="View and manage all parcels delivered to your building."
         />
         <View className="absolute bottom-6 right-6 z-50 gap-2">
-          <AnimatedPressable
+          {/* <AnimatedPressable
             onPress={() => router.push("/(private)/barcode-scanner")}
           >
             <View className="bg-blue-500 rounded-full p-4 elevation-5">
               <AppIcon name="scan" size={24} color="#fff" />
             </View>
-          </AnimatedPressable>
+          </AnimatedPressable> */}
           <AnimatedPressable
             onPress={() =>
               router.push({

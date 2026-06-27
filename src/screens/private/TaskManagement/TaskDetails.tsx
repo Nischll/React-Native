@@ -124,7 +124,7 @@ export const TaskDetails = () => {
           {activeTab !== "comments" ? (
             <ScrollView
               className="flex-1"
-              contentContainerClassName="p-3 pb-8"
+              contentContainerClassName="py-3 pb-8"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

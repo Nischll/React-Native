@@ -126,7 +126,7 @@ export const useDeleteComment = (commentId: number | undefined) =>
 export const useUpdateComment = (commentId: number | undefined) =>
   useApiMutation<Comment>("put", `/comment/${commentId}`);
 
-interface CommentReactionPayload {
+export interface CommentReactionPayload {
   commentId: number;
   reactionType: string;
   userId: number;

@@ -19,7 +19,6 @@ import {
   Pressable,
   Text,
   TextInput,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { CommentRow } from "./components/CommentRow";
@@ -134,52 +133,52 @@ export default function TaskComments({ task }: Props) {
   return (
     <View style={{ flex: 1 }}>
       {/* ── Comment list ── */}
-      <TouchableWithoutFeedback
+      {/* <TouchableWithoutFeedback
         onPress={() => {
           Keyboard.dismiss();
           setOpenSwipeId(null);
         }}
-      >
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={comments}
-            keyExtractor={(item) => String(item.id)}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: 12, gap: 8, flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-            onScrollBeginDrag={() => setOpenSwipeId(null)}
-            renderItem={({ item }) => (
-              <CommentRow
-                comment={item}
-                task={task}
-                taskId={task.id}
-                depth={0}
-                openSwipeId={openSwipeId}
-                onSwipeOpen={setOpenSwipeId}
-                onRequestDelete={setDeleteTargetId}
-                onEdit={handleEdit}
-                onReply={handleReply}
-              />
-            )}
-            ListEmptyComponent={
-              <View
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 48,
-                }}
-              >
-                <AppIcon name="chatbubble-outline" size={40} color="#CBD5E1" />
-                <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: 12 }}>
-                  No comments yet. Start the conversation!
-                </Text>
-              </View>
-            }
-          />
-        </View>
-      </TouchableWithoutFeedback>
+      > */}
+      <View style={{ flex: 1 }}>
+        <FlatList
+          data={comments}
+          keyExtractor={(item) => String(item.id)}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: 12, gap: 8, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={() => setOpenSwipeId(null)}
+          renderItem={({ item }) => (
+            <CommentRow
+              comment={item}
+              task={task}
+              taskId={task.id}
+              depth={0}
+              openSwipeId={openSwipeId}
+              onSwipeOpen={setOpenSwipeId}
+              onRequestDelete={setDeleteTargetId}
+              onEdit={handleEdit}
+              onReply={handleReply}
+            />
+          )}
+          ListEmptyComponent={
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 48,
+              }}
+            >
+              <AppIcon name="chatbubble-outline" size={40} color="#CBD5E1" />
+              <Text style={{ fontSize: 13, color: "#94A3B8", marginTop: 12 }}>
+                No comments yet. Start the conversation!
+              </Text>
+            </View>
+          }
+        />
+      </View>
+      {/* </TouchableWithoutFeedback> */}
 
       {/* ── Context indicator (replying / editing) ── */}
       {(replyingTo || editingComment) && (
