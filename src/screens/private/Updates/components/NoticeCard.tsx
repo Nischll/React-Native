@@ -1,5 +1,4 @@
 import {
-  CommunicationItem,
   useDeleteCommunicationWithRefresh,
   useUpdateCommunicationWithRefresh,
 } from "@/src/api/communication.api";
@@ -13,6 +12,7 @@ import {
 import { MessageText } from "@/src/helper/messageDisplayText";
 import { useEmployeeOptions } from "@/src/hooks/useEmployee";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { CommunicationItem } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
@@ -517,6 +517,7 @@ export function NoticeCard({
                             key={id}
                             style={{
                               flexDirection: "row",
+                              flexWrap: "wrap",
                               alignItems: "center",
                               gap: 4,
                               backgroundColor: "#F0FDF4",

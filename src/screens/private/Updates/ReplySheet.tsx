@@ -18,11 +18,9 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Keyboard,
   Pressable,
   StatusBar,
   Text,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -145,50 +143,50 @@ export function ReplySheet() {
       </View>
 
       {/* ── Reply list — shrinks when keyboard opens ── */}
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={replies}
-            keyExtractor={(item) => String(item.id)}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              gap: 8,
-              flexGrow: 1,
-            }}
-            showsVerticalScrollIndicator={false}
-            onScrollBeginDrag={() => setOpenSwipeId(null)}
-            renderItem={({ item }) => (
-              <ReplyRow
-                item={item}
-                openSwipeId={openSwipeId}
-                onSwipeOpen={setOpenSwipeId}
-                onRequestDelete={setDeleteTargetId}
-                onEdit={(r) => {
-                  setEditingReply(r);
-                  setReplyText(r.message);
-                }}
-              />
-            )}
-            ListEmptyComponent={
-              <View
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 32,
-                }}
-              >
-                <Text style={{ fontSize: 13, color: "#94A3B8" }}>
-                  No replies yet. Be the first!
-                </Text>
-              </View>
-            }
-          />
-        </View>
-      </TouchableWithoutFeedback>
+      {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss}> */}
+      <View style={{ flex: 1 }}>
+        <FlatList
+          data={replies}
+          keyExtractor={(item) => String(item.id)}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            gap: 8,
+            flexGrow: 1,
+          }}
+          showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={() => setOpenSwipeId(null)}
+          renderItem={({ item }) => (
+            <ReplyRow
+              item={item}
+              openSwipeId={openSwipeId}
+              onSwipeOpen={setOpenSwipeId}
+              onRequestDelete={setDeleteTargetId}
+              onEdit={(r) => {
+                setEditingReply(r);
+                setReplyText(r.message);
+              }}
+            />
+          )}
+          ListEmptyComponent={
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 32,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: "#94A3B8" }}>
+                No replies yet. Be the first!
+              </Text>
+            </View>
+          }
+        />
+      </View>
+      {/* </TouchableWithoutFeedback> */}
 
       {/* ── Mention suggestions ── */}
       {mentionState && (

@@ -6,7 +6,6 @@ import { timeAgo } from "@/src/utils/timeAgo";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Modal,
   PanResponder,
   Pressable,
@@ -16,12 +15,24 @@ import {
 import { AuthorAvatar } from "./AuthorAvatar";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
 
-const REPLY_DELETE_WIDTH = 80;
-const REPLY_SWIPE_THRESHOLD = 50;
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const BASE_SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
+const DELETE_WIDTH = 80;
+const SWIPE_THRESHOLD = 50;
 
-// ─── Reply Row ────────────────────────────────────────────────────────────────
+const OWN = {
+  bg: "#EDE9FE",
+  border: "#DDD6FE",
+  name: "#5B21B6",
+  text: "#3B0764",
+  meta: "#7C3AED",
+} as const;
+
+const OTHER = {
+  bg: "#FFFFFF",
+  border: "#E2E8F0",
+  name: "#1E293B",
+  text: "#334155",
+  meta: "#94A3B8",
+} as const;
 
 interface ReplyRowProps {
   item: CommunicationItem;
@@ -41,6 +52,7 @@ export function ReplyRow({
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false && !isOwn;
+  const C = isOwn ? OWN : OTHER;
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -57,7 +69,7 @@ export function ReplyRow({
     isSwipedRef.current = true;
     Animated.parallel([
       Animated.spring(translateX, {
-        toValue: -REPLY_DELETE_WIDTH,
+        toValue: -DELETE_WIDTH,
         useNativeDriver: true,
         tension: 120,
         friction: 8,
@@ -89,189 +101,234 @@ export function ReplyRow({
     if (openSwipeId === item.id) onSwipeOpen(null);
   };
 
+  if (openSwipeId !== item.id && isSwipedRef.current) snapClosed();
+
   useEffect(() => {
-    if (openSwipeId !== item.id && isSwipedRef.current) {
-      snapClosed();
-    }
+    if (openSwipeId !== item.id && isSwipedRef.current) snapClosed();
   }, [openSwipeId]);
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => {
+        if (isSwipedRef.current) {
+          snapClosed();
+          return true;
+        }
+        return false;
+      },
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, g) => {
         if (!isOwn) return false;
-        const isHorizontal = Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
-        const hasMoved = Math.abs(g.dx) > 5;
-        return isHorizontal && hasMoved;
+        return Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 5;
       },
-      onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
-        const dx = Math.min(0, g.dx);
-        const clamped = Math.max(-(REPLY_DELETE_WIDTH + 10), dx);
+        const clamped = Math.max(-(DELETE_WIDTH + 10), Math.min(0, g.dx));
         translateX.setValue(clamped);
-        const progress = Math.min(1, Math.abs(clamped) / REPLY_DELETE_WIDTH);
-        deleteOpacity.setValue(progress);
+        deleteOpacity.setValue(Math.min(1, Math.abs(clamped) / DELETE_WIDTH));
       },
       onPanResponderRelease: (_, g) => {
         if (!isOwn) return;
-        if (g.dx < -REPLY_SWIPE_THRESHOLD) {
-          snapOpen();
-        } else {
-          snapClosed();
-        }
+        g.dx < -SWIPE_THRESHOLD ? snapOpen() : snapClosed();
       },
-      onPanResponderTerminate: () => {
-        snapClosed();
-      },
+      onPanResponderTerminate: () => snapClosed(),
     }),
   ).current;
 
   return (
-    <View style={{ borderRadius: 12, marginBottom: 4 }}>
-      {isOwn && (
-        <Animated.View
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: REPLY_DELETE_WIDTH,
-            backgroundColor: "#FEE2E2",
-            borderTopRightRadius: 12,
-            borderBottomRightRadius: 12,
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: deleteOpacity,
-          }}
-        >
-          <Pressable
-            onPress={() => onRequestDelete(item.id)}
-            style={{ alignItems: "center", gap: 4, padding: 8 }}
-          >
-            <AppIcon name="trash-outline" size={20} color="#EF4444" />
-            <Text style={{ fontSize: 10, color: "#EF4444", fontWeight: "700" }}>
-              Delete
-            </Text>
-          </Pressable>
-        </Animated.View>
-      )}
-
-      <Animated.View
+    <View style={{ marginBottom: 12 }}>
+      <View
         style={{
-          transform: [{ translateX }],
-          zIndex: 6,
-          borderRadius: 12,
-          overflow: "hidden",
+          flexDirection: isOwn ? "row-reverse" : "row",
+          alignItems: "flex-start",
+          gap: 8,
         }}
-        {...(isOwn ? panResponder.panHandlers : {})}
       >
-        {isNew && <View style={{ height: 3, backgroundColor: "#7C3AED" }} />}
-        <View
-          style={{
-            backgroundColor: "#F8FAFC",
-            borderRadius: 12,
-            padding: 12,
-            borderWidth: isNew ? 1.5 : 1,
-            borderColor: "#E2E8F0",
-          }}
-        >
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <AuthorAvatar
-              fullName={item.createdByFullName}
-              size={30}
-              fontSize={11}
-            />
-            <View style={{ flex: 1 }}>
-              <View
+        <AuthorAvatar
+          fullName={item.createdByFullName}
+          size={34}
+          fontSize={13}
+        />
+
+        {/* Card column */}
+        <View style={{ flex: 1 }}>
+          <View style={{ borderRadius: 12 }}>
+            {isOwn && (
+              <Animated.View
                 style={{
-                  flexDirection: "row",
+                  position: "absolute",
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: DELETE_WIDTH,
+                  backgroundColor: "#FEE2E2",
+                  borderTopRightRadius: 12,
+                  borderBottomRightRadius: 12,
                   alignItems: "center",
-                  justifyContent: "space-between",
+                  justifyContent: "center",
+                  opacity: deleteOpacity,
                 }}
               >
-                <Text
-                  style={{ fontSize: 13, fontWeight: "700", color: "#1E293B" }}
-                  numberOfLines={1}
-                >
-                  {item.createdByFullName}
-                </Text>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                >
-                  <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-                    {timeAgo(item.createdDate)}
-                  </Text>
-                  {isNew && (
-                    <View
-                      style={{
-                        backgroundColor: "#7C3AED",
-                        borderRadius: 99,
-                        paddingHorizontal: 7,
-                        paddingVertical: 2,
-                        marginLeft: 6,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          color: "#fff",
-                          fontWeight: "700",
-                        }}
-                      >
-                        NEW
-                      </Text>
-                    </View>
-                  )}
-                  {isOwn && (
-                    <Pressable onPress={() => onEdit(item)} hitSlop={8}>
-                      <AppIcon
-                        name="pencil-outline"
-                        size={13}
-                        color="#94A3B8"
-                      />
-                    </Pressable>
-                  )}
-                  {isOwn && (
-                    <AppIcon
-                      name="arrow-back-outline"
-                      size={11}
-                      color="#CBD5E1"
-                    />
-                  )}
-                </View>
-              </View>
-
-              <MessageText text={displayText} />
-              {isLong && (
                 <Pressable
-                  onPress={() => setExpanded((v) => !v)}
-                  style={{ marginTop: 4 }}
+                  onPress={() => onRequestDelete(item.id)}
+                  style={{ alignItems: "center", gap: 4, padding: 8 }}
                 >
+                  <AppIcon name="trash-outline" size={20} color="#EF4444" />
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: "#EF4444",
+                      fontWeight: "700",
+                    }}
+                  >
+                    Delete
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
+
+            <Animated.View
+              style={{
+                transform: [{ translateX }],
+                zIndex: 6,
+                borderRadius: 12,
+                overflow: "hidden",
+              }}
+              {...(isOwn ? panResponder.panHandlers : {})}
+            >
+              {isNew && (
+                <View style={{ height: 3, backgroundColor: "#7C3AED" }} />
+              )}
+
+              <View
+                style={{
+                  backgroundColor: C.bg,
+                  borderRadius: 12,
+                  padding: 12,
+                  borderWidth: isNew ? 1.5 : 1,
+                  borderColor: C.border,
+                }}
+              >
+                {!isOwn && (
                   <Text
                     style={{
                       fontSize: 13,
-                      color: "#7C3AED",
-                      fontWeight: "600",
+                      fontWeight: "700",
+                      color: C.name,
+                      marginBottom: 4,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {item.createdByFullName}
+                  </Text>
+                )}
+
+                {isNew && (
+                  <View
+                    style={{
+                      alignSelf: "flex-start",
+                      backgroundColor: "#7C3AED",
+                      borderRadius: 99,
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      marginBottom: 6,
                     }}
                   >
-                    {expanded ? "Show less" : "Read more"}
-                  </Text>
-                </Pressable>
-              )}
+                    <Text
+                      style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}
+                    >
+                      NEW
+                    </Text>
+                  </View>
+                )}
+
+                {/* Message */}
+                <MessageText text={displayText} />
+                {isLong && (
+                  <Pressable
+                    onPress={() => setExpanded((v) => !v)}
+                    style={{
+                      marginTop: 4,
+                      alignSelf: isOwn ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 12, color: C.meta, fontWeight: "600" }}
+                    >
+                      {expanded ? "Show less" : "Read more"}
+                    </Text>
+                  </Pressable>
+                )}
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: isOwn ? "flex-end" : "flex-start",
+                    gap: 14,
+                    marginTop: 10,
+                  }}
+                >
+                  {isOwn && (
+                    <Pressable
+                      onPress={() => onEdit(item)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <AppIcon name="pencil-outline" size={12} color={C.meta} />
+                      <Text style={{ fontSize: 12, color: C.meta }}>Edit</Text>
+                    </Pressable>
+                  )}
+
+                  <Pressable
+                    onPress={() => setShowReactionPicker(true)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    <AppIcon name="happy-outline" size={12} color={C.meta} />
+                    <Text style={{ fontSize: 12, color: C.meta }}>React</Text>
+                  </Pressable>
+                </View>
+
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: C.meta,
+                    marginTop: 6,
+                    textAlign: isOwn ? "right" : "left",
+                  }}
+                >
+                  {timeAgo(item.createdDate)}
+                  {isOwn ? " · swipe to delete" : ""}
+                </Text>
+              </View>
+            </Animated.View>
+          </View>
+
+          {(item.reactions ?? []).length > 0 && (
+            <View
+              style={{
+                marginTop: 4,
+                alignItems: isOwn ? "flex-end" : "flex-start",
+              }}
+            >
+              <ReactionBar
+                communicationId={item.id}
+                reactions={item.reactions}
+                onOpenPicker={() => setShowReactionPicker(true)}
+              />
             </View>
-          </View>
-
-          <View style={{ marginLeft: 38 }}>
-            <ReactionBar
-              communicationId={item.id}
-              reactions={item.reactions}
-              onOpenPicker={() => setShowReactionPicker(true)}
-            />
-          </View>
+          )}
         </View>
-      </Animated.View>
+      </View>
 
+      {/* Reaction picker modal */}
       <Modal
         visible={showReactionPicker}
         transparent
