@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-export default function TaskManagementLayout() {
+export default function ResidentManagementLayout() {
   return (
     <Stack
       screenOptions={{

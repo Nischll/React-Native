@@ -1,8 +1,10 @@
 import { toastConfig } from "@/src/components/ui/Toast";
 import { AuthProvider } from "@/src/providers/AuthProvider";
 import QueryProvider from "@/src/providers/QueryProvider";
+import { PortalHost, PortalProvider } from "@gorhom/portal";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import "../global.css";
@@ -37,12 +39,19 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryProvider>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <RootLayoutInner />
-        </AuthProvider>
-      </SafeAreaProvider>
-    </QueryProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PortalProvider>
+        <QueryProvider>
+          <SafeAreaProvider>
+            <AuthProvider>
+              <RootLayoutInner />
+            </AuthProvider>
+          </SafeAreaProvider>
+        </QueryProvider>
+        {/* Dropdowns/overlays render here — same window as the app, so no
+            keyboard-dismiss and no scroll-conflict issues. */}
+        <PortalHost name="dropdown-host" />
+      </PortalProvider>
+    </GestureHandlerRootView>
   );
 }

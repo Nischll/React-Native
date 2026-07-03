@@ -2,7 +2,6 @@ import { useGetDashboardStatistics } from "@/src/api/dashboard.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
-import AppInput from "@/src/components/ui/AppInput";
 import Card from "@/src/components/ui/Card";
 import { StatCard } from "@/src/helper/dashboardStatCard";
 import { flattenModules } from "@/src/helper/flattenModules";
@@ -16,6 +15,7 @@ import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
 import { useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { ActivityBar } from "./components/ActivityBar";
+import SearchBar from "./components/SearchBar";
 
 export default function Home() {
   const { user, buildingId, selectedBuilding, openBuildingSelectDialog } =
@@ -53,7 +53,7 @@ export default function Home() {
 
   return (
     <KeyboardAwareScrollView
-      keyboardShouldPersistTaps="always"
+      keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
       enableOnAndroid
       enableAutomaticScroll
@@ -72,11 +72,7 @@ export default function Home() {
           />
 
           {/* Search */}
-          <AppInput
-            placeholder="Search modules, parcels..."
-            leftIcon="search"
-            size="sm"
-          />
+          <SearchBar />
 
           {/* Active Building */}
           <View className="flex-row items-center justify-between py-5">
