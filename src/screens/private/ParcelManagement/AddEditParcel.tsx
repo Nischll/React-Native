@@ -30,10 +30,11 @@ interface FormValues {
   location: string;
   condition: string;
   receivedById: string;
+  trackingId?: string;
 }
 
 export default function AddEditParcelScreen() {
-  const { parcelId } = useLocalSearchParams();
+  const { parcelId, scannedValue } = useLocalSearchParams();
   const id = Number(parcelId);
 
   const { buildingId, user } = useAuth();
@@ -46,7 +47,7 @@ export default function AddEditParcelScreen() {
     useUpdateParcel(id, buildingId ?? undefined);
 
   const editmode = !!parcelId;
-  // const barcodeData = typeof scannedValue === "string" ? scannedValue : "";
+  const barcodeData = typeof scannedValue === "string" ? scannedValue : "";
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
@@ -85,6 +86,7 @@ export default function AddEditParcelScreen() {
       location: values.location,
       condition: values.condition as any,
       receivedById: Number(values.receivedById),
+      trackingId: barcodeData || undefined,
     };
 
     if (editmode) {
