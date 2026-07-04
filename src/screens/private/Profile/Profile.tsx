@@ -32,7 +32,7 @@ interface PasswordFormValues {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function resolveProfilePicture(
+export function resolveProfilePicture(
   profilePictureUrl?: string | null,
   profilePicturePath?: string | null,
 ): string | null {

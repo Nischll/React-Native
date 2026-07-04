@@ -12,9 +12,9 @@ import { router } from "expo-router";
 import { Text, View } from "react-native";
 
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
-import { BASE_URL } from "@/src/constants/env";
 import { useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { resolveProfilePicture } from "../Profile/Profile";
 import { ActivityBar } from "./components/ActivityBar";
 import SearchBar from "./components/SearchBar";
 
@@ -52,6 +52,11 @@ export default function Home() {
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
+  const remoteAvatarUri = resolveProfilePicture(
+    (user as any)?.profilePictureUrl,
+    (user as any)?.profilePicturePath,
+  );
+
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
@@ -70,11 +75,7 @@ export default function Home() {
             icon="person"
             title={`${user?.firstName || user?.fullName || "User"}`}
             subtitle={user?.email || "Welcome back to your dashboard!"}
-            avatarUrl={
-              user?.profilePictureUrl
-                ? `${BASE_URL}${user.profilePictureUrl}`
-                : null
-            }
+            avatarUrl={user?.profilePictureUrl ? `${remoteAvatarUri}` : null}
             firstName={user?.firstName}
             lastName={user?.lastName}
           />

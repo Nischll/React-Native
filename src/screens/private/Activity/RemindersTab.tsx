@@ -1,6 +1,7 @@
 import { useGetReminders } from "@/src/api/activity.api,";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import AppIcon from "@/src/components/ui/AppIcon";
+import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   DashboardBookingReminder,
@@ -26,6 +27,31 @@ type ReminderSection = {
   items: React.ReactNode[];
 };
 
+const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
+  CONFIRM: { bg: "#E7F3EA", text: "#1E7C3A" },
+  CONFIRMED: { bg: "#E7F3EA", text: "#1E7C3A" },
+  PENDING: { bg: "#FAEEDA", text: "#854F0B" },
+  CANCELLED: { bg: "#FCEBEB", text: "#A32D2D" },
+  COMPLETED: { bg: "#E7F3EA", text: "#1E7C3A" },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const style = STATUS_STYLE[status.toUpperCase()] ?? {
+    bg: "#EFF1F4",
+    text: "#475569",
+  };
+  return (
+    <View className="rounded px-2 py-0.5" style={{ backgroundColor: style.bg }}>
+      <Text
+        className="text-[10px] font-semibold capitalize"
+        style={{ color: style.text }}
+      >
+        {status.toLowerCase()}
+      </Text>
+    </View>
+  );
+}
+
 export function RemindersTab() {
   const { buildingId } = useAuth();
   const [period, setPeriod] = useState<DashboardReminderPeriod>("today");
@@ -42,13 +68,13 @@ export function RemindersTab() {
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1">
       {/* Period toggle */}
       <View className="flex-row mx-4 my-3 bg-white border border-gray-200 rounded-xl p-1 gap-1">
         {(["today", "weekly"] as DashboardReminderPeriod[]).map((p) => (
           <Pressable key={p} onPress={() => setPeriod(p)} className="flex-1">
             <View
-              className={`py-2 rounded-lg items-center ${
+              className={`py-2 rounded-lg items-center  ${
                 period === p ? "bg-primary" : ""
               }`}
             >
@@ -175,7 +201,7 @@ function TaskCard({ item }: { item: DashboardTaskReminder }) {
           {item.title}
         </Text>
         <Text className="text-[11px] text-blue-600 mt-0.5">
-          {[item.taskNumber, item.statusName, item.deadline]
+          {[item.taskNumber, item.statusName, formatDateTime(item.deadline)]
             .filter(Boolean)
             .join(" · ")}
         </Text>
@@ -198,6 +224,9 @@ function TaskCard({ item }: { item: DashboardTaskReminder }) {
 }
 
 function BookingCard({ item }: { item: DashboardBookingReminder }) {
+  const start = formatDateTime(item.startDate);
+  const end = item.endDate ? formatDateTime(item.endDate) : null;
+
   return (
     <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
       <AppIcon name="calendar-outline" size={18} color="#185FA5" />
@@ -209,11 +238,12 @@ function BookingCard({ item }: { item: DashboardBookingReminder }) {
           {item.amenityName ?? item.title ?? "Booking"}
         </Text>
         <Text className="text-[11px] text-blue-600 mt-0.5">
-          {[item.towerName, item.startDate, item.status]
+          {[item.towerName, end ? `${start} – ${end}` : start]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
+      {item.status && <StatusBadge status={item.status} />}
     </View>
   );
 }
@@ -255,18 +285,16 @@ function TradeVisitCard({ item }: { item: DashboardTradeVisitReminder }) {
           {item.tradeName ?? "Trade visit"}
         </Text>
         <Text className="text-[11px] text-blue-600 mt-0.5">
-          {[item.company, item.scheduledAppointmentAt, item.lifecycleStatus]
+          {[
+            item.company,
+            formatDateTime(item.scheduledAppointmentAt),
+            item.lifecycleStatus,
+          ]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      {item.status && (
-        <View className="bg-blue-50 rounded px-2 py-0.5 border border-blue-100">
-          <Text className="text-[10px] font-semibold text-blue-700">
-            {item.status}
-          </Text>
-        </View>
-      )}
+      {item.status && <StatusBadge status={item.status} />}
     </View>
   );
 }
