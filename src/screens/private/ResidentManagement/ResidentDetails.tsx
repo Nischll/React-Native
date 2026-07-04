@@ -1,4 +1,7 @@
 import { useGetResidentByBuildingResidenceOnly } from "@/src/api/resident.api";
+import EmptyState from "@/src/components/feedback/EmptyState";
+import ErrorState from "@/src/components/feedback/ErrorState";
+import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -19,6 +22,7 @@ import {
   labelEnterphoneStatus,
   labelFobStatus,
 } from "@/src/types/resident.types";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { Linking, Text, View } from "react-native";
 
@@ -69,50 +73,50 @@ function DetailRow({
   const display = typeof value === "boolean" ? (value ? "Yes" : "No") : value;
   return (
     <View className="flex-row items-start justify-between py-1.5">
-      <Text className="text-xs text-textSecondary flex-1 pr-3">{label}</Text>
-      <Text className="text-xs font-semibold text-textPrimary flex-1 text-right">
+      <Text className="text-sm text-textSecondary pr-3">{label}</Text>
+      <Text className="text-sm font-semibold text-textPrimary text-right">
         {display}
       </Text>
     </View>
   );
 }
 
-/** Card wrapper for a repeating section; renders nothing if there's no data. */
 function SectionCard({
   icon,
   title,
   count,
   children,
 }: {
-  icon: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
   title: string;
   count?: number;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="p-4 mb-3">
-      <View className="flex-row items-center gap-2 mb-3">
-        <View className="h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <AppIcon name={icon} size={16} color="#453956" />
+    <Card className="mb-3 overflow-hidden p-0">
+      {/* Header — separated from content with its own background + border */}
+      <View className="flex-row items-center gap-2.5 bg-gray-50/80 px-4 py-3 border-b border-gray-100">
+        <View className="h-9 w-9 items-center justify-center rounded-xl bg-primary">
+          <AppIcon name={icon} size={17} color="#FFFFFF" />
         </View>
-        <Text className="text-sm font-semibold text-textPrimary flex-1">
+        <Text className="flex-1 text-base font-bold text-textPrimary tracking-tight">
           {title}
         </Text>
         {typeof count === "number" && count > 1 && (
-          <View className="rounded-full bg-gray-100 px-2 py-0.5">
-            <Text className="text-[11px] font-semibold text-textSecondary">
-              {count}
-            </Text>
+          <View className="min-w-[26px] items-center rounded-full bg-primary px-2 py-1">
+            <Text className="text-xs font-bold text-white">{count}</Text>
           </View>
         )}
       </View>
-      {children}
+
+      {/* Content */}
+      <View className="px-4 py-3">{children}</View>
     </Card>
   );
 }
 
 function Divider() {
-  return <View className="h-px bg-gray-100 my-2" />;
+  return <View className="h-px bg-gray-300 my-3" />;
 }
 
 export default function ResidentDetails() {
@@ -126,35 +130,56 @@ export default function ResidentDetails() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center py-20">
-        <AppIcon name="hourglass-outline" size={28} color="#B4B2A9" />
-        <Text className="mt-3 text-sm text-textSecondary">
-          Loading resident details...
-        </Text>
+      <View>
+        <PageHeader
+          icon="person"
+          title="Resident Details"
+          subtitle="View resident information, contacts, access devices, and related records."
+          showBackButton
+        />
+        <View className="p-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
       </View>
     );
   }
 
-  if (isError || !resident) {
+  if (isError) {
     return (
-      <View className="flex-1 items-center justify-center py-20 px-8">
-        <AppIcon name="alert-circle-outline" size={28} color="#D85A30" />
-        <Text className="mt-3 text-sm font-semibold text-textPrimary text-center">
-          Couldn't load this resident
-        </Text>
-        <Text className="mt-1 text-xs text-textSecondary text-center">
-          Check your connection and try again.
-        </Text>
-        <AnimatedPressable
-          onPress={() => refetch()}
-          className="mt-4 rounded-xl bg-primary px-4 py-2"
-        >
-          <Text className="text-sm font-semibold text-white">Retry</Text>
-        </AnimatedPressable>
+      <View>
+        <PageHeader
+          icon="person"
+          title="Resident Details"
+          subtitle="View resident information, contacts, access devices, and related records."
+          showBackButton
+        />
+        <ErrorState
+          title="Couldn't load this resident"
+          message="Check your connection and try again."
+          onRetry={() => refetch()}
+        />
       </View>
     );
   }
 
+  if (!resident) {
+    return (
+      <View>
+        <PageHeader
+          icon="person"
+          title="Resident Details"
+          subtitle="View resident information, contacts, access devices, and related records."
+          showBackButton
+        />
+        <EmptyState
+          title="No resident found"
+          message="This resident may have been removed or doesn't exist."
+        />
+      </View>
+    );
+  }
   const statusMeta = STATUS_META[resident.status];
 
   return (
@@ -170,7 +195,7 @@ export default function ResidentDetails() {
       <View className="bg-primary rounded-3xl p-5 mb-4">
         <View className="flex-row items-center justify-between">
           <View className="flex-1 pr-3">
-            <Text className="text-xs font-semibold text-white/70">
+            <Text className="text-sm font-semibold text-white/70">
               Unit {resident.unit}
             </Text>
             <Text
@@ -179,13 +204,13 @@ export default function ResidentDetails() {
             >
               {resident.residentName || "Unnamed resident"}
             </Text>
-            <Text className="mt-1 text-xs text-white/70" numberOfLines={2}>
+            <Text className="mt-1 text-sm text-white/70" numberOfLines={2}>
               {resident.buildingName}
               {resident.buildingAddress ? ` · ${resident.buildingAddress}` : ""}
             </Text>
           </View>
           <View className={`rounded-full px-3 py-1 ${statusMeta.bg}`}>
-            <Text className={`text-xs font-semibold ${statusMeta.text}`}>
+            <Text className={`text-sm font-semibold ${statusMeta.text}`}>
               {statusMeta.label}
             </Text>
           </View>
@@ -227,7 +252,7 @@ export default function ResidentDetails() {
               <DetailRow label="Phone" value={owner.phoneNumber} />
               <DetailRow label="Email" value={owner.email} />
               <DetailRow
-                label="Needs emergency assistance"
+                label="Emergency assistance"
                 value={owner.needsEmergencyAssistance}
               />
               <DetailRow
@@ -510,7 +535,7 @@ export default function ResidentDetails() {
                   color="#453956"
                 />
                 <Text
-                  className="flex-1 text-xs font-medium text-textPrimary"
+                  className="flex-1 text-sm font-medium text-textPrimary"
                   numberOfLines={1}
                 >
                   {doc.title || doc.originalFileName || "Document"}

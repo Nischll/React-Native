@@ -235,6 +235,8 @@ export type ResidentAttachmentUpdateInput = {
 export interface ResidentResponse {
   id: number;
   buildingId?: number;
+  buildingAddress?: string;
+  buildingName?: string;
   unit: string;
   residentName?: string;
   parkingStall?: string;

@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { Text, View } from "react-native";
 
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
+import { BASE_URL } from "@/src/constants/env";
 import { useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { ActivityBar } from "./components/ActivityBar";
@@ -69,6 +70,13 @@ export default function Home() {
             icon="person"
             title={`${user?.firstName || user?.fullName || "User"}`}
             subtitle={user?.email || "Welcome back to your dashboard!"}
+            avatarUrl={
+              user?.profilePictureUrl
+                ? `${BASE_URL}${user.profilePictureUrl}`
+                : null
+            }
+            firstName={user?.firstName}
+            lastName={user?.lastName}
           />
 
           {/* Search */}

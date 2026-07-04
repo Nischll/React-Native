@@ -48,8 +48,6 @@ export default function RootLayout() {
             </AuthProvider>
           </SafeAreaProvider>
         </QueryProvider>
-        {/* Dropdowns/overlays render here — same window as the app, so no
-            keyboard-dismiss and no scroll-conflict issues. */}
         <PortalHost name="dropdown-host" />
       </PortalProvider>
     </GestureHandlerRootView>

@@ -9,7 +9,7 @@ export default function ResidentManagementPage() {
     <>
       <ScreenContainer
         key="static-container"
-        scrollable={false}
+        // scrollable={false}
         refreshable={false}
       >
         <ResidentDetails key={screenRefreshKey} />

@@ -187,7 +187,7 @@ export default function SearchBar({
                         >
                           <View className="flex-row items-stretch gap-3 px-4 py-6">
                             <View
-                              className="items-center justify-center rounded-2xl bg-primary/10"
+                              className="items-center justify-center rounded-full bg-primary/15"
                               style={{
                                 width: ICON_COLUMN_WIDTH,
                                 minHeight: ICON_COLUMN_WIDTH,
