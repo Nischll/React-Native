@@ -3,7 +3,7 @@ import {
   useEditNotice,
   useGetNotice,
   usePostNotice,
-} from "@/src/api/activity.api,";
+} from "@/src/api/activity.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";

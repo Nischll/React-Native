@@ -8,7 +8,11 @@ import {
 import { Notice } from "../types/dashboard.types";
 import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
-export const useGetNotice = (page: number, limit: number, seenStatus: string) =>
+export const useGetNotice = (
+  page: number,
+  limit: number,
+  seenStatus: string = "all",
+) =>
   useApiQuery<ApiListResponse<ApiPaginatedData<Notice>>>("/notice", {
     queryParams: { page, limit, seenStatus },
     enabled: true,
@@ -25,16 +29,19 @@ export const useDeleteNotice = (id: number | undefined) =>
 
 export const useGetReminders = (
   buildingId: number | undefined,
-  period: DashboardReminderPeriod | undefined,
-) => {
-  return useApiQuery<ApiListResponse<DashboardRemindersResponse>>(
-    `/dashboard/reminders`,
+  period: DashboardReminderPeriod = "today",
+) =>
+  useApiQuery<ApiListResponse<DashboardRemindersResponse>>(
+    "/dashboard/reminders",
     {
-      queryParams: { buildingId, period },
+      queryParams:
+        buildingId != null ? { buildingId, period } : undefined,
+      enabled: buildingId != null && buildingId > 0,
       retry: 0,
+      staleTime: 0,
+      refetchOnMount: true,
     },
   );
-};
 
 export type NoticeReactionPayload = {
   noticeId: number;

@@ -1,4 +1,4 @@
-import { useGetReminders } from "@/src/api/activity.api,";
+import { useGetReminders } from "@/src/api/activity.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { formatDateTime } from "@/src/helper/formatDateTime";
@@ -11,7 +11,7 @@ import {
   DashboardTaskReminder,
   DashboardTradeVisitReminder,
 } from "@/src/types/activity.types";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -33,9 +33,13 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   PENDING: { bg: "#FAEEDA", text: "#854F0B" },
   CANCELLED: { bg: "#FCEBEB", text: "#A32D2D" },
   COMPLETED: { bg: "#E7F3EA", text: "#1E7C3A" },
+  BOOKED: { bg: "#E7F3EA", text: "#1E7C3A" },
 };
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status?: string | null }) {
+  if (status == null || typeof status !== "string" || !status.trim()) {
+    return null;
+  }
   const style = STATUS_STYLE[status.toUpperCase()] ?? {
     bg: "#EFF1F4",
     text: "#475569",
@@ -52,20 +56,27 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function asList<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
 export function RemindersTab() {
   const { buildingId } = useAuth();
   const [period, setPeriod] = useState<DashboardReminderPeriod>("today");
 
-  const { data, isLoading, refetch, isRefetching } = useGetReminders(
-    buildingId ?? undefined,
-    period,
-  );
+  const { data, isLoading, isFetching, isError, refetch, isRefetching } =
+    useGetReminders(buildingId ?? undefined, period);
 
   const reminders = data?.data;
 
-  const sections: ReminderSection[] = reminders ? buildSections(reminders) : [];
+  const sections: ReminderSection[] = useMemo(
+    () => (reminders ? buildSections(reminders) : []),
+    [reminders],
+  );
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
+  const showLoading =
+    buildingId != null && (isLoading || (isFetching && !reminders));
 
   return (
     <View className="flex-1">
@@ -79,7 +90,7 @@ export function RemindersTab() {
               }`}
             >
               <Text
-                className={`text-xs font-semibold capitalize ${
+                className={`text-xs font-semibold ${
                   period === p ? "text-white" : "text-textSecondary"
                 }`}
               >
@@ -90,11 +101,32 @@ export function RemindersTab() {
         ))}
       </View>
 
-      {isLoading ? (
+      {buildingId == null ? (
+        <View className="flex-1 items-center justify-center gap-2 px-6">
+          <AppIcon name="business-outline" size={36} color="#CBD5E1" />
+          <Text className="text-sm text-slate-400 text-center">
+            Select a building to see reminders.
+          </Text>
+        </View>
+      ) : showLoading ? (
         <View className="px-4 gap-3">
           {[1, 2, 3].map((i) => (
             <SkeletonCard key={i} />
           ))}
+        </View>
+      ) : isError ? (
+        <View className="flex-1 items-center justify-center gap-3 px-6">
+          <AppIcon name="alert-circle-outline" size={36} color="#F87171" />
+          <Text className="text-sm text-slate-500 text-center">
+            Couldn&apos;t load reminders for{" "}
+            {period === "today" ? "today" : "this week"}.
+          </Text>
+          <Pressable
+            onPress={() => refetch()}
+            className="rounded-xl bg-primary/10 px-4 py-2"
+          >
+            <Text className="text-sm font-semibold text-primary">Try again</Text>
+          </Pressable>
         </View>
       ) : totalItems === 0 ? (
         <View className="flex-1 items-center justify-center gap-2">
@@ -105,16 +137,24 @@ export function RemindersTab() {
         </View>
       ) : (
         <ScrollView
+          className="flex-1"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
         >
+          {reminders?.fromDate && reminders?.toDate ? (
+            <Text className="mx-4 mb-3 text-[11px] text-slate-400">
+              {reminders.fromDate === reminders.toDate
+                ? reminders.fromDate
+                : `${reminders.fromDate} – ${reminders.toDate}`}
+            </Text>
+          ) : null}
+
           {sections.map((section) =>
             section.items.length === 0 ? null : (
               <View key={section.key} className="mb-4">
-                {/* Section header */}
                 <View className="flex-row items-center gap-2 px-4 mb-2">
                   <AppIcon
                     name={section.icon as any}
@@ -124,7 +164,7 @@ export function RemindersTab() {
                   <Text className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     {section.title}
                   </Text>
-                  <View className="bg-slate-200 rounded-full w-4 h-4 items-center justify-center ml-1">
+                  <View className="bg-slate-200 rounded-full min-w-4 h-4 px-1 items-center justify-center ml-1">
                     <Text className="text-[8px] font-bold text-slate-600">
                       {section.items.length}
                     </Text>
@@ -140,44 +180,47 @@ export function RemindersTab() {
   );
 }
 
-// ─── Builders ───────────────────────────────────────────────────────────────
-
 function buildSections(
   reminders: DashboardRemindersResponse,
 ): ReminderSection[] {
+  const tasks = asList(reminders.tasks);
+  const bookings = asList(reminders.bookings);
+  const preventiveMaintenance = asList(reminders.preventiveMaintenance);
+  const tradeVisits = asList(reminders.tradeVisits);
+
   return [
     {
       key: "tasks",
       title: "Tasks",
       icon: "checkbox-outline",
-      items: reminders.tasks.map((t) => <TaskCard key={t.id} item={t} />),
+      items: tasks.map((t) => <TaskCard key={`task-${t.id}`} item={t} />),
     },
     {
       key: "bookings",
       title: "Bookings",
       icon: "calendar-outline",
-      items: reminders.bookings.map((b) => <BookingCard key={b.id} item={b} />),
+      items: bookings.map((b) => (
+        <BookingCard key={`booking-${b.id}`} item={b} />
+      )),
     },
     {
       key: "preventiveMaintenance",
       title: "Preventive maintenance",
       icon: "build-outline",
-      items: reminders.preventiveMaintenance.map((m) => (
-        <MaintenanceCard key={m.id} item={m} />
+      items: preventiveMaintenance.map((m) => (
+        <MaintenanceCard key={`pm-${m.id}`} item={m} />
       )),
     },
     {
       key: "tradeVisits",
       title: "Trade visits",
       icon: "construct-outline",
-      items: reminders.tradeVisits.map((v) => (
-        <TradeVisitCard key={v.id} item={v} />
+      items: tradeVisits.map((v) => (
+        <TradeVisitCard key={`trade-${v.id}`} item={v} />
       )),
     },
   ];
 }
-
-// ─── Item cards ──────────────────────────────────────────────────────────────
 
 const PRIORITY_STYLE: Record<
   string,
@@ -189,24 +232,27 @@ const PRIORITY_STYLE: Record<
 };
 
 function TaskCard({ item }: { item: DashboardTaskReminder }) {
-  const priority = item.priority ? PRIORITY_STYLE[item.priority] : null;
+  const priorityKey =
+    typeof item.priority === "string" ? item.priority.toUpperCase() : "";
+  const priority = priorityKey ? PRIORITY_STYLE[priorityKey] : null;
+
   return (
     <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
       <AppIcon name="checkbox-outline" size={18} color="#185FA5" />
-      <View className="flex-1">
+      <View className="flex-1 min-w-0">
         <Text
           className="text-sm font-medium text-textPrimary"
           numberOfLines={2}
         >
-          {item.title}
+          {item.title || "Task"}
         </Text>
-        <Text className="text-[11px] text-blue-600 mt-0.5">
+        <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
           {[item.taskNumber, item.statusName, formatDateTime(item.deadline)]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      {priority && (
+      {priority ? (
         <View
           className="rounded px-2 py-0.5"
           style={{ backgroundColor: priority.bg }}
@@ -218,7 +264,7 @@ function TaskCard({ item }: { item: DashboardTaskReminder }) {
             {priority.label}
           </Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -230,20 +276,20 @@ function BookingCard({ item }: { item: DashboardBookingReminder }) {
   return (
     <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
       <AppIcon name="calendar-outline" size={18} color="#185FA5" />
-      <View className="flex-1">
+      <View className="flex-1 min-w-0">
         <Text
           className="text-sm font-medium text-textPrimary"
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {item.amenityName ?? item.title ?? "Booking"}
         </Text>
-        <Text className="text-[11px] text-blue-600 mt-0.5">
+        <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
           {[item.towerName, end ? `${start} – ${end}` : start]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      {item.status && <StatusBadge status={item.status} />}
+      <StatusBadge status={item.status} />
     </View>
   );
 }
@@ -256,45 +302,43 @@ function MaintenanceCard({
   return (
     <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
       <AppIcon name="build-outline" size={18} color="#185FA5" />
-      <View className="flex-1">
+      <View className="flex-1 min-w-0">
         <Text
           className="text-sm font-medium text-textPrimary"
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {item.maintenanceItem ?? "Maintenance"}
         </Text>
-        {item.reminderMonth && (
+        {item.reminderMonth ? (
           <Text className="text-[11px] text-blue-600 mt-0.5">
             {item.reminderMonth}
           </Text>
-        )}
+        ) : null}
       </View>
     </View>
   );
 }
 
 function TradeVisitCard({ item }: { item: DashboardTradeVisitReminder }) {
+  const status = item.status ?? item.lifecycleStatus;
+
   return (
     <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
       <AppIcon name="construct-outline" size={18} color="#185FA5" />
-      <View className="flex-1">
+      <View className="flex-1 min-w-0">
         <Text
           className="text-sm font-medium text-textPrimary"
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {item.tradeName ?? "Trade visit"}
         </Text>
-        <Text className="text-[11px] text-blue-600 mt-0.5">
-          {[
-            item.company,
-            formatDateTime(item.scheduledAppointmentAt),
-            item.lifecycleStatus,
-          ]
+        <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
+          {[item.company, formatDateTime(item.scheduledAppointmentAt), status]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      {item.status && <StatusBadge status={item.status} />}
+      <StatusBadge status={status} />
     </View>
   );
 }

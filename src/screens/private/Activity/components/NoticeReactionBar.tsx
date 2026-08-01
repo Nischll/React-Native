@@ -1,4 +1,4 @@
-import { useToggleNoticeReaction } from "@/src/api/activity.api,";
+import { useToggleNoticeReaction } from "@/src/api/activity.api";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Notice } from "@/src/types/dashboard.types";
 import { Pressable, Text, View } from "react-native";

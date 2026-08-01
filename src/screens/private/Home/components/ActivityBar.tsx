@@ -1,4 +1,4 @@
-import { useGetNotice, useGetReminders } from "@/src/api/activity.api,";
+import { useGetNotice, useGetReminders } from "@/src/api/activity.api";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -72,7 +72,7 @@ function ActivityPill({
 export function ActivityBar() {
   const { buildingId } = useAuth();
 
-  const { data: noticeData } = useGetNotice(1, 1);
+  const { data: noticeData } = useGetNotice(1, 1, "all");
   const { data: remindersData } = useGetReminders(
     buildingId ?? undefined,
     "today",
@@ -87,7 +87,7 @@ export function ActivityBar() {
         reminders.bookings,
         reminders.preventiveMaintenance,
         reminders.tradeVisits,
-      ].reduce((sum, arr) => sum + (arr?.length ?? 0), 0)
+      ].reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
     : 0;
 
   return (
