@@ -32,7 +32,7 @@ export function ActivityBar() {
 
   return (
     <View className="mx-4 -mt-4 z-10">
-      <View className="flex-row gap-3 bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+      <View className="flex-row gap-2 bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
         {/* Notices pill */}
         <AnimatedPressable
           className="flex-1"
@@ -82,6 +82,25 @@ export function ActivityBar() {
               </View>
             )}
             <AppIcon name="chevron-forward" size={12} color="#185FA5" />
+          </View>
+        </AnimatedPressable>
+
+        {/* Recommendations pill */}
+        <AnimatedPressable
+          className="flex-1"
+          onPress={() => router.push("/(private)/home/recommendations")}
+        >
+          <View className="flex-row items-center gap-2 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">
+            <AppIcon name="bulb-outline" size={16} color="#7C3AED" />
+            <View className="flex-1">
+              <Text className="text-[9px] font-semibold text-violet-700 uppercase tracking-wide">
+                Ideas
+              </Text>
+              <Text className="text-xs font-semibold text-violet-900 mt-0.5">
+                Recommendations
+              </Text>
+            </View>
+            <AppIcon name="chevron-forward" size={12} color="#7C3AED" />
           </View>
         </AnimatedPressable>
       </View>

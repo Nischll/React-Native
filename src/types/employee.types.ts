@@ -17,6 +17,41 @@ export interface GetEmployeeResponse {
   data: Employee[];
 }
 
+export type NatureOfEmployment =
+  | "FULL_TIME"
+  | "PART_TIME"
+  | "CONTRACT"
+  | "TEMPORARY"
+  | "INTERN";
+
+export const NATURE_OF_EMPLOYMENT_OPTIONS: {
+  value: NatureOfEmployment;
+  label: string;
+}[] = [
+  { value: "FULL_TIME", label: "Full-time" },
+  { value: "PART_TIME", label: "Part-time" },
+  { value: "CONTRACT", label: "Contract" },
+  { value: "TEMPORARY", label: "Temporary" },
+  { value: "INTERN", label: "Intern" },
+];
+
+// Form-side payload used to build the multipart request for add/update staff.
+export interface StaffRequestPojo {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  username: string;
+  email: string;
+  password?: string;
+  phoneNumber?: string;
+  employeeNumber?: string;
+  natureOfEmployment?: NatureOfEmployment | "";
+  position?: string;
+  roleList?: number[];
+  buildingList?: number[];
+  profilePicture?: { uri: string; name: string; mimeType: string } | null;
+}
+
 export interface Employee {
   id: number;
   firstName: string;

@@ -1,5 +1,12 @@
 export type ResidentStatus = "OWNER" | "TENANT" | "PROPERTY_AGENT";
 
+export const RESIDENT_STATUS_OPTIONS: { value: ResidentStatus; label: string }[] =
+  [
+    { value: "OWNER", label: "Owner" },
+    { value: "TENANT", label: "Tenant" },
+    { value: "PROPERTY_AGENT", label: "Property Agent" },
+  ];
+
 export type FobType = "REMOTE" | "KEY_TAG";
 export type FobAssignedTo = "TENANT" | "OWNER" | "PROPERTY_AGENT";
 export type FobStatus =
@@ -284,3 +291,35 @@ export interface VisitorPassInfo extends VisitorPassRequestPojo {}
 export interface EmergencyContactInfo extends EmergencyContactRequestPojo {}
 
 export interface Resident extends ResidentForm {}
+
+// ── Sub-entity response types (standalone CRUD screens) ──
+// Backend persists these with an id/residentId even though the shared
+// request pojos above don't declare them (they're reused for nested create).
+export interface OwnerResponse extends OwnerRequestPojo {
+  id: number;
+  residentId?: number;
+}
+export interface TenantResponse extends TenantRequestPojo {
+  id: number;
+  residentId?: number;
+}
+export interface PropertyAgentResponse extends PropertyAgentRequestPojo {
+  id: number;
+  residentId?: number;
+}
+export interface AccessDeviceResponse extends AccessDeviceRequestPojo {
+  id: number;
+  residentId?: number;
+}
+export interface VehicleResponse extends VehicleRequestPojo {
+  id: number;
+  residentId?: number;
+}
+export interface VisitorPassResponse extends VisitorPassRequestPojo {
+  id: number;
+  residentId?: number;
+}
+export interface EmergencyContactResponse extends EmergencyContactRequestPojo {
+  id: number;
+  residentId?: number;
+}

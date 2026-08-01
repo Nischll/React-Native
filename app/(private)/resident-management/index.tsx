@@ -1,18 +1,14 @@
 import ScreenContainer from "@/src/components/layout/ScreenContainer";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
-import ResidentDetails from "@/src/screens/private/ResidentManagement/ResidentDetails";
+import ResidentList from "@/src/screens/private/ResidentManagement/ResidentList";
 import { View } from "react-native";
 
 export default function ResidentManagementPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer
-        key="static-container"
-        // scrollable={false}
-        refreshable={false}
-      >
-        <ResidentDetails key={screenRefreshKey} />
+      <ScreenContainer key="static-container" virtualized refreshable={false}>
+        <ResidentList key={screenRefreshKey} />
       </ScreenContainer>
 
       {refreshing && (

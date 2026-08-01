@@ -68,7 +68,7 @@ export default function SearchBar({
       onSelectResident(item.value, item);
     } else {
       router.push({
-        pathname: "/(private)/resident-management",
+        pathname: "/(private)/resident-management/resident-details",
         params: { residentId: String(item.value) },
       });
     }

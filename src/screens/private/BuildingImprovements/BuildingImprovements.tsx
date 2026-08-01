@@ -217,8 +217,10 @@ export default function BuildingImprovements() {
   const hasMore = improvements.length < total;
 
   const handleEdit = (item: BuildingImprovementResponse) => {
-    // TODO: navigate to edit screen
-    console.log("Edit", item.id);
+    router.push({
+      pathname: "/(private)/building-improvements/improvement-add-edit",
+      params: { improvementId: String(item.id) },
+    });
   };
 
   const handleDelete = () => {

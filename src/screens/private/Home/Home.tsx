@@ -41,10 +41,28 @@ export default function Home() {
   // const unseenNoticeCount = noticeData?.data?.unseenCount ?? 0;
 
   const modules = user?.moduleList ?? [];
-  const ALLOWED_MODULE_CODES = ["TM", "PARCEL", "TRM", "BI"];
+
+  // Exclude nested/profile leaf modules that are reached from other screens
+  const EXCLUDED_MODULE_CODES = new Set([
+    "PROF",
+    "TC",
+    "TI",
+    "OI",
+    "PAI",
+    "VP",
+    "AD",
+    "V",
+    "EC",
+    "RENT",
+  ]);
 
   const quickModules = flattenModules(modules)
-    .filter((mod) => mod.path && ALLOWED_MODULE_CODES.includes(mod.code))
+    .filter(
+      (mod) =>
+        mod.path &&
+        !EXCLUDED_MODULE_CODES.has(mod.code) &&
+        !mod.path.includes("/home/"),
+    )
     .map((mod) => {
       const route = mapToAppRoute(mod.path);
       if (!route) return null;
