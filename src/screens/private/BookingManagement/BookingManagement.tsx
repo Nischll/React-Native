@@ -1,4 +1,8 @@
-import { useDeleteBooking, useGetBookings } from "@/src/api/booking.api";
+import {
+  extractBookings,
+  useDeleteBooking,
+  useGetBookings,
+} from "@/src/api/booking.api";
 import {
   MobileColumn,
   MobileDataList,
@@ -12,14 +16,34 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BookingResponse } from "@/src/types/booking.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import BookingCalendarView from "./components/BookingCalendarView";
 import { BookingFilterModal } from "./components/BookingFilterModal";
+
+type ViewMode = "list" | "calendar";
+
+function statusTone(status?: string | null) {
+  const s = String(status ?? "").toUpperCase();
+  if (s === "CONFIRM" || s === "CONFIRMED") return "text-green-600";
+  if (s === "CANCEL" || s === "CANCELLED") return "text-red-500";
+  return "text-amber-600";
+}
+
+function statusLabel(status?: string | null) {
+  const s = String(status ?? "").toUpperCase();
+  if (s === "CONFIRM" || s === "CONFIRMED") return "Confirmed";
+  if (s === "CANCEL" || s === "CANCELLED") return "Cancelled";
+  if (s === "PENDING") return "Pending";
+  return status ? String(status) : "—";
+}
 
 export default function BookingManagement() {
   const { user, buildingId } = useAuth();
 
+  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
   const [page, setPage] = useState(1);
   const [filterVisible, setFilterVisible] = useState(false);
   const [amenityId, setAmenityId] = useState<number>();
@@ -32,19 +56,34 @@ export default function BookingManagement() {
   const { data, isLoading, refetch, isRefetching } = useGetBookings(
     {
       page,
-      limit: 10,
+      limit: PAGE_SIZE,
       buildingId: buildingId ?? undefined,
       amenityId,
       towerId,
       residentId,
     },
-    !!user?.userId,
+    !!user?.userId && viewMode === "list",
   );
 
   const { mutate: deleteBookingMutate, isPending } = useDeleteBooking();
 
-  const bookings = data?.data?.data ?? [];
-  const total = data?.data?.total ?? 0;
+  // Backend returns a plain array (same as web calendar); slice client-side for list pages
+  const allBookings = useMemo(() => extractBookings(data), [data]);
+  const { items: bookings, total } = useMemo(() => {
+    // If API already paginated, prefer extractPaginatedList; else slice allBookings
+    const paginated = extractPaginatedList<BookingResponse>(data, {
+      page,
+      limit: PAGE_SIZE,
+    });
+    if (paginated.total > 0 || allBookings.length === 0) return paginated;
+    const start = (page - 1) * PAGE_SIZE;
+    return {
+      items: allBookings.slice(start, start + PAGE_SIZE),
+      total: allBookings.length,
+      page,
+      limit: PAGE_SIZE,
+    };
+  }, [data, allBookings, page]);
 
   const handleDeleteBooking = () => {
     if (!deleteBooking) return;
@@ -69,6 +108,7 @@ export default function BookingManagement() {
       label: "Booking",
       primary: true,
       searchable: true,
+      render: (_value, row) => row.amenityName || row.title || `Booking #${row.id}`,
     },
     {
       key: "amenityName",
@@ -86,27 +126,21 @@ export default function BookingManagement() {
     {
       key: "startDate",
       label: "Start",
-      render: (value) => new Date(String(value)).toLocaleString(),
+      render: (value) =>
+        value ? new Date(String(value)).toLocaleString() : "—",
     },
     {
       key: "endDate",
       label: "End",
-      render: (value) => new Date(String(value)).toLocaleString(),
+      render: (value) =>
+        value ? new Date(String(value)).toLocaleString() : "—",
     },
     {
       key: "status",
       label: "Status",
       render: (value) => (
-        <Text
-          className={`font-semibold ${
-            value === "CONFIRMED"
-              ? "text-green-600"
-              : value === "CANCELLED"
-                ? "text-red-500"
-                : "text-amber-600"
-          }`}
-        >
-          {String(value)}
+        <Text className={`font-semibold ${statusTone(String(value))}`}>
+          {statusLabel(String(value))}
         </Text>
       ),
     },
@@ -118,8 +152,46 @@ export default function BookingManagement() {
         showBackButton
         icon="calendar"
         title="Booking Management"
-        subtitle="View and manage all amenity bookings."
+        subtitle="View and manage amenity bookings."
       />
+
+      {/* List / Calendar toggle (Agenda ≈ List on web) */}
+      <View className="flex-row mx-1 mb-3 bg-white border border-gray-200 rounded-xl p-1 gap-1">
+        {(
+          [
+            { key: "calendar", label: "Calendar", icon: "calendar-outline" },
+            { key: "list", label: "List", icon: "list-outline" },
+          ] as const
+        ).map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => {
+              setViewMode(opt.key);
+              if (opt.key === "list") setPage(1);
+            }}
+            className="flex-1"
+          >
+            <View
+              className={`py-2 rounded-lg flex-row items-center justify-center gap-1.5 ${
+                viewMode === opt.key ? "bg-primary" : ""
+              }`}
+            >
+              <AppIcon
+                name={opt.icon}
+                size={14}
+                color={viewMode === opt.key ? "#fff" : "#64748B"}
+              />
+              <Text
+                className={`text-xs font-semibold ${
+                  viewMode === opt.key ? "text-white" : "text-textSecondary"
+                }`}
+              >
+                {opt.label}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
 
       <View className="absolute bottom-6 right-6 z-50 gap-2">
         <AnimatedPressable
@@ -134,75 +206,97 @@ export default function BookingManagement() {
       </View>
 
       <View className="flex-1">
-        <MobileDataList<BookingResponse>
-          data={bookings}
-          columns={columns}
-          loading={isLoading}
-          refreshing={isRefetching}
-          searchable
-          backendMode
-          keyExtractor={(item) => item.id.toString()}
-          emptyMessage="No bookings found"
-          onRefresh={refetch}
-          onSearch={() => {}}
-          onFilterPress={() => setFilterVisible(true)}
-          pagination={{
-            page,
-            pageSize: 10,
-            total,
-            hasMore: page * 10 < total,
-            onPageChange: setPage,
-          }}
-          renderActions={(row) => {
-            const items = [
-              {
-                label: "View Details",
-                icon: "eye",
-                onPress: () =>
-                  router.push({
-                    pathname:
-                      "/(private)/booking-management/booking-details",
-                    params: { bookingId: row.id },
-                  }),
-              },
-              {
-                label: "Edit Booking",
-                icon: "pencil",
-                onPress: () =>
-                  router.push({
-                    pathname:
-                      "/(private)/booking-management/booking-add-edit",
-                    params: { bookingId: row.id },
-                  }),
-              },
-              {
-                label: "Delete",
-                icon: "trash",
-                danger: true,
-                onPress: () => setDeleteBooking(row),
-              },
-            ] as MenuItem[];
+        {viewMode === "calendar" ? (
+          <BookingCalendarView
+            buildingId={buildingId ?? undefined}
+            amenityId={amenityId}
+            towerId={towerId}
+            residentId={residentId}
+            enabled={!!user?.userId}
+            onFilterPress={() => setFilterVisible(true)}
+          />
+        ) : (
+          <MobileDataList<BookingResponse>
+            data={bookings}
+            columns={columns}
+            loading={isLoading}
+            refreshing={isRefetching}
+            searchable
+            backendMode
+            keyExtractor={(item) => item.id.toString()}
+            emptyMessage="No bookings found"
+            onRefresh={refetch}
+            onSearch={() => {
+              setPage(1);
+            }}
+            onFilterPress={() => setFilterVisible(true)}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
+            renderActions={(row) => {
+              const items = [
+                {
+                  label: "View Details",
+                  icon: "eye",
+                  onPress: () =>
+                    router.push({
+                      pathname:
+                        "/(private)/booking-management/booking-details",
+                      params: { bookingId: row.id },
+                    }),
+                },
+                {
+                  label: "Edit Booking",
+                  icon: "pencil",
+                  onPress: () =>
+                    router.push({
+                      pathname:
+                        "/(private)/booking-management/booking-add-edit",
+                      params: { bookingId: row.id },
+                    }),
+                },
+                {
+                  label: "Delete",
+                  icon: "trash",
+                  danger: true,
+                  onPress: () => setDeleteBooking(row),
+                },
+              ] as MenuItem[];
 
-            return <AnchoredPopupMenu items={items} />;
-          }}
-        />
+              return <AnchoredPopupMenu items={items} />;
+            }}
+          />
+        )}
       </View>
 
       <BookingFilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
         amenityId={amenityId}
-        setAmenityId={setAmenityId}
+        setAmenityId={(id) => {
+          setAmenityId(id);
+          setPage(1);
+        }}
         towerId={towerId}
-        setTowerId={setTowerId}
+        setTowerId={(id) => {
+          setTowerId(id);
+          setPage(1);
+        }}
         residentId={residentId}
-        setResidentId={setResidentId}
+        setResidentId={(id) => {
+          setResidentId(id);
+          setPage(1);
+        }}
       />
 
       <ConfirmModal
         visible={!!deleteBooking}
         title="Delete Booking"
-        message={`Are you sure you want to delete booking "${deleteBooking?.title}"?`}
+        message={`Are you sure you want to delete booking "${deleteBooking?.amenityName || deleteBooking?.title}"?`}
         confirmText="Delete"
         destructive
         loading={isPending}
