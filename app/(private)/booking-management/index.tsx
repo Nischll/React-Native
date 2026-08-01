@@ -7,7 +7,13 @@ export default function BookingManagementPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container" virtualized refreshable={false}>
+      <ScreenContainer
+        key="static-container"
+        virtualized
+        refreshable={false}
+        padded
+        contentClassName="bg-white flex-1"
+      >
         <BookingManagement key={screenRefreshKey} />
       </ScreenContainer>
 

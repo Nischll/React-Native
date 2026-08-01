@@ -147,7 +147,7 @@ export default function BookingManagement() {
   ];
 
   return (
-    <View className="flex-1">
+    <View style={{ flex: 1 }}>
       <PageHeader
         showBackButton
         icon="calendar"
@@ -156,41 +156,44 @@ export default function BookingManagement() {
       />
 
       {/* List / Calendar toggle (Agenda ≈ List on web) */}
-      <View className="flex-row mx-1 mb-3 bg-white border border-gray-200 rounded-xl p-1 gap-1">
+      <View className="flex-row mb-3 bg-slate-100 rounded-xl p-1 gap-1">
         {(
           [
             { key: "calendar", label: "Calendar", icon: "calendar-outline" },
             { key: "list", label: "List", icon: "list-outline" },
           ] as const
-        ).map((opt) => (
-          <Pressable
-            key={opt.key}
-            onPress={() => {
-              setViewMode(opt.key);
-              if (opt.key === "list") setPage(1);
-            }}
-            className="flex-1"
-          >
-            <View
-              className={`py-2 rounded-lg flex-row items-center justify-center gap-1.5 ${
-                viewMode === opt.key ? "bg-primary" : ""
-              }`}
+        ).map((opt) => {
+          const active = viewMode === opt.key;
+          return (
+            <Pressable
+              key={opt.key}
+              onPress={() => {
+                setViewMode(opt.key);
+                if (opt.key === "list") setPage(1);
+              }}
+              className="flex-1"
             >
-              <AppIcon
-                name={opt.icon}
-                size={14}
-                color={viewMode === opt.key ? "#fff" : "#64748B"}
-              />
-              <Text
-                className={`text-xs font-semibold ${
-                  viewMode === opt.key ? "text-white" : "text-textSecondary"
+              <View
+                className={`py-2.5 rounded-lg flex-row items-center justify-center gap-1.5 ${
+                  active ? "bg-primary" : "bg-transparent"
                 }`}
               >
-                {opt.label}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
+                <AppIcon
+                  name={opt.icon}
+                  size={16}
+                  color={active ? "#fff" : "#64748B"}
+                />
+                <Text
+                  className={`text-sm font-semibold ${
+                    active ? "text-white" : "text-slate-500"
+                  }`}
+                >
+                  {opt.label}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View className="absolute bottom-6 right-6 z-50 gap-2">
@@ -205,7 +208,7 @@ export default function BookingManagement() {
         </AnimatedPressable>
       </View>
 
-      <View className="flex-1">
+      <View style={{ flex: 1, minHeight: 420 }}>
         {viewMode === "calendar" ? (
           <BookingCalendarView
             buildingId={buildingId ?? undefined}

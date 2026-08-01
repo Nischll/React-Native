@@ -8,7 +8,6 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import {
   DashboardBookingReminder,
   DashboardParcelReminder,
-  DashboardPreventiveMaintenanceReminder,
   DashboardReminderPeriod,
   DashboardRemindersResponse,
   DashboardTaskReminder,
@@ -22,27 +21,30 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from "react-native";
 
-type ReminderKind =
-  | "task"
-  | "booking"
-  | "trade"
-  | "parcel"
-  | "maintenance";
+/** Category tabs matching web reminder groups (parcels instead of maintenance). */
+type ReminderCategory = "task" | "booking" | "trade" | "parcel";
 
 type FlatReminderItem =
   | { kind: "task"; id: string; data: DashboardTaskReminder }
   | { kind: "booking"; id: string; data: DashboardBookingReminder }
   | { kind: "trade"; id: string; data: DashboardTradeVisitReminder }
-  | { kind: "parcel"; id: string; data: DashboardParcelReminder }
-  | {
-      kind: "maintenance";
-      id: string;
-      data: DashboardPreventiveMaintenanceReminder;
-    };
+  | { kind: "parcel"; id: string; data: DashboardParcelReminder };
+
+const CATEGORY_TABS: {
+  key: ReminderCategory;
+  label: string;
+  icon: string;
+}[] = [
+  { key: "task", label: "Tasks", icon: "checkbox-outline" },
+  { key: "booking", label: "Bookings", icon: "calendar-outline" },
+  { key: "trade", label: "Trade visits", icon: "construct-outline" },
+  { key: "parcel", label: "Parcels", icon: "cube-outline" },
+];
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   CONFIRM: { bg: "#E7F3EA", text: "#1E7C3A" },
@@ -53,21 +55,6 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   BOOKED: { bg: "#E7F3EA", text: "#1E7C3A" },
   RECEIVED: { bg: "#FAEEDA", text: "#854F0B" },
   DELIVERED: { bg: "#E7F3EA", text: "#1E7C3A" },
-};
-
-const KIND_META: Record<
-  ReminderKind,
-  { label: string; icon: string; color: string }
-> = {
-  task: { label: "Task", icon: "checkbox-outline", color: "#185FA5" },
-  booking: { label: "Booking", icon: "calendar-outline", color: "#185FA5" },
-  trade: { label: "Trade visit", icon: "construct-outline", color: "#185FA5" },
-  parcel: { label: "Parcel", icon: "cube-outline", color: "#185FA5" },
-  maintenance: {
-    label: "Maintenance",
-    icon: "build-outline",
-    color: "#185FA5",
-  },
 };
 
 const PRIORITY_STYLE: Record<
@@ -110,7 +97,6 @@ function toIsoDate(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
-/** Matches backend: today, or calendar week Monday–Sunday. */
 function getPeriodRange(period: DashboardReminderPeriod): {
   fromDate: string;
   toDate: string;
@@ -120,7 +106,7 @@ function getPeriodRange(period: DashboardReminderPeriod): {
     const s = toIsoDate(today);
     return { fromDate: s, toDate: s };
   }
-  const day = today.getDay(); // 0 = Sunday
+  const day = today.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   const monday = new Date(today);
   monday.setDate(today.getDate() + mondayOffset);
@@ -142,43 +128,38 @@ function mapParcelToReminder(p: ParcelResponse): DashboardParcelReminder {
   };
 }
 
-function flattenReminders(
+function buildCategoryItems(
   reminders: DashboardRemindersResponse | null | undefined,
   parcels: DashboardParcelReminder[],
-): FlatReminderItem[] {
-  const tasks = asList(reminders?.tasks).map((data) => ({
-    kind: "task" as const,
-    id: `task-${data.id}`,
-    data,
-  }));
-  const bookings = asList(reminders?.bookings).map((data) => ({
-    kind: "booking" as const,
-    id: `booking-${data.id}`,
-    data,
-  }));
-  const trades = asList(reminders?.tradeVisits).map((data) => ({
-    kind: "trade" as const,
-    id: `trade-${data.id}`,
-    data,
-  }));
-  const parcelItems = parcels.map((data) => ({
-    kind: "parcel" as const,
-    id: `parcel-${data.id}`,
-    data,
-  }));
-  const maintenance = asList(reminders?.preventiveMaintenance).map((data) => ({
-    kind: "maintenance" as const,
-    id: `pm-${data.id}-${data.reminderMonth ?? ""}`,
-    data,
-  }));
-
-  // Order matches web: Tasks → Bookings → Maintenance → Trade visits, then Parcels
-  return [...tasks, ...bookings, ...maintenance, ...trades, ...parcelItems];
+): Record<ReminderCategory, FlatReminderItem[]> {
+  return {
+    task: asList(reminders?.tasks).map((data) => ({
+      kind: "task" as const,
+      id: `task-${data.id}`,
+      data,
+    })),
+    booking: asList(reminders?.bookings).map((data) => ({
+      kind: "booking" as const,
+      id: `booking-${data.id}`,
+      data,
+    })),
+    trade: asList(reminders?.tradeVisits).map((data) => ({
+      kind: "trade" as const,
+      id: `trade-${data.id}`,
+      data,
+    })),
+    parcel: parcels.map((data) => ({
+      kind: "parcel" as const,
+      id: `parcel-${data.id}`,
+      data,
+    })),
+  };
 }
 
 export function RemindersTab() {
   const { buildingId } = useAuth();
   const [period, setPeriod] = useState<DashboardReminderPeriod>("today");
+  const [category, setCategory] = useState<ReminderCategory>("task");
   const [page, setPage] = useState(1);
 
   const range = useMemo(() => getPeriodRange(period), [period]);
@@ -220,21 +201,38 @@ export function RemindersTab() {
 
   const parcelReminders = useMemo(() => {
     const rows = parcelsData?.data?.data ?? [];
-    // Actionable parcels awaiting pickup (same idea as web ops reminders)
     return rows
       .filter((p) => (p.status ?? "RECEIVED") !== "DELIVERED")
       .map(mapParcelToReminder);
   }, [parcelsData]);
 
-  const allItems = useMemo(
-    () => flattenReminders(reminders, parcelReminders),
+  const byCategory = useMemo(
+    () => buildCategoryItems(reminders, parcelReminders),
     [reminders, parcelReminders],
   );
-  const total = allItems.length;
+
+  const totalCount = useMemo(
+    () =>
+      CATEGORY_TABS.reduce((sum, tab) => sum + byCategory[tab.key].length, 0),
+    [byCategory],
+  );
+
+  // Prefer first non-empty category when period/data changes (same as web)
+  useEffect(() => {
+    const firstWithItems =
+      CATEGORY_TABS.find((t) => byCategory[t.key].length > 0)?.key ?? "task";
+    setCategory((prev) =>
+      byCategory[prev].length > 0 ? prev : firstWithItems,
+    );
+    setPage(1);
+  }, [period, buildingId, byCategory]);
+
+  const categoryItems = byCategory[category];
+  const total = categoryItems.length;
 
   useEffect(() => {
     setPage(1);
-  }, [period, buildingId]);
+  }, [category]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
@@ -243,8 +241,8 @@ export function RemindersTab() {
 
   const pageItems = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return allItems.slice(start, start + PAGE_SIZE);
-  }, [allItems, page]);
+    return categoryItems.slice(start, start + PAGE_SIZE);
+  }, [categoryItems, page]);
 
   const showLoading =
     buildingId != null &&
@@ -256,8 +254,12 @@ export function RemindersTab() {
     refetchParcels();
   };
 
+  const activeTabLabel =
+    CATEGORY_TABS.find((t) => t.key === category)?.label ?? "Reminders";
+
   return (
     <View className="flex-1">
+      {/* Today / This week */}
       <View className="flex-row mx-4 my-3 bg-white border border-gray-200 rounded-xl p-1 gap-1">
         {(["today", "weekly"] as DashboardReminderPeriod[]).map((p) => (
           <Pressable
@@ -284,6 +286,62 @@ export function RemindersTab() {
           </Pressable>
         ))}
       </View>
+
+      {/* Category tabs — Tasks / Bookings / Trade visits / Parcels */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="mx-4 mb-3 flex-grow-0"
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {CATEGORY_TABS.map((tab) => {
+          const count = byCategory[tab.key].length;
+          const active = category === tab.key;
+          return (
+            <Pressable
+              key={tab.key}
+              onPress={() => {
+                setCategory(tab.key);
+                setPage(1);
+              }}
+            >
+              <View
+                className={`flex-row items-center gap-1.5 rounded-full px-3 py-2 border ${
+                  active
+                    ? "bg-primary border-primary"
+                    : "bg-white border-slate-200"
+                }`}
+              >
+                <AppIcon
+                  name={tab.icon as any}
+                  size={13}
+                  color={active ? "#fff" : "#64748B"}
+                />
+                <Text
+                  className={`text-xs font-semibold ${
+                    active ? "text-white" : "text-slate-600"
+                  }`}
+                >
+                  {tab.label}
+                </Text>
+                <View
+                  className={`min-w-[18px] h-[18px] px-1 rounded-full items-center justify-center ${
+                    active ? "bg-white/25" : "bg-slate-100"
+                  }`}
+                >
+                  <Text
+                    className={`text-[10px] font-bold ${
+                      active ? "text-white" : "text-slate-600"
+                    }`}
+                  >
+                    {count}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {buildingId == null ? (
         <View className="flex-1 items-center justify-center gap-2 px-6">
@@ -312,7 +370,7 @@ export function RemindersTab() {
             <Text className="text-sm font-semibold text-primary">Try again</Text>
           </Pressable>
         </View>
-      ) : total === 0 ? (
+      ) : totalCount === 0 ? (
         <View className="flex-1 items-center justify-center gap-2">
           <AppIcon name="alarm-outline" size={36} color="#CBD5E1" />
           <Text className="text-sm text-slate-400">
@@ -323,6 +381,14 @@ export function RemindersTab() {
               Parcel reminders could not be loaded.
             </Text>
           ) : null}
+        </View>
+      ) : total === 0 ? (
+        <View className="flex-1 items-center justify-center gap-2 px-6">
+          <AppIcon name="albums-outline" size={36} color="#CBD5E1" />
+          <Text className="text-sm text-slate-400 text-center">
+            No {activeTabLabel.toLowerCase()} for{" "}
+            {period === "today" ? "today" : "this week"}.
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -343,9 +409,8 @@ export function RemindersTab() {
                 {fromDate === toDate ? fromDate : `${fromDate} – ${toDate}`}
               </Text>
               <Text className="text-[11px] text-slate-500">
-                Tasks, bookings, trade visits & parcels · Showing{" "}
-                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)}{" "}
-                of {total}
+                {activeTabLabel} · Showing {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, total)} of {total}
               </Text>
             </View>
           }
@@ -365,8 +430,6 @@ export function RemindersTab() {
 }
 
 function ReminderRow({ item }: { item: FlatReminderItem }) {
-  const meta = KIND_META[item.kind];
-
   if (item.kind === "task") {
     const task = item.data;
     const priorityKey =
@@ -383,11 +446,8 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
         }
         className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
       >
-        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <AppIcon name="checkbox-outline" size={18} color="#185FA5" />
         <View className="flex-1 min-w-0">
-          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
-            {meta.label}
-          </Text>
           <Text
             className="text-sm font-medium text-textPrimary"
             numberOfLines={2}
@@ -434,18 +494,11 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
 
     return (
       <Pressable
-        onPress={() =>
-          router.push({
-            pathname: "/(private)/booking-management",
-          })
-        }
+        onPress={() => router.push("/(private)/booking-management")}
         className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
       >
-        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <AppIcon name="calendar-outline" size={18} color="#185FA5" />
         <View className="flex-1 min-w-0">
-          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
-            {meta.label}
-          </Text>
           <Text
             className="text-sm font-medium text-textPrimary"
             numberOfLines={2}
@@ -477,11 +530,8 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
         onPress={() => router.push("/(private)/trade-management")}
         className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
       >
-        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <AppIcon name="construct-outline" size={18} color="#185FA5" />
         <View className="flex-1 min-w-0">
-          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
-            {meta.label}
-          </Text>
           <Text
             className="text-sm font-medium text-textPrimary"
             numberOfLines={2}
@@ -504,76 +554,33 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
     );
   }
 
-  if (item.kind === "parcel") {
-    const parcel = item.data;
-
-    return (
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: "/(private)/parcel-management",
-          })
-        }
-        className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
-      >
-        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
-        <View className="flex-1 min-w-0">
-          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
-            {meta.label}
-          </Text>
-          <Text
-            className="text-sm font-medium text-textPrimary"
-            numberOfLines={2}
-          >
-            {parcel.trackingId || `Parcel #${parcel.id}`}
-          </Text>
-          <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
-            {[
-              parcel.residentName,
-              parcel.unit ? `Unit ${parcel.unit}` : null,
-              parcel.courier,
-              parcel.location,
-              parcel.receivedTime
-                ? formatDateTime(parcel.receivedTime)
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </Text>
-        </View>
-        <StatusBadge status={parcel.status} />
-      </Pressable>
-    );
-  }
-
-  const pm = item.data;
+  const parcel = item.data;
   return (
     <Pressable
-      onPress={() => router.push("/(private)/preventative-maintenance")}
+      onPress={() => router.push("/(private)/parcel-management")}
       className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
     >
-      <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+      <AppIcon name="cube-outline" size={18} color="#185FA5" />
       <View className="flex-1 min-w-0">
-        <Text className="text-[10px] font-semibold text-slate-400 uppercase">
-          {meta.label}
-        </Text>
         <Text
           className="text-sm font-medium text-textPrimary"
           numberOfLines={2}
         >
-          {pm.maintenanceItem || `Item #${pm.id}`}
+          {parcel.trackingId || `Parcel #${parcel.id}`}
         </Text>
         <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
           {[
-            pm.reminderMonth ? `Scheduled for ${pm.reminderMonth}` : null,
-            pm.frequency,
-            pm.trade,
+            parcel.residentName,
+            parcel.unit ? `Unit ${parcel.unit}` : null,
+            parcel.courier,
+            parcel.location,
+            parcel.receivedTime ? formatDateTime(parcel.receivedTime) : null,
           ]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      <StatusBadge status={pm.statusForReminderMonth} />
+      <StatusBadge status={parcel.status} />
     </Pressable>
   );
 }

@@ -1,6 +1,6 @@
 import { extractBookings, useGetBookings } from "@/src/api/booking.api";
-import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import EmptyState from "@/src/components/feedback/EmptyState";
+import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { BookingResponse } from "@/src/types/booking.types";
@@ -14,7 +14,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { Calendar, DateData } from "react-native-calendars";
 
 type Props = {
   buildingId: number | undefined;
@@ -24,6 +23,8 @@ type Props = {
   enabled?: boolean;
   onFilterPress?: () => void;
 };
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function toIsoDate(d: Date) {
   const y = d.getFullYear();
@@ -40,21 +41,17 @@ function monthBounds(year: number, monthIndex0: number) {
 
 function dateKeyFromValue(value?: string | null) {
   if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    // already yyyy-MM-dd?
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
-    return null;
-  }
+  if (Number.isNaN(d.getTime())) return null;
   return toIsoDate(d);
 }
 
-/** Normalize backend CONFIRM/CANCEL vs CONFIRMED/CANCELLED */
 function statusColor(status?: string | null) {
   const s = String(status ?? "").toUpperCase();
   if (s === "CONFIRM" || s === "CONFIRMED") return "#22c55e";
   if (s === "CANCEL" || s === "CANCELLED") return "#ef4444";
-  return "#eab308"; // PENDING / default
+  return "#eab308";
 }
 
 function statusLabel(status?: string | null) {
@@ -69,6 +66,21 @@ function bookingTitle(b: BookingResponse) {
   return b.amenityName || b.title || `Booking #${b.id}`;
 }
 
+function buildMonthCells(year: number, monthIndex0: number) {
+  const first = new Date(year, monthIndex0, 1);
+  const daysInMonth = new Date(year, monthIndex0 + 1, 0).getDate();
+  const startWeekday = first.getDay(); // 0 Sun
+  const cells: ({ iso: string; day: number } | null)[] = [];
+
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = toIsoDate(new Date(year, monthIndex0, day));
+    cells.push({ iso, day });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
 export default function BookingCalendarView({
   buildingId,
   amenityId,
@@ -79,14 +91,14 @@ export default function BookingCalendarView({
 }: Props) {
   const today = toIsoDate(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
-  const [visibleMonth, setVisibleMonth] = useState(() => {
+  const [cursor, setCursor] = useState(() => {
     const n = new Date();
-    return { year: n.getFullYear(), month: n.getMonth() + 1 };
+    return { year: n.getFullYear(), month: n.getMonth() }; // month 0-based
   });
 
   const { startDate, endDate } = useMemo(
-    () => monthBounds(visibleMonth.year, visibleMonth.month - 1),
-    [visibleMonth.year, visibleMonth.month],
+    () => monthBounds(cursor.year, cursor.month),
+    [cursor.year, cursor.month],
   );
 
   const { data, isLoading, isFetching, refetch, isRefetching } = useGetBookings(
@@ -104,32 +116,19 @@ export default function BookingCalendarView({
 
   const bookings = useMemo(() => extractBookings(data), [data]);
 
-  // Keep selected day inside the visible month when month changes
   useEffect(() => {
-    const prefix = `${visibleMonth.year}-${String(visibleMonth.month).padStart(2, "0")}`;
+    const prefix = `${cursor.year}-${String(cursor.month + 1).padStart(2, "0")}`;
     if (!selectedDate.startsWith(prefix)) {
       setSelectedDate(`${prefix}-01`);
     }
-  }, [visibleMonth, selectedDate]);
+  }, [cursor.year, cursor.month, selectedDate]);
 
-  const markedDates = useMemo(() => {
-    const marks: Record<
-      string,
-      {
-        marked?: boolean;
-        dots?: { key: string; color: string }[];
-        selected?: boolean;
-        selectedColor?: string;
-      }
-    > = {};
-
+  const bookingsByDay = useMemo(() => {
+    const map: Record<string, BookingResponse[]> = {};
     for (const b of bookings) {
       const startKey = dateKeyFromValue(b.startDate);
       const endKey = dateKeyFromValue(b.endDate) ?? startKey;
       if (!startKey) continue;
-
-      const color = statusColor(b.status);
-      // Mark each day the booking spans within a simple day loop (cap 31 days)
       const start = new Date(startKey + "T00:00:00");
       const end = new Date((endKey || startKey) + "T00:00:00");
       let guard = 0;
@@ -139,46 +138,61 @@ export default function BookingCalendarView({
         d.setDate(d.getDate() + 1), guard++
       ) {
         const key = toIsoDate(d);
-        const existing = marks[key] ?? { dots: [] };
-        const dots = existing.dots ?? [];
-        if (dots.length < 3 && !dots.some((x) => x.color === color)) {
-          dots.push({ key: `${b.id}-${color}`, color });
-        }
-        marks[key] = { ...existing, marked: true, dots };
+        if (!map[key]) map[key] = [];
+        map[key].push(b);
       }
     }
-
-    marks[selectedDate] = {
-      ...(marks[selectedDate] ?? {}),
-      selected: true,
-      selectedColor: "#453956",
-    };
-
-    return marks;
-  }, [bookings, selectedDate]);
+    return map;
+  }, [bookings]);
 
   const dayBookings = useMemo(() => {
-    return bookings
-      .filter((b) => {
-        const startKey = dateKeyFromValue(b.startDate);
-        const endKey = dateKeyFromValue(b.endDate) ?? startKey;
-        if (!startKey) return false;
-        return selectedDate >= startKey && selectedDate <= (endKey || startKey);
-      })
+    return (bookingsByDay[selectedDate] ?? [])
+      .slice()
       .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
-  }, [bookings, selectedDate]);
+  }, [bookingsByDay, selectedDate]);
 
-  const onDayPress = (day: DateData) => {
-    setSelectedDate(day.dateString);
+  const cells = useMemo(
+    () => buildMonthCells(cursor.year, cursor.month),
+    [cursor.year, cursor.month],
+  );
+
+  const monthLabel = useMemo(() => {
+    return new Date(cursor.year, cursor.month, 1).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  }, [cursor.year, cursor.month]);
+
+  const goPrevMonth = () => {
+    setCursor((c) => {
+      const d = new Date(c.year, c.month - 1, 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
   };
 
-  const onMonthChange = (month: DateData) => {
-    setVisibleMonth({ year: month.year, month: month.month });
+  const goNextMonth = () => {
+    setCursor((c) => {
+      const d = new Date(c.year, c.month + 1, 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
+  };
+
+  const goToday = () => {
+    const n = new Date();
+    setCursor({ year: n.getFullYear(), month: n.getMonth() });
+    setSelectedDate(toIsoDate(n));
   };
 
   return (
-    <View className="flex-1">
-      <View className="flex-row items-center justify-between px-1 mb-2">
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 120 }}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+      }
+    >
+      <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center gap-3">
           <LegendDot color="#22c55e" label="Confirmed" />
           <LegendDot color="#eab308" label="Pending" />
@@ -194,66 +208,128 @@ export default function BookingCalendarView({
         ) : null}
       </View>
 
-      <View className="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-3">
-        <Calendar
-          current={selectedDate}
-          onDayPress={onDayPress}
-          onMonthChange={onMonthChange}
-          markedDates={markedDates}
-          markingType="multi-dot"
-          enableSwipeMonths
-          theme={{
-            backgroundColor: "#ffffff",
-            calendarBackground: "#ffffff",
-            textSectionTitleColor: "#64748B",
-            selectedDayBackgroundColor: "#453956",
-            selectedDayTextColor: "#ffffff",
-            todayTextColor: "#453956",
-            dayTextColor: "#0f172a",
-            textDisabledColor: "#cbd5e1",
-            arrowColor: "#453956",
-            monthTextColor: "#0f172a",
-            textDayFontWeight: "500",
-            textMonthFontWeight: "700",
-            textDayHeaderFontWeight: "600",
-          }}
-        />
-        {isFetching && !isLoading ? (
-          <View className="absolute top-2 right-2">
-            <ActivityIndicator size="small" color="#453956" />
+      {/* Month calendar grid */}
+      <View className="rounded-2xl border border-slate-200 bg-white p-3 mb-4">
+        <View className="flex-row items-center justify-between mb-3">
+          <Pressable
+            onPress={goPrevMonth}
+            className="h-9 w-9 rounded-full bg-slate-100 items-center justify-center"
+          >
+            <AppIcon name="chevron-back" size={18} color="#453956" />
+          </Pressable>
+
+          <Pressable onPress={goToday} className="items-center px-2">
+            <Text className="text-base font-bold text-textPrimary">
+              {monthLabel}
+            </Text>
+            <Text className="text-[10px] text-primary font-semibold mt-0.5">
+              Today
+            </Text>
+          </Pressable>
+
+          <View className="flex-row items-center gap-1">
+            {isFetching ? (
+              <ActivityIndicator size="small" color="#453956" />
+            ) : null}
+            <Pressable
+              onPress={goNextMonth}
+              className="h-9 w-9 rounded-full bg-slate-100 items-center justify-center"
+            >
+              <AppIcon name="chevron-forward" size={18} color="#453956" />
+            </Pressable>
           </View>
-        ) : null}
+        </View>
+
+        <View className="flex-row mb-1">
+          {WEEKDAYS.map((d) => (
+            <View key={d} className="flex-1 items-center py-1">
+              <Text className="text-[11px] font-semibold text-slate-400">
+                {d}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {Array.from({ length: cells.length / 7 }).map((_, weekIdx) => (
+          <View key={`w-${weekIdx}`} className="flex-row">
+            {cells.slice(weekIdx * 7, weekIdx * 7 + 7).map((cell, i) => {
+              if (!cell) {
+                return <View key={`e-${weekIdx}-${i}`} className="flex-1 aspect-square m-0.5" />;
+              }
+              const dayBookingsForCell = bookingsByDay[cell.iso] ?? [];
+              const selected = cell.iso === selectedDate;
+              const isToday = cell.iso === today;
+              const colors = Array.from(
+                new Set(dayBookingsForCell.map((b) => statusColor(b.status))),
+              ).slice(0, 3);
+
+              return (
+                <Pressable
+                  key={cell.iso}
+                  onPress={() => setSelectedDate(cell.iso)}
+                  className="flex-1 aspect-square m-0.5"
+                >
+                  <View
+                    className={`flex-1 rounded-xl items-center justify-center ${
+                      selected
+                        ? "bg-primary"
+                        : isToday
+                          ? "bg-primary/10 border border-primary/30"
+                          : "bg-slate-50"
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm font-semibold ${
+                        selected
+                          ? "text-white"
+                          : isToday
+                            ? "text-primary"
+                            : "text-textPrimary"
+                      }`}
+                    >
+                      {cell.day}
+                    </Text>
+                    {colors.length > 0 ? (
+                      <View className="flex-row gap-0.5 mt-1">
+                        {colors.map((c) => (
+                          <View
+                            key={`${cell.iso}-${c}`}
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{
+                              backgroundColor: selected ? "#fff" : c,
+                            }}
+                          />
+                        ))}
+                      </View>
+                    ) : (
+                      <View className="h-2.5 mt-1" />
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
-      <Text className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 px-1">
+      <Text className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
         {selectedDate} · {dayBookings.length} booking
         {dayBookings.length === 1 ? "" : "s"}
       </Text>
 
-      {isLoading ? (
+      {!buildingId ? (
+        <EmptyState message="Select a building to load bookings." />
+      ) : isLoading ? (
         <View>
           <SkeletonCard />
           <SkeletonCard />
         </View>
+      ) : dayBookings.length === 0 ? (
+        <EmptyState message="No bookings on this day." />
       ) : (
-        <ScrollView
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-          }
-        >
-          {dayBookings.length === 0 ? (
-            <EmptyState message="No bookings on this day." />
-          ) : (
-            dayBookings.map((b) => (
-              <BookingDayCard key={b.id} booking={b} />
-            ))
-          )}
-        </ScrollView>
+        dayBookings.map((b) => <BookingDayCard key={b.id} booking={b} />)
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -271,10 +347,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 
 function BookingDayCard({ booking }: { booking: BookingResponse }) {
   const color = statusColor(booking.status);
-  const unit =
-    booking.unit ||
-    (booking as any).residentUnit ||
-    undefined;
+  const unit = booking.unit || (booking as any).residentUnit || undefined;
 
   return (
     <Pressable
@@ -300,10 +373,7 @@ function BookingDayCard({ booking }: { booking: BookingResponse }) {
               className="rounded px-2 py-0.5"
               style={{ backgroundColor: color + "22" }}
             >
-              <Text
-                className="text-[10px] font-semibold"
-                style={{ color }}
-              >
+              <Text className="text-[10px] font-semibold" style={{ color }}>
                 {statusLabel(booking.status)}
               </Text>
             </View>
