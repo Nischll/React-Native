@@ -62,6 +62,38 @@ function statusLabel(status?: string | null) {
   return status ? String(status) : "—";
 }
 
+function slotForIsoDay(isoDate: string): { startDate: string; endDate: string } {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const start = new Date(y, (m || 1) - 1, d || 1, 9, 0, 0, 0);
+  const end = new Date(y, (m || 1) - 1, d || 1, 10, 0, 0, 0);
+  return { startDate: start.toISOString(), endDate: end.toISOString() };
+}
+
+function openCreateForDate(isoDate: string) {
+  const slot = slotForIsoDay(isoDate);
+  router.push({
+    pathname: "/(private)/booking-management/booking-add-edit",
+    params: {
+      startDate: slot.startDate,
+      endDate: slot.endDate,
+    },
+  });
+}
+
+function openEditBooking(bookingId: number) {
+  router.push({
+    pathname: "/(private)/booking-management/booking-add-edit",
+    params: { bookingId: String(bookingId) },
+  });
+}
+
+function openBookingDetails(bookingId: number) {
+  router.push({
+    pathname: "/(private)/booking-management/booking-details",
+    params: { bookingId: String(bookingId) },
+  });
+}
+
 function bookingTitle(b: BookingResponse) {
   return b.amenityName || b.title || `Booking #${b.id}`;
 }
@@ -266,7 +298,15 @@ export default function BookingCalendarView({
               return (
                 <Pressable
                   key={cell.iso}
-                  onPress={() => setSelectedDate(cell.iso)}
+                  onPress={() => {
+                    if (cell.iso === selectedDate) {
+                      // Second tap on selected day → create booking (web slot-select)
+                      openCreateForDate(cell.iso);
+                      return;
+                    }
+                    setSelectedDate(cell.iso);
+                  }}
+                  onLongPress={() => openCreateForDate(cell.iso)}
                   className="flex-1 aspect-square m-0.5"
                 >
                   <View
@@ -312,10 +352,19 @@ export default function BookingCalendarView({
         ))}
       </View>
 
-      <Text className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-        {selectedDate} · {dayBookings.length} booking
-        {dayBookings.length === 1 ? "" : "s"}
-      </Text>
+      <View className="flex-row items-center justify-between mb-2 gap-2">
+        <Text className="flex-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          {selectedDate} · {dayBookings.length} booking
+          {dayBookings.length === 1 ? "" : "s"}
+        </Text>
+        <Pressable
+          onPress={() => openCreateForDate(selectedDate)}
+          className="flex-row items-center gap-1 rounded-full bg-primary px-3 py-1.5"
+        >
+          <AppIcon name="add" size={14} color="#fff" />
+          <Text className="text-xs font-semibold text-white">New booking</Text>
+        </Pressable>
+      </View>
 
       {!buildingId ? (
         <EmptyState message="Select a building to load bookings." />
@@ -325,7 +374,7 @@ export default function BookingCalendarView({
           <SkeletonCard />
         </View>
       ) : dayBookings.length === 0 ? (
-        <EmptyState message="No bookings on this day." />
+        <EmptyState message="No bookings on this day. Tap New booking or tap the selected date again." />
       ) : (
         dayBookings.map((b) => <BookingDayCard key={b.id} booking={b} />)
       )}
@@ -350,57 +399,72 @@ function BookingDayCard({ booking }: { booking: BookingResponse }) {
   const unit = booking.unit || (booking as any).residentUnit || undefined;
 
   return (
-    <Pressable
-      onPress={() =>
-        router.push({
-          pathname: "/(private)/booking-management/booking-details",
-          params: { bookingId: booking.id },
-        })
-      }
-      className="mb-2 rounded-xl border border-slate-200 bg-white overflow-hidden"
-    >
-      <View className="flex-row">
-        <View className="w-1.5" style={{ backgroundColor: color }} />
-        <View className="flex-1 p-3">
-          <View className="flex-row items-start justify-between gap-2">
-            <Text
-              className="flex-1 text-sm font-bold text-textPrimary"
-              numberOfLines={2}
-            >
-              {bookingTitle(booking)}
-            </Text>
-            <View
-              className="rounded px-2 py-0.5"
-              style={{ backgroundColor: color + "22" }}
-            >
-              <Text className="text-[10px] font-semibold" style={{ color }}>
-                {statusLabel(booking.status)}
+    <View className="mb-2 rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <Pressable onPress={() => openEditBooking(booking.id)}>
+        <View className="flex-row">
+          <View className="w-1.5" style={{ backgroundColor: color }} />
+          <View className="flex-1 p-3">
+            <View className="flex-row items-start justify-between gap-2">
+              <Text
+                className="flex-1 text-sm font-bold text-textPrimary"
+                numberOfLines={2}
+              >
+                {bookingTitle(booking)}
               </Text>
+              <View
+                className="rounded px-2 py-0.5"
+                style={{ backgroundColor: color + "22" }}
+              >
+                <Text className="text-[10px] font-semibold" style={{ color }}>
+                  {statusLabel(booking.status)}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <Text className="text-[11px] text-blue-700 mt-1" numberOfLines={2}>
-            {[
-              booking.towerName ? `Tower ${booking.towerName}` : null,
-              unit ? `Unit ${unit}` : null,
-              booking.residentName,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </Text>
-
-          <Text className="text-[11px] text-slate-500 mt-1" numberOfLines={2}>
-            {formatDateTime(booking.startDate)}
-            {booking.endDate ? ` – ${formatDateTime(booking.endDate)}` : ""}
-          </Text>
-
-          {booking.description ? (
-            <Text className="text-[11px] text-slate-500 mt-1" numberOfLines={2}>
-              {booking.description}
+            <Text className="text-[11px] text-blue-700 mt-1" numberOfLines={2}>
+              {[
+                booking.towerName ? `Tower ${booking.towerName}` : null,
+                unit ? `Unit ${unit}` : null,
+                booking.residentName,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </Text>
-          ) : null}
+
+            <Text className="text-[11px] text-slate-500 mt-1" numberOfLines={2}>
+              {formatDateTime(booking.startDate)}
+              {booking.endDate ? ` – ${formatDateTime(booking.endDate)}` : ""}
+            </Text>
+
+            {booking.description ? (
+              <Text
+                className="text-[11px] text-slate-500 mt-1"
+                numberOfLines={2}
+              >
+                {booking.description}
+              </Text>
+            ) : null}
+          </View>
         </View>
+      </Pressable>
+
+      <View className="flex-row border-t border-slate-100">
+        <Pressable
+          onPress={() => openEditBooking(booking.id)}
+          className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5"
+        >
+          <AppIcon name="create-outline" size={14} color="#453956" />
+          <Text className="text-xs font-semibold text-primary">Edit</Text>
+        </Pressable>
+        <View className="w-px bg-slate-100" />
+        <Pressable
+          onPress={() => openBookingDetails(booking.id)}
+          className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5"
+        >
+          <AppIcon name="eye-outline" size={14} color="#64748B" />
+          <Text className="text-xs font-semibold text-slate-600">Details</Text>
+        </Pressable>
       </View>
-    </Pressable>
+    </View>
   );
 }

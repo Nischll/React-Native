@@ -45,7 +45,12 @@ interface FormValues {
 }
 
 export default function AddEditBooking() {
-  const { bookingId } = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    bookingId?: string;
+    startDate?: string;
+    endDate?: string;
+  }>();
+  const bookingId = params.bookingId;
   const id = bookingId ? Number(bookingId) : undefined;
   const editMode = !!bookingId;
 
@@ -87,6 +92,9 @@ export default function AddEditBooking() {
     [towerList],
   );
 
+  const presetStart = typeof params.startDate === "string" ? params.startDate : "";
+  const presetEnd = typeof params.endDate === "string" ? params.endDate : "";
+
   const { control, handleSubmit, watch, reset } = useForm<FormValues>({
     defaultValues: {
       amenityId: "",
@@ -94,8 +102,8 @@ export default function AddEditBooking() {
       residentId: "",
       description: "",
       status: "PENDING",
-      startDate: "",
-      endDate: "",
+      startDate: presetStart,
+      endDate: presetEnd,
     },
   });
 
@@ -110,12 +118,20 @@ export default function AddEditBooking() {
   useEffect(() => {
     if (editMode && data?.data) {
       const booking = data.data;
+      const rawStatus = String(booking.status ?? "PENDING").toUpperCase();
+      const status: BookingStatus =
+        rawStatus === "CONFIRM" || rawStatus === "CONFIRMED"
+          ? "CONFIRMED"
+          : rawStatus === "CANCEL" || rawStatus === "CANCELLED"
+            ? "CANCELLED"
+            : "PENDING";
+
       reset({
         amenityId: String(booking.amenityId ?? ""),
         towerId: String(booking.towerId ?? ""),
         residentId: String(booking.residentId ?? ""),
         description: booking.description ?? "",
-        status: booking.status ?? "PENDING",
+        status,
         startDate: booking.startDate ?? "",
         endDate: booking.endDate ?? "",
       });
@@ -129,8 +145,18 @@ export default function AddEditBooking() {
         setPaidType(booking.revenue.paidType ?? "NONE");
         setRevenueDescription(booking.revenue.description ?? "");
       }
+      return;
     }
-  }, [editMode, data, reset]);
+
+    // Create from calendar: prefill selected day slot
+    if (!editMode && (presetStart || presetEnd)) {
+      reset((prev) => ({
+        ...prev,
+        startDate: presetStart || prev.startDate,
+        endDate: presetEnd || prev.endDate,
+      }));
+    }
+  }, [editMode, data, reset, presetStart, presetEnd]);
 
   const onSubmit = (values: FormValues) => {
     if (!buildingId || !values.amenityId) return;
