@@ -40,6 +40,7 @@ export default function Home() {
   const modules = user?.moduleList ?? [];
 
   const EXCLUDED_MODULE_CODES = new Set([
+    "D",
     "PROF",
     "TC",
     "TI",
@@ -192,11 +193,7 @@ export default function Home() {
                   >
                     {item.title}
                   </Text>
-                  <AppIcon
-                    name="chevron-forward"
-                    size={14}
-                    color="#94A3B8"
-                  />
+                  <AppIcon name="chevron-forward" size={14} color="#94A3B8" />
                 </Card>
               </AnimatedPressable>
             ))}

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import {
@@ -39,8 +40,30 @@ export const useGetParcels = (
   );
 };
 
-export const useAddParcel = (buildingId: number) =>
-  useApiMutation<ParcelRequestPojo>("post", `/parcels/building/${buildingId}`);
+export const useAddParcel = (buildingId: number) => {
+  const qc = useQueryClient();
+
+  const mutation = useApiMutation<ParcelRequestPojo>(
+    "post",
+    `/parcels/building/${buildingId}`,
+  );
+
+  const mutateWithRefresh: typeof mutation.mutate = (vars, opts) => {
+    mutation.mutate(vars, {
+      ...opts,
+      onSuccess: (...args) => {
+        qc.invalidateQueries({
+          queryKey: ["/parcels"],
+          exact: false,
+        });
+
+        opts?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return { ...mutation, mutate: mutateWithRefresh };
+};
 
 export const useGetParcelById = (parcelId: number) => {
   return useApiQuery<ApiListResponse<ParcelResponse>>(`/parcels/${parcelId}`, {
@@ -75,4 +98,27 @@ export const useDeliverParcel = (
 export const useUpdateParcel = (
   parcelId: number | undefined,
   buildingId: number | undefined,
-) => useApiMutation("put", `/parcels/${parcelId}/building/${buildingId}`);
+) => {
+  const qc = useQueryClient();
+
+  const mutation = useApiMutation(
+    "put",
+    `/parcels/${parcelId}/building/${buildingId}`,
+  );
+
+  const mutateWithRefresh: typeof mutation.mutate = (vars, opts) => {
+    mutation.mutate(vars, {
+      ...opts,
+      onSuccess: (...args) => {
+        qc.invalidateQueries({
+          queryKey: ["/parcels"],
+          exact: false,
+        });
+
+        opts?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return { ...mutation, mutate: mutateWithRefresh };
+};
