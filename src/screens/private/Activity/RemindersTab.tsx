@@ -1,31 +1,48 @@
 import { useGetReminders } from "@/src/api/activity.api";
+import { useGetParcels } from "@/src/api/parcelManagement.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
+import ListPager from "@/src/components/layout/ListPager";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   DashboardBookingReminder,
+  DashboardParcelReminder,
   DashboardPreventiveMaintenanceReminder,
   DashboardReminderPeriod,
   DashboardRemindersResponse,
   DashboardTaskReminder,
   DashboardTradeVisitReminder,
 } from "@/src/types/activity.types";
-import { useMemo, useState } from "react";
+import { ParcelResponse } from "@/src/types/parcelManagement.types";
+import { PAGE_SIZE } from "@/src/utils/listPagination";
+import { router } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
+  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from "react-native";
 
-type ReminderSection = {
-  key: string;
-  title: string;
-  icon: string;
-  items: React.ReactNode[];
-};
+type ReminderKind =
+  | "task"
+  | "booking"
+  | "trade"
+  | "parcel"
+  | "maintenance";
+
+type FlatReminderItem =
+  | { kind: "task"; id: string; data: DashboardTaskReminder }
+  | { kind: "booking"; id: string; data: DashboardBookingReminder }
+  | { kind: "trade"; id: string; data: DashboardTradeVisitReminder }
+  | { kind: "parcel"; id: string; data: DashboardParcelReminder }
+  | {
+      kind: "maintenance";
+      id: string;
+      data: DashboardPreventiveMaintenanceReminder;
+    };
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   CONFIRM: { bg: "#E7F3EA", text: "#1E7C3A" },
@@ -34,6 +51,32 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   CANCELLED: { bg: "#FCEBEB", text: "#A32D2D" },
   COMPLETED: { bg: "#E7F3EA", text: "#1E7C3A" },
   BOOKED: { bg: "#E7F3EA", text: "#1E7C3A" },
+  RECEIVED: { bg: "#FAEEDA", text: "#854F0B" },
+  DELIVERED: { bg: "#E7F3EA", text: "#1E7C3A" },
+};
+
+const KIND_META: Record<
+  ReminderKind,
+  { label: string; icon: string; color: string }
+> = {
+  task: { label: "Task", icon: "checkbox-outline", color: "#185FA5" },
+  booking: { label: "Booking", icon: "calendar-outline", color: "#185FA5" },
+  trade: { label: "Trade visit", icon: "construct-outline", color: "#185FA5" },
+  parcel: { label: "Parcel", icon: "cube-outline", color: "#185FA5" },
+  maintenance: {
+    label: "Maintenance",
+    icon: "build-outline",
+    color: "#185FA5",
+  },
+};
+
+const PRIORITY_STYLE: Record<
+  string,
+  { bg: string; text: string; label: string }
+> = {
+  HIGH: { bg: "#FCEBEB", text: "#A32D2D", label: "High" },
+  MEDIUM: { bg: "#FAEEDA", text: "#854F0B", label: "Medium" },
+  LOW: { bg: "#EAF3DE", text: "#3B6D11", label: "Low" },
 };
 
 function StatusBadge({ status }: { status?: string | null }) {
@@ -50,7 +93,7 @@ function StatusBadge({ status }: { status?: string | null }) {
         className="text-[10px] font-semibold capitalize"
         style={{ color: style.text }}
       >
-        {status.toLowerCase()}
+        {status.replace(/_/g, " ").toLowerCase()}
       </Text>
     </View>
   );
@@ -60,32 +103,173 @@ function asList<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : [];
 }
 
+function toIsoDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Matches backend: today, or calendar week Monday–Sunday. */
+function getPeriodRange(period: DashboardReminderPeriod): {
+  fromDate: string;
+  toDate: string;
+} {
+  const today = new Date();
+  if (period === "today") {
+    const s = toIsoDate(today);
+    return { fromDate: s, toDate: s };
+  }
+  const day = today.getDay(); // 0 = Sunday
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { fromDate: toIsoDate(monday), toDate: toIsoDate(sunday) };
+}
+
+function mapParcelToReminder(p: ParcelResponse): DashboardParcelReminder {
+  return {
+    id: p.id,
+    trackingId: p.trackingId,
+    residentName: p.residentName,
+    unit: p.unit,
+    courier: p.courier,
+    status: p.status,
+    receivedTime: p.receivedTime ?? p.createdDate,
+    location: p.location,
+  };
+}
+
+function flattenReminders(
+  reminders: DashboardRemindersResponse | null | undefined,
+  parcels: DashboardParcelReminder[],
+): FlatReminderItem[] {
+  const tasks = asList(reminders?.tasks).map((data) => ({
+    kind: "task" as const,
+    id: `task-${data.id}`,
+    data,
+  }));
+  const bookings = asList(reminders?.bookings).map((data) => ({
+    kind: "booking" as const,
+    id: `booking-${data.id}`,
+    data,
+  }));
+  const trades = asList(reminders?.tradeVisits).map((data) => ({
+    kind: "trade" as const,
+    id: `trade-${data.id}`,
+    data,
+  }));
+  const parcelItems = parcels.map((data) => ({
+    kind: "parcel" as const,
+    id: `parcel-${data.id}`,
+    data,
+  }));
+  const maintenance = asList(reminders?.preventiveMaintenance).map((data) => ({
+    kind: "maintenance" as const,
+    id: `pm-${data.id}-${data.reminderMonth ?? ""}`,
+    data,
+  }));
+
+  // Order matches web: Tasks → Bookings → Maintenance → Trade visits, then Parcels
+  return [...tasks, ...bookings, ...maintenance, ...trades, ...parcelItems];
+}
+
 export function RemindersTab() {
   const { buildingId } = useAuth();
   const [period, setPeriod] = useState<DashboardReminderPeriod>("today");
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading, isFetching, isError, refetch, isRefetching } =
-    useGetReminders(buildingId ?? undefined, period);
+  const range = useMemo(() => getPeriodRange(period), [period]);
+
+  const todayQuery = useGetReminders(buildingId ?? undefined, "today");
+  const weeklyQuery = useGetReminders(buildingId ?? undefined, "weekly");
+  const activeQuery = period === "today" ? todayQuery : weeklyQuery;
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+    isRefetching,
+  } = activeQuery;
 
   const reminders = data?.data;
+  const fromDate = reminders?.fromDate || range.fromDate;
+  const toDate = reminders?.toDate || range.toDate;
 
-  const sections: ReminderSection[] = useMemo(
-    () => (reminders ? buildSections(reminders) : []),
-    [reminders],
+  const {
+    data: parcelsData,
+    isLoading: parcelsLoading,
+    isFetching: parcelsFetching,
+    isError: parcelsError,
+    refetch: refetchParcels,
+    isRefetching: parcelsRefetching,
+  } = useGetParcels(
+    {
+      page: 1,
+      limit: 100,
+      buildingId: buildingId ?? undefined,
+      fromDate,
+      toDate,
+    },
+    buildingId != null,
   );
 
-  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
+  const parcelReminders = useMemo(() => {
+    const rows = parcelsData?.data?.data ?? [];
+    // Actionable parcels awaiting pickup (same idea as web ops reminders)
+    return rows
+      .filter((p) => (p.status ?? "RECEIVED") !== "DELIVERED")
+      .map(mapParcelToReminder);
+  }, [parcelsData]);
+
+  const allItems = useMemo(
+    () => flattenReminders(reminders, parcelReminders),
+    [reminders, parcelReminders],
+  );
+  const total = allItems.length;
+
+  useEffect(() => {
+    setPage(1);
+  }, [period, buildingId]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [total, page]);
+
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return allItems.slice(start, start + PAGE_SIZE);
+  }, [allItems, page]);
+
   const showLoading =
-    buildingId != null && (isLoading || (isFetching && !reminders));
+    buildingId != null &&
+    ((isLoading || (isFetching && !reminders)) ||
+      (parcelsLoading && !parcelsData));
+
+  const handleRefresh = () => {
+    refetch();
+    refetchParcels();
+  };
 
   return (
     <View className="flex-1">
-      {/* Period toggle */}
       <View className="flex-row mx-4 my-3 bg-white border border-gray-200 rounded-xl p-1 gap-1">
         {(["today", "weekly"] as DashboardReminderPeriod[]).map((p) => (
-          <Pressable key={p} onPress={() => setPeriod(p)} className="flex-1">
+          <Pressable
+            key={p}
+            onPress={() => {
+              setPeriod(p);
+              setPage(1);
+            }}
+            className="flex-1"
+          >
             <View
-              className={`py-2 rounded-lg items-center  ${
+              className={`py-2 rounded-lg items-center ${
                 period === p ? "bg-primary" : ""
               }`}
             >
@@ -114,7 +298,7 @@ export function RemindersTab() {
             <SkeletonCard key={i} />
           ))}
         </View>
-      ) : isError ? (
+      ) : isError && !reminders ? (
         <View className="flex-1 items-center justify-center gap-3 px-6">
           <AppIcon name="alert-circle-outline" size={36} color="#F87171" />
           <Text className="text-sm text-slate-500 text-center">
@@ -122,223 +306,274 @@ export function RemindersTab() {
             {period === "today" ? "today" : "this week"}.
           </Text>
           <Pressable
-            onPress={() => refetch()}
+            onPress={handleRefresh}
             className="rounded-xl bg-primary/10 px-4 py-2"
           >
             <Text className="text-sm font-semibold text-primary">Try again</Text>
           </Pressable>
         </View>
-      ) : totalItems === 0 ? (
+      ) : total === 0 ? (
         <View className="flex-1 items-center justify-center gap-2">
           <AppIcon name="alarm-outline" size={36} color="#CBD5E1" />
           <Text className="text-sm text-slate-400">
             {period === "today" ? "Nothing due today" : "Nothing due this week"}
           </Text>
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 32 }}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-          }
-        >
-          {reminders?.fromDate && reminders?.toDate ? (
-            <Text className="mx-4 mb-3 text-[11px] text-slate-400">
-              {reminders.fromDate === reminders.toDate
-                ? reminders.fromDate
-                : `${reminders.fromDate} – ${reminders.toDate}`}
+          {parcelsError ? (
+            <Text className="text-[11px] text-slate-400 px-6 text-center">
+              Parcel reminders could not be loaded.
             </Text>
           ) : null}
-
-          {sections.map((section) =>
-            section.items.length === 0 ? null : (
-              <View key={section.key} className="mb-4">
-                <View className="flex-row items-center gap-2 px-4 mb-2">
-                  <AppIcon
-                    name={section.icon as any}
-                    size={13}
-                    color="#64748B"
-                  />
-                  <Text className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    {section.title}
-                  </Text>
-                  <View className="bg-slate-200 rounded-full min-w-4 h-4 px-1 items-center justify-center ml-1">
-                    <Text className="text-[8px] font-bold text-slate-600">
-                      {section.items.length}
-                    </Text>
-                  </View>
-                </View>
-                <View className="px-4 gap-2">{section.items}</View>
-              </View>
-            ),
-          )}
-        </ScrollView>
+        </View>
+      ) : (
+        <FlatList
+          className="flex-1"
+          data={pageItems}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching || parcelsRefetching || parcelsFetching}
+              onRefresh={handleRefresh}
+            />
+          }
+          ListHeaderComponent={
+            <View className="mb-3">
+              <Text className="text-[11px] text-slate-400 mb-1">
+                {fromDate === toDate ? fromDate : `${fromDate} – ${toDate}`}
+              </Text>
+              <Text className="text-[11px] text-slate-500">
+                Tasks, bookings, trade visits & parcels · Showing{" "}
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)}{" "}
+                of {total}
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => <ReminderRow item={item} />}
+          ListFooterComponent={
+            <ListPager
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setPage}
+            />
+          }
+        />
       )}
     </View>
   );
 }
 
-function buildSections(
-  reminders: DashboardRemindersResponse,
-): ReminderSection[] {
-  const tasks = asList(reminders.tasks);
-  const bookings = asList(reminders.bookings);
-  const preventiveMaintenance = asList(reminders.preventiveMaintenance);
-  const tradeVisits = asList(reminders.tradeVisits);
+function ReminderRow({ item }: { item: FlatReminderItem }) {
+  const meta = KIND_META[item.kind];
 
-  return [
-    {
-      key: "tasks",
-      title: "Tasks",
-      icon: "checkbox-outline",
-      items: tasks.map((t) => <TaskCard key={`task-${t.id}`} item={t} />),
-    },
-    {
-      key: "bookings",
-      title: "Bookings",
-      icon: "calendar-outline",
-      items: bookings.map((b) => (
-        <BookingCard key={`booking-${b.id}`} item={b} />
-      )),
-    },
-    {
-      key: "preventiveMaintenance",
-      title: "Preventive maintenance",
-      icon: "build-outline",
-      items: preventiveMaintenance.map((m) => (
-        <MaintenanceCard key={`pm-${m.id}`} item={m} />
-      )),
-    },
-    {
-      key: "tradeVisits",
-      title: "Trade visits",
-      icon: "construct-outline",
-      items: tradeVisits.map((v) => (
-        <TradeVisitCard key={`trade-${v.id}`} item={v} />
-      )),
-    },
-  ];
-}
+  if (item.kind === "task") {
+    const task = item.data;
+    const priorityKey =
+      typeof task.priority === "string" ? task.priority.toUpperCase() : "";
+    const priority = priorityKey ? PRIORITY_STYLE[priorityKey] : null;
 
-const PRIORITY_STYLE: Record<
-  string,
-  { bg: string; text: string; label: string }
-> = {
-  HIGH: { bg: "#FCEBEB", text: "#A32D2D", label: "High" },
-  MEDIUM: { bg: "#FAEEDA", text: "#854F0B", label: "Medium" },
-  LOW: { bg: "#EAF3DE", text: "#3B6D11", label: "Low" },
-};
-
-function TaskCard({ item }: { item: DashboardTaskReminder }) {
-  const priorityKey =
-    typeof item.priority === "string" ? item.priority.toUpperCase() : "";
-  const priority = priorityKey ? PRIORITY_STYLE[priorityKey] : null;
-
-  return (
-    <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
-      <AppIcon name="checkbox-outline" size={18} color="#185FA5" />
-      <View className="flex-1 min-w-0">
-        <Text
-          className="text-sm font-medium text-textPrimary"
-          numberOfLines={2}
-        >
-          {item.title || "Task"}
-        </Text>
-        <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
-          {[item.taskNumber, item.statusName, formatDateTime(item.deadline)]
-            .filter(Boolean)
-            .join(" · ")}
-        </Text>
-      </View>
-      {priority ? (
-        <View
-          className="rounded px-2 py-0.5"
-          style={{ backgroundColor: priority.bg }}
-        >
+    return (
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: "/(private)/task-management",
+            params: { taskId: String(task.id) },
+          })
+        }
+        className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
+      >
+        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <View className="flex-1 min-w-0">
+          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
+            {meta.label}
+          </Text>
           <Text
-            className="text-[10px] font-semibold"
-            style={{ color: priority.text }}
+            className="text-sm font-medium text-textPrimary"
+            numberOfLines={2}
           >
-            {priority.label}
+            {task.title || "Task"}
+          </Text>
+          <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
+            {[
+              task.taskNumber,
+              task.statusName,
+              task.deadline ? `Due ${formatDateTime(task.deadline)}` : null,
+              task.assignedToName,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
         </View>
-      ) : null}
-    </View>
-  );
-}
-
-function BookingCard({ item }: { item: DashboardBookingReminder }) {
-  const start = formatDateTime(item.startDate);
-  const end = item.endDate ? formatDateTime(item.endDate) : null;
-
-  return (
-    <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
-      <AppIcon name="calendar-outline" size={18} color="#185FA5" />
-      <View className="flex-1 min-w-0">
-        <Text
-          className="text-sm font-medium text-textPrimary"
-          numberOfLines={2}
-        >
-          {item.amenityName ?? item.title ?? "Booking"}
-        </Text>
-        <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
-          {[item.towerName, end ? `${start} – ${end}` : start]
-            .filter(Boolean)
-            .join(" · ")}
-        </Text>
-      </View>
-      <StatusBadge status={item.status} />
-    </View>
-  );
-}
-
-function MaintenanceCard({
-  item,
-}: {
-  item: DashboardPreventiveMaintenanceReminder;
-}) {
-  return (
-    <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
-      <AppIcon name="build-outline" size={18} color="#185FA5" />
-      <View className="flex-1 min-w-0">
-        <Text
-          className="text-sm font-medium text-textPrimary"
-          numberOfLines={2}
-        >
-          {item.maintenanceItem ?? "Maintenance"}
-        </Text>
-        {item.reminderMonth ? (
-          <Text className="text-[11px] text-blue-600 mt-0.5">
-            {item.reminderMonth}
-          </Text>
+        {priority ? (
+          <View
+            className="rounded px-2 py-0.5"
+            style={{ backgroundColor: priority.bg }}
+          >
+            <Text
+              className="text-[10px] font-semibold"
+              style={{ color: priority.text }}
+            >
+              {priority.label}
+            </Text>
+          </View>
         ) : null}
-      </View>
-    </View>
-  );
-}
+      </Pressable>
+    );
+  }
 
-function TradeVisitCard({ item }: { item: DashboardTradeVisitReminder }) {
-  const status = item.status ?? item.lifecycleStatus;
+  if (item.kind === "booking") {
+    const booking = item.data;
+    const start = formatDateTime(booking.startDate);
+    const end = booking.endDate ? formatDateTime(booking.endDate) : null;
+    const title =
+      booking.amenityName ||
+      booking.description ||
+      booking.title ||
+      `Booking #${booking.id}`;
 
+    return (
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: "/(private)/booking-management",
+          })
+        }
+        className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
+      >
+        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <View className="flex-1 min-w-0">
+          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
+            {meta.label}
+          </Text>
+          <Text
+            className="text-sm font-medium text-textPrimary"
+            numberOfLines={2}
+          >
+            {title}
+          </Text>
+          <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
+            {[
+              booking.towerName ? `Tower ${booking.towerName}` : null,
+              booking.residentUnit ? `Unit ${booking.residentUnit}` : null,
+              booking.residentName,
+              end ? `${start} – ${end}` : start,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </Text>
+        </View>
+        <StatusBadge status={booking.status} />
+      </Pressable>
+    );
+  }
+
+  if (item.kind === "trade") {
+    const trade = item.data;
+    const status = trade.status ?? trade.lifecycleStatus;
+
+    return (
+      <Pressable
+        onPress={() => router.push("/(private)/trade-management")}
+        className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
+      >
+        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <View className="flex-1 min-w-0">
+          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
+            {meta.label}
+          </Text>
+          <Text
+            className="text-sm font-medium text-textPrimary"
+            numberOfLines={2}
+          >
+            {trade.tradeName || `Visit #${trade.id}`}
+          </Text>
+          <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
+            {[
+              trade.company,
+              formatDateTime(trade.scheduledAppointmentAt),
+              trade.residentUnit ? `Unit ${trade.residentUnit}` : null,
+              trade.location,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </Text>
+        </View>
+        <StatusBadge status={status} />
+      </Pressable>
+    );
+  }
+
+  if (item.kind === "parcel") {
+    const parcel = item.data;
+
+    return (
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: "/(private)/parcel-management",
+          })
+        }
+        className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
+      >
+        <AppIcon name={meta.icon as any} size={18} color={meta.color} />
+        <View className="flex-1 min-w-0">
+          <Text className="text-[10px] font-semibold text-slate-400 uppercase">
+            {meta.label}
+          </Text>
+          <Text
+            className="text-sm font-medium text-textPrimary"
+            numberOfLines={2}
+          >
+            {parcel.trackingId || `Parcel #${parcel.id}`}
+          </Text>
+          <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
+            {[
+              parcel.residentName,
+              parcel.unit ? `Unit ${parcel.unit}` : null,
+              parcel.courier,
+              parcel.location,
+              parcel.receivedTime
+                ? formatDateTime(parcel.receivedTime)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </Text>
+        </View>
+        <StatusBadge status={parcel.status} />
+      </Pressable>
+    );
+  }
+
+  const pm = item.data;
   return (
-    <View className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3">
-      <AppIcon name="construct-outline" size={18} color="#185FA5" />
+    <Pressable
+      onPress={() => router.push("/(private)/preventative-maintenance")}
+      className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
+    >
+      <AppIcon name={meta.icon as any} size={18} color={meta.color} />
       <View className="flex-1 min-w-0">
+        <Text className="text-[10px] font-semibold text-slate-400 uppercase">
+          {meta.label}
+        </Text>
         <Text
           className="text-sm font-medium text-textPrimary"
           numberOfLines={2}
         >
-          {item.tradeName ?? "Trade visit"}
+          {pm.maintenanceItem || `Item #${pm.id}`}
         </Text>
         <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
-          {[item.company, formatDateTime(item.scheduledAppointmentAt), status]
+          {[
+            pm.reminderMonth ? `Scheduled for ${pm.reminderMonth}` : null,
+            pm.frequency,
+            pm.trade,
+          ]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      <StatusBadge status={status} />
-    </View>
+      <StatusBadge status={pm.statusForReminderMonth} />
+    </Pressable>
   );
 }

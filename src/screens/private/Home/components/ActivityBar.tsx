@@ -1,4 +1,5 @@
 import { useGetNotice, useGetReminders } from "@/src/api/activity.api";
+import { useGetParcels } from "@/src/api/parcelManagement.api";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -6,7 +7,16 @@ import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { Text, View } from "react-native";
+
+function todayIso() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function ActivityPill({
   onPress,
@@ -77,18 +87,35 @@ export function ActivityBar() {
     buildingId ?? undefined,
     "today",
   );
+  const today = todayIso();
+  const { data: parcelsData } = useGetParcels(
+    {
+      page: 1,
+      limit: 100,
+      buildingId: buildingId ?? undefined,
+      fromDate: today,
+      toDate: today,
+    },
+    buildingId != null,
+  );
 
   const unseenCount = noticeData?.data?.unseenCount ?? 0;
 
-  const reminders = remindersData?.data;
-  const reminderCount = reminders
-    ? [
-        reminders.tasks,
-        reminders.bookings,
-        reminders.preventiveMaintenance,
-        reminders.tradeVisits,
-      ].reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
-    : 0;
+  const reminderCount = useMemo(() => {
+    const reminders = remindersData?.data;
+    const dashboardCount = reminders
+      ? [
+          reminders.tasks,
+          reminders.bookings,
+          reminders.preventiveMaintenance,
+          reminders.tradeVisits,
+        ].reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
+      : 0;
+    const parcelCount = (parcelsData?.data?.data ?? []).filter(
+      (p) => (p.status ?? "RECEIVED") !== "DELIVERED",
+    ).length;
+    return dashboardCount + parcelCount;
+  }, [remindersData, parcelsData]);
 
   return (
     <View className="mx-4 -mt-4 z-10">

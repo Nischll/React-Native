@@ -6,26 +6,34 @@ export interface DashboardTaskReminder {
   id: number;
   title: string;
   deadline?: string | null;
-  priority?: "HIGH" | "MEDIUM" | "LOW" | null;
+  priority?: "HIGH" | "MEDIUM" | "LOW" | string | null;
   taskNumber?: string | null;
   statusName?: string | null;
+  assignedToName?: string | null;
 }
 
 export interface DashboardBookingReminder {
   id: number;
   amenityName?: string | null;
+  /** Backend field — prefer over title */
+  description?: string | null;
   title?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   towerId?: number | null;
   towerName?: string | null;
   status?: string | null;
+  residentName?: string | null;
+  residentUnit?: string | null;
 }
 
 export interface DashboardPreventiveMaintenanceReminder {
   id: number;
   maintenanceItem?: string | null;
   reminderMonth?: string | null;
+  frequency?: string | null;
+  trade?: string | null;
+  statusForReminderMonth?: string | null;
 }
 
 export interface DashboardTradeVisitReminder {
@@ -33,8 +41,25 @@ export interface DashboardTradeVisitReminder {
   tradeName?: string | null;
   scheduledAppointmentAt?: string | null;
   company?: string | null;
+  phoneNumber?: string | null;
+  location?: string | null;
+  reasonForVisit?: string | null;
   lifecycleStatus?: string | null;
+  /** Backend sets lifecycle status on this field */
   status?: string | null;
+  residentUnit?: string | null;
+}
+
+/** Client-merged parcel reminders (not returned by /dashboard/reminders yet). */
+export interface DashboardParcelReminder {
+  id: number;
+  trackingId?: string | null;
+  residentName?: string | null;
+  unit?: string | null;
+  courier?: string | null;
+  status?: string | null;
+  receivedTime?: string | null;
+  location?: string | null;
 }
 
 export interface DashboardRemindersResponse {
@@ -46,4 +71,6 @@ export interface DashboardRemindersResponse {
   bookings: DashboardBookingReminder[];
   preventiveMaintenance: DashboardPreventiveMaintenanceReminder[];
   tradeVisits: DashboardTradeVisitReminder[];
+  /** Present only if backend adds it later */
+  parcels?: DashboardParcelReminder[];
 }
