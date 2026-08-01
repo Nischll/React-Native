@@ -14,6 +14,7 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { TrainingTemplate } from "@/src/types/training.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 
@@ -23,16 +24,16 @@ export default function TrainingTemplates() {
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<PickedFile | null>(null);
   const [deleteItem, setDeleteItem] = useState<TrainingTemplate | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, refetch, isRefetching } = useGetTrainingTemplates(
-    { buildingId: buildingId ?? undefined },
+    { page, limit: PAGE_SIZE, buildingId: buildingId ?? undefined },
     !!user?.userId,
   );
   const { mutate: uploadMutate, isPending: uploading } = useUploadTrainingTemplate();
   const { mutate: deleteMutate, isPending: deleting } = useDeleteTrainingTemplate(deleteItem?.id);
 
-  const raw: any = data?.data;
-  const items: TrainingTemplate[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+  const { items, total } = extractPaginatedList<TrainingTemplate>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<TrainingTemplate>[] = [
     { key: "title", label: "Title", primary: true, searchable: true },
@@ -74,6 +75,14 @@ export default function TrainingTemplates() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No templates found"
             onRefresh={refetch}

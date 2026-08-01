@@ -4,19 +4,22 @@ import {
   VisitorPassRequestPojo,
   VisitorPassResponse,
 } from "../types/resident.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
 export const useGetVisitorPassesByResident = (
   residentId: number | undefined,
+  params: { page?: number; limit?: number; search?: string } = {},
   enabled: boolean = true,
 ) =>
-  useApiQuery<ApiListResponseArray<VisitorPassResponse>>(
-    `/visitor-pass/resident/${residentId}`,
-    {
-      enabled: enabled && residentId !== undefined,
-      retry: 0,
-    },
-  );
+  useApiQuery<
+    | ApiListResponse<ApiPaginatedData<VisitorPassResponse>>
+    | ApiListResponseArray<VisitorPassResponse>
+  >(`/visitor-pass/resident/${residentId}`, {
+    enabled: enabled && residentId !== undefined,
+    retry: 0,
+    queryParams: buildPageQuery(params as Record<string, any>),
+  });
 
 export const useAddVisitorPass = (residentId: number | undefined) =>
   useApiMutation<VisitorPassRequestPojo>(

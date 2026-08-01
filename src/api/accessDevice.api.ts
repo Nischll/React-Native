@@ -4,19 +4,22 @@ import {
   AccessDeviceRequestPojo,
   AccessDeviceResponse,
 } from "../types/resident.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
 export const useGetAccessDevicesByResident = (
   residentId: number | undefined,
+  params: { page?: number; limit?: number; search?: string } = {},
   enabled: boolean = true,
 ) =>
-  useApiQuery<ApiListResponseArray<AccessDeviceResponse>>(
-    `/access-device/resident/${residentId}`,
-    {
-      enabled: enabled && residentId !== undefined,
-      retry: 0,
-    },
-  );
+  useApiQuery<
+    | ApiListResponse<ApiPaginatedData<AccessDeviceResponse>>
+    | ApiListResponseArray<AccessDeviceResponse>
+  >(`/access-device/resident/${residentId}`, {
+    enabled: enabled && residentId !== undefined,
+    retry: 0,
+    queryParams: buildPageQuery(params as Record<string, any>),
+  });
 
 export const useAddAccessDevice = (residentId: number | undefined) =>
   useApiMutation<AccessDeviceRequestPojo>(

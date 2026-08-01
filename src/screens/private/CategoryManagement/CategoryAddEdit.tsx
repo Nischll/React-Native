@@ -3,6 +3,8 @@ import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
+import { Category } from "@/src/types/category.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -16,10 +18,11 @@ export default function CategoryAddEdit() {
   const id = idParam ? Number(idParam) : undefined;
   const editMode = !!idParam;
 
-  const { data, isLoading } = useGetCategories(editMode);
+  const { data, isLoading } = useGetCategories({}, editMode);
+  const { items: categories } = extractPaginatedList<Category>(data);
   const record = useMemo(
-    () => data?.data?.find((c) => c.id === id),
-    [data, id],
+    () => categories.find((c) => c.id === id),
+    [categories, id],
   );
   const { mutate: addMutate, isPending: adding } = useAddCategory();
   const { mutate: updateMutate, isPending: updating } = useUpdateCategory(id);

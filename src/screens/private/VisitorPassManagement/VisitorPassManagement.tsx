@@ -27,7 +27,8 @@ import {
   VisitorPassResponse,
   VisitorPassStatus,
 } from "@/src/types/resident.types";
-import { useState } from "react";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
 
@@ -70,10 +71,21 @@ export default function VisitorPassManagement() {
   const { residences } = useResidencesForActiveBuilding();
   const [residentId, setResidentId] = useState<string>();
   const numericResidentId = residentId ? Number(residentId) : undefined;
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setPage(1);
+  }, [residentId]);
 
   const { data, isLoading, isRefetching, refetch } =
-    useGetVisitorPassesByResident(numericResidentId, !!numericResidentId);
-  const passes = data?.data ?? [];
+    useGetVisitorPassesByResident(
+      numericResidentId,
+      { page, limit: PAGE_SIZE, search: search || undefined },
+      !!numericResidentId,
+    );
+  const { items: passes, total } =
+    extractPaginatedList<VisitorPassResponse>(data, { page, limit: PAGE_SIZE });
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<VisitorPassResponse | null>(null);
@@ -211,6 +223,19 @@ export default function VisitorPassManagement() {
             columns={columns}
             loading={isLoading}
             refreshing={isRefetching}
+            searchable
+            backendMode
+            onSearch={(value) => {
+              setPage(1);
+              setSearch(value);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => item.id.toString()}
             emptyMessage="No visitor passes found for this resident"
             onRefresh={refetch}

@@ -1,12 +1,19 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { TaskStatus, TaskStatusRequest } from "../types/taskStatus.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
-export const useGetTaskStatuses = (enabled = true) =>
-  useApiQuery<ApiListResponseArray<TaskStatus>>("/task-status", {
+export const useGetTaskStatuses = (
+  params: { page?: number; limit?: number; search?: string } = {},
+  enabled = true,
+) =>
+  useApiQuery<
+    ApiListResponse<ApiPaginatedData<TaskStatus>> | ApiListResponseArray<TaskStatus>
+  >("/task-status", {
     enabled,
     retry: 0,
+    queryParams: buildPageQuery(params),
   });
 
 export const useAddTaskStatus = () =>

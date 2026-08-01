@@ -6,6 +6,7 @@ import {
 } from "@/src/api/preventativeMaintenance.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
+import ListPager from "@/src/components/layout/ListPager";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnchoredPopupMenu, {
   MenuItem,
@@ -25,8 +26,9 @@ import {
   STATUS_COLORS,
   getMonthStatus,
 } from "@/src/types/preventativeMaintenance.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, Text, View } from "react-native";
 
 const DEFAULT_YEARS = Array.from({ length: 11 }, (_, i) => 2025 + i);
@@ -34,16 +36,23 @@ const DEFAULT_YEARS = Array.from({ length: 11 }, (_, i) => 2025 + i);
 export default function PreventativeMaintenance() {
   const { user, buildingId } = useAuth();
   const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [page, setPage] = useState(1);
   const [deleteItem, setDeleteItem] =
     useState<PreventiveMaintenanceResponse | null>(null);
 
   const { data: yearsData } = useGetPreventiveMaintenanceYears();
   const yearsList = yearsData?.data?.length ? yearsData.data : DEFAULT_YEARS;
 
+  useEffect(() => {
+    setPage(1);
+  }, [year, buildingId]);
+
   const { data, isLoading, refetch, isRefetching } = useGetPreventiveMaintenance(
     buildingId ?? undefined,
     year,
     !!user?.userId,
+    page,
+    PAGE_SIZE,
   );
 
   const { mutate: deleteMutate, isPending: isDeleting } =
@@ -52,7 +61,10 @@ export default function PreventativeMaintenance() {
   const { mutate: loadDefaultsMutate, isPending: isLoadingDefaults } =
     useLoadPreventiveMaintenanceDefaults(buildingId ?? undefined);
 
-  const items = data?.data ?? [];
+  const { items, total } = extractPaginatedList<PreventiveMaintenanceResponse>(
+    data,
+    { page, limit: PAGE_SIZE },
+  );
 
   const yearOptions = useMemo(
     () => yearsList.map((y) => ({ label: String(y), value: String(y) })),
@@ -106,7 +118,10 @@ export default function PreventativeMaintenance() {
           <SelectField
             label="Year"
             value={String(year)}
-            onChange={(v) => setYear(Number(v))}
+            onChange={(v) => {
+              setPage(1);
+              setYear(Number(v));
+            }}
             options={yearOptions}
             mode="dropdown"
           />
@@ -137,6 +152,16 @@ export default function PreventativeMaintenance() {
           }
           ListEmptyComponent={
             <EmptyState message="No maintenance items for this year." />
+          }
+          ListFooterComponent={
+            total > 0 ? (
+              <ListPager
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={total}
+                onPageChange={setPage}
+              />
+            ) : null
           }
           contentContainerStyle={{ paddingBottom: 24 }}
           renderItem={({ item }) => {

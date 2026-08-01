@@ -10,6 +10,7 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ResidentForm } from "@/src/types/residentForm.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 
@@ -19,16 +20,16 @@ export default function ResidentForms() {
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<PickedFile | null>(null);
   const [deleteItem, setDeleteItem] = useState<ResidentForm | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, refetch, isRefetching } = useGetResidentForms(
-    { buildingId: buildingId ?? undefined },
+    { page, limit: PAGE_SIZE, buildingId: buildingId ?? undefined },
     !!user?.userId,
   );
   const { mutate: createMutate, isPending: creating } = useCreateResidentForm();
   const { mutate: deleteMutate, isPending: deleting } = useDeleteResidentForm(deleteItem?.id);
 
-  const raw: any = data?.data;
-  const items: ResidentForm[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+  const { items, total } = extractPaginatedList<ResidentForm>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<ResidentForm>[] = [
     { key: "title", label: "Title", primary: true, searchable: true },
@@ -68,6 +69,14 @@ export default function ResidentForms() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No forms found"
             onRefresh={refetch}

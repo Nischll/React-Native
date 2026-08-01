@@ -16,6 +16,7 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import SelectField from "@/src/components/ui/SelectField";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { TrainingResponse } from "@/src/types/training.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
@@ -28,9 +29,10 @@ export default function TrainingList() {
   const [templateId, setTemplateId] = useState("");
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
   const [deleteItem, setDeleteItem] = useState<TrainingResponse | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, refetch, isRefetching } = useGetTrainings(
-    { buildingId: buildingId ?? undefined },
+    { page, limit: PAGE_SIZE, buildingId: buildingId ?? undefined },
     !!user?.userId,
   );
   const { data: templatesData } = useGetTrainingTemplates({ buildingId: buildingId ?? undefined }, addVisible);
@@ -38,8 +40,7 @@ export default function TrainingList() {
   const { mutate: createMutate, isPending: creating } = useCreateTraining();
   const { mutate: deleteMutate, isPending: deleting } = useDeleteTraining(deleteItem?.id);
 
-  const raw: any = data?.data;
-  const items: TrainingResponse[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+  const { items, total } = extractPaginatedList<TrainingResponse>(data, { page, limit: PAGE_SIZE });
 
   const templatesRaw: any = templatesData?.data;
   const templateOptions = useMemo(
@@ -111,6 +112,14 @@ export default function TrainingList() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No trainings found"
             onRefresh={refetch}

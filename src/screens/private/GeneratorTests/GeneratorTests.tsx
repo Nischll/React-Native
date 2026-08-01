@@ -116,6 +116,7 @@ export default function GeneratorTests() {
           pagination={{
             page,
             pageSize: 10,
+            total,
             hasMore: page * 10 < total,
             onPageChange: setPage,
           }}

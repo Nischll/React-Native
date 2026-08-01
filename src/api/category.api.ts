@@ -1,12 +1,19 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { Category, CategoryRequest } from "../types/category.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
-export const useGetCategories = (enabled = true) =>
-  useApiQuery<ApiListResponseArray<Category>>("/category", {
+export const useGetCategories = (
+  params: { page?: number; limit?: number; search?: string } = {},
+  enabled = true,
+) =>
+  useApiQuery<
+    ApiListResponse<ApiPaginatedData<Category>> | ApiListResponseArray<Category>
+  >("/category", {
     enabled,
     retry: 0,
+    queryParams: buildPageQuery(params),
   });
 
 export const useAddCategory = () =>

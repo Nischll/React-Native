@@ -20,6 +20,9 @@ import {
   PAID_TYPE_OPTIONS,
   PaidType,
 } from "@/src/types/booking.types";
+import { AmenityResponse } from "@/src/types/amenity.types";
+import { TowerResponse } from "@/src/types/tower.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -50,6 +53,8 @@ export default function AddEditBooking() {
 
   const { data: amenityData } = useGetAmenities();
   const { data: towerData } = useGetTowers();
+  const { items: amenityList } = extractPaginatedList<AmenityResponse>(amenityData);
+  const { items: towerList } = extractPaginatedList<TowerResponse>(towerData);
   const { residences } = useResidencesForActiveBuilding();
 
   const { data, isLoading } = useGetBookingById(id, editMode);
@@ -67,19 +72,19 @@ export default function AddEditBooking() {
 
   const amenities = useMemo(
     () =>
-      (amenityData?.data ?? []).map((a) => ({
+      amenityList.map((a) => ({
         label: a.name,
         value: String(a.id),
       })),
-    [amenityData],
+    [amenityList],
   );
   const towers = useMemo(
     () =>
-      (towerData?.data ?? []).map((t) => ({
+      towerList.map((t) => ({
         label: t.name,
         value: String(t.id),
       })),
-    [towerData],
+    [towerList],
   );
 
   const { control, handleSubmit, watch, reset } = useForm<FormValues>({
@@ -96,11 +101,11 @@ export default function AddEditBooking() {
 
   const isElevator = useMemo(() => {
     const amenityId = watch("amenityId");
-    const amenity = amenityData?.data?.find(
+    const amenity = amenityList.find(
       (a) => String(a.id) === amenityId,
     );
     return amenity?.name?.toLowerCase() === "elevator";
-  }, [amenityData, watch("amenityId")]);
+  }, [amenityList, watch("amenityId")]);
 
   useEffect(() => {
     if (editMode && data?.data) {
@@ -130,7 +135,7 @@ export default function AddEditBooking() {
   const onSubmit = (values: FormValues) => {
     if (!buildingId || !values.amenityId) return;
 
-    const amenity = amenityData?.data?.find(
+    const amenity = amenityList.find(
       (a) => String(a.id) === values.amenityId,
     );
 

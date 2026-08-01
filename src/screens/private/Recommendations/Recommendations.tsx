@@ -9,6 +9,7 @@ import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { RecommendationItem } from "@/src/types/recommendation.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 
@@ -25,16 +26,16 @@ export default function Recommendations() {
   const [description, setDescription] = useState("");
   const [purpose, setPurpose] = useState("");
   const [deleteItem, setDeleteItem] = useState<RecommendationItem | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, refetch, isRefetching } = useGetRecommendations(
-    { buildingId: buildingId ?? undefined },
+    { page, limit: PAGE_SIZE, buildingId: buildingId ?? undefined },
     !!user?.userId,
   );
   const { mutate: createMutate, isPending: creating } = useCreateRecommendation();
   const { mutate: deleteMutate, isPending: deleting } = useDeleteRecommendation(deleteItem?.id);
 
-  const raw: any = data?.data;
-  const items: RecommendationItem[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+  const { items, total } = extractPaginatedList<RecommendationItem>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<RecommendationItem>[] = [
     { key: "title", label: "Title", primary: true, searchable: true },
@@ -91,6 +92,14 @@ export default function Recommendations() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No recommendations found"
             onRefresh={refetch}

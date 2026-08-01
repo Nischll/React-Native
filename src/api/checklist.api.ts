@@ -7,7 +7,11 @@ import {
   WeeklyCellUpdateRequest,
   WeeklyChecklistResponse,
 } from "../types/checklist.types";
-import { ApiListResponse, ApiListResponseArray } from "./auth.api";
+import {
+  ApiListResponse,
+  ApiListResponseArray,
+  ApiPaginatedData,
+} from "./auth.api";
 
 /** Field name for the period-ending param/body key, per period. */
 export const periodEndingKey = (period: ChecklistPeriod) =>
@@ -19,15 +23,23 @@ export const useGetChecklistTemplates = (
   basePath: string,
   buildingId: number | undefined,
   enabled = true,
-) =>
-  useApiQuery<ApiListResponseArray<ChecklistTemplateResponse>>(
-    `${basePath}/templates`,
-    {
-      enabled: enabled && buildingId != null,
-      retry: 0,
-      queryParams: buildingId != null ? { buildingId } : undefined,
-    },
-  );
+  page?: number,
+  limit?: number,
+) => {
+  const queryParams: Record<string, number> = {};
+  if (buildingId != null) queryParams.buildingId = buildingId;
+  if (page != null) queryParams.page = page;
+  if (limit != null) queryParams.limit = limit;
+
+  return useApiQuery<
+    | ApiListResponse<ApiPaginatedData<ChecklistTemplateResponse>>
+    | ApiListResponseArray<ChecklistTemplateResponse>
+  >(`${basePath}/templates`, {
+    enabled: enabled && buildingId != null,
+    retry: 0,
+    queryParams: Object.keys(queryParams).length ? queryParams : undefined,
+  });
+};
 
 export const useAddChecklistTemplate = (basePath: string) =>
   useApiMutation<ChecklistTemplateRequest>("post", `${basePath}/templates`, {

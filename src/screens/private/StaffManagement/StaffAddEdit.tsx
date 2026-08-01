@@ -11,6 +11,8 @@ import {
   NATURE_OF_EMPLOYMENT_OPTIONS,
   NatureOfEmployment,
 } from "@/src/types/employee.types";
+import { Building } from "@/src/types/building.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -57,7 +59,7 @@ export default function StaffAddEditScreen() {
     label: role.name,
     value: String(role.id),
   }));
-  const buildingOptions = (buildingsData?.data ?? []).map((building) => ({
+  const buildingOptions = extractPaginatedList<Building>(buildingsData).items.map((building) => ({
     label: building.name ?? `Building ${building.id}`,
     value: String(building.id),
   }));

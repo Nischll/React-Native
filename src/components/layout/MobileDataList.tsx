@@ -31,6 +31,7 @@ interface PaginationConfig {
   page: number;
   pageSize: number;
   hasMore?: boolean;
+  total?: number;
   onPageChange?: (page: number) => void;
 }
 
@@ -58,6 +59,22 @@ interface MobileDataListProps<T> {
 
   renderActions?: (row: T) => React.ReactNode;
   onFilterPress?: () => void;
+
+  /** Default page size when pagination prop is omitted (frontend paging). */
+  defaultPageSize?: number;
+}
+
+const DEFAULT_PAGE_SIZE = 10;
+
+function cellText(value: unknown): string {
+  if (value == null) return "—";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 export function MobileDataList<T>({
@@ -76,35 +93,43 @@ export function MobileDataList<T>({
   emptyMessage = "No data found",
   renderActions,
   onFilterPress,
+  defaultPageSize = DEFAULT_PAGE_SIZE,
 }: MobileDataListProps<T>) {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<keyof T>();
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [internalPage, setInternalPage] = useState(1);
 
   // Debounce Search
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (backendMode) {
         onSearch?.(search);
+      } else {
+        setInternalPage(1);
       }
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [search]);
+  }, [search, backendMode]);
 
   // Frontend Search
   const filteredData = useMemo(() => {
     if (backendMode || !searchable) return data;
 
+    const q = search.trim().toLowerCase();
+    if (!q) return data;
+
     return data.filter((row) =>
       columns.some((col) => {
         if (!col.searchable) return false;
-
         const value = row[col.key];
-        return String(value).toLowerCase().includes(search.toLowerCase());
+        return String(value ?? "")
+          .toLowerCase()
+          .includes(q);
       }),
     );
-  }, [data, search, columns]);
+  }, [data, search, columns, backendMode, searchable]);
 
   // Frontend Sort
   const sortedData = useMemo(() => {
@@ -119,19 +144,59 @@ export function MobileDataList<T>({
 
       return 0;
     });
-  }, [filteredData, sortField, sortOrder]);
+  }, [filteredData, sortField, sortOrder, backendMode]);
 
-  // Frontend Pagination
+  const pageSize = pagination?.pageSize ?? defaultPageSize;
+  const currentPage = pagination?.page ?? internalPage;
+  const setPage = (page: number) => {
+    if (pagination?.onPageChange) pagination.onPageChange(page);
+    else setInternalPage(page);
+  };
+
+  const frontendTotal = sortedData.length;
+  const frontendTotalPages = Math.max(1, Math.ceil(frontendTotal / pageSize));
+
+  // Frontend Pagination slice — only when NOT backendMode and pagination is provided
+  // for rare offline/local lists. Prefer server-side (backendMode) pagination.
   const paginatedData = useMemo(() => {
-    if (backendMode || !pagination) return sortedData;
+    if (backendMode) return data;
+    if (!pagination) return sortedData;
 
-    const start = (pagination.page - 1) * pagination.pageSize;
-    const end = start + pagination.pageSize;
-
-    return sortedData.slice(start, end);
-  }, [sortedData, pagination]);
+    const start = (currentPage - 1) * pageSize;
+    return sortedData.slice(start, start + pageSize);
+  }, [backendMode, data, sortedData, pagination, currentPage, pageSize]);
 
   const displayData = backendMode ? data : paginatedData;
+
+  const totalItems = backendMode
+    ? (pagination?.total ?? data.length)
+    : frontendTotal;
+
+  const totalPages = backendMode
+    ? Math.max(
+        1,
+        pagination?.total != null
+          ? Math.ceil(pagination.total / pageSize)
+          : currentPage + (pagination?.hasMore ? 1 : 0),
+      )
+    : frontendTotalPages;
+
+  const canGoPrev = currentPage > 1;
+  const canGoNext = backendMode
+    ? pagination?.total != null
+      ? currentPage < Math.max(1, Math.ceil(pagination.total / pageSize))
+      : Boolean(pagination?.hasMore)
+    : currentPage < frontendTotalPages;
+
+  // Only show pager when explicitly configured (server-side) or local pagination prop.
+  const showPagination = Boolean(pagination);
+
+  // Keep internal page in range when data shrinks
+  useEffect(() => {
+    if (!backendMode && !pagination && internalPage > frontendTotalPages) {
+      setInternalPage(frontendTotalPages);
+    }
+  }, [backendMode, pagination, internalPage, frontendTotalPages]);
 
   const handleSort = (field: keyof T) => {
     const newOrder =
@@ -147,6 +212,36 @@ export function MobileDataList<T>({
 
   const primaryColumn = columns.find((c) => c.primary);
 
+  const renderCellValue = (col: MobileColumn<T>, item: T) => {
+    if (col.render) {
+      const rendered = col.render(item[col.key], item);
+      if (
+        typeof rendered === "string" ||
+        typeof rendered === "number" ||
+        rendered == null
+      ) {
+        return (
+          <Text
+            className="font-medium text-textPrimary text-right"
+            numberOfLines={4}
+          >
+            {rendered == null ? "—" : String(rendered)}
+          </Text>
+        );
+      }
+      return <View className="flex-1 items-end">{rendered}</View>;
+    }
+
+    return (
+      <Text
+        className="font-medium text-textPrimary text-right"
+        numberOfLines={4}
+      >
+        {cellText(item[col.key])}
+      </Text>
+    );
+  };
+
   return (
     <View className="flex-1 gap-3 px-1">
       {/* Search */}
@@ -157,7 +252,6 @@ export function MobileDataList<T>({
               placeholder="Search..."
               value={search}
               onChangeText={setSearch}
-              // className="mb-3"
               size="sm"
             />
           </View>
@@ -184,7 +278,7 @@ export function MobileDataList<T>({
                 onPress={() => handleSort(col.key)}
                 className="rounded-full bg-gray-200 px-3 py-2"
               >
-                <Text>
+                <Text numberOfLines={1}>
                   {col.label}
                   {sortField === col.key
                     ? sortOrder === "asc"
@@ -211,50 +305,134 @@ export function MobileDataList<T>({
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          onEndReached={() => {
-            if (backendMode && pagination?.hasMore) {
-              pagination.onPageChange?.(pagination.page + 1);
-            }
-          }}
-          onEndReachedThreshold={0.5}
+          contentContainerStyle={{ paddingBottom: 96 }}
           ListEmptyComponent={<EmptyState message={emptyMessage} />}
           renderItem={({ item }) => (
-            <Card className="px-4 py-2.5 mb-3">
+            <Card className="px-4 py-3 mb-3">
               {/* Header */}
-              <View className="mb-3 flex-row items-center justify-between">
-                <View className="flex-1 pr-3">
-                  {primaryColumn && (
-                    <Text className="text-lg font-bold">
-                      {primaryColumn.render
-                        ? primaryColumn.render(item[primaryColumn.key], item)
-                        : String(item[primaryColumn.key])}
-                    </Text>
-                  )}
+              <View className="mb-3 flex-row items-start justify-between gap-2">
+                <View className="flex-1 min-w-0 pr-2">
+                  {primaryColumn
+                    ? (() => {
+                        const raw = primaryColumn.render
+                          ? primaryColumn.render(
+                              item[primaryColumn.key],
+                              item,
+                            )
+                          : cellText(item[primaryColumn.key]);
+                        if (
+                          typeof raw === "string" ||
+                          typeof raw === "number"
+                        ) {
+                          return (
+                            <Text
+                              className="text-base font-bold text-textPrimary"
+                              numberOfLines={3}
+                            >
+                              {String(raw)}
+                            </Text>
+                          );
+                        }
+                        return <View className="w-full">{raw}</View>;
+                      })()
+                    : null}
                 </View>
-                <View>{renderActions && renderActions(item)}</View>
+                {renderActions ? (
+                  <View className="shrink-0">{renderActions(item)}</View>
+                ) : null}
               </View>
+
               {/* Secondary Fields */}
               {columns
                 .filter((col) => !col.primary && !col.hidden)
                 .map((col) => (
                   <View
                     key={String(col.key)}
-                    className="mb-1 flex-row justify-between"
+                    className="mb-1.5 flex-row items-start justify-between gap-3"
                   >
-                    <Text className="text-gray-500">{col.label}</Text>
-                    <Text className="font-medium text-right flex-1 ml-4">
-                      {col.render
-                        ? col.render(item[col.key], item)
-                        : String(item[col.key])}
+                    <Text
+                      className="text-gray-500 text-sm shrink-0 max-w-[38%]"
+                      numberOfLines={2}
+                    >
+                      {col.label}
                     </Text>
+                    <View className="flex-1 min-w-0 items-end">
+                      {renderCellValue(col, item)}
+                    </View>
                   </View>
                 ))}
             </Card>
           )}
           ListFooterComponent={
-            loading && data.length > 0 ? (
-              <ActivityIndicator className="my-4" />
-            ) : null
+            <>
+              {loading && data.length > 0 ? (
+                <ActivityIndicator className="my-4" />
+              ) : null}
+
+              {showPagination ? (
+                <View className="mt-2 mb-4 flex-row items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                  <TouchableOpacity
+                    disabled={!canGoPrev}
+                    onPress={() => setPage(Math.max(1, currentPage - 1))}
+                    className={`flex-row items-center gap-1 rounded-xl px-3 py-2 ${
+                      canGoPrev ? "bg-primary/10" : "bg-slate-100 opacity-50"
+                    }`}
+                  >
+                    <AppIcon
+                      name="chevron-back"
+                      size={16}
+                      color={canGoPrev ? "#453956" : "#94A3B8"}
+                    />
+                    <Text
+                      className={`text-sm font-semibold ${
+                        canGoPrev ? "text-primary" : "text-slate-400"
+                      }`}
+                    >
+                      Prev
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View className="flex-1 items-center px-1">
+                    <Text
+                      className="text-sm font-semibold text-textPrimary"
+                      numberOfLines={1}
+                    >
+                      Page {currentPage}
+                      {pagination?.total != null || !backendMode
+                        ? ` of ${totalPages}`
+                        : ""}
+                    </Text>
+                    <Text
+                      className="text-[11px] text-textSecondary mt-0.5"
+                      numberOfLines={1}
+                    >
+                      {totalItems} item{totalItems === 1 ? "" : "s"}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    disabled={!canGoNext}
+                    onPress={() => setPage(currentPage + 1)}
+                    className={`flex-row items-center gap-1 rounded-xl px-3 py-2 ${
+                      canGoNext ? "bg-primary/10" : "bg-slate-100 opacity-50"
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm font-semibold ${
+                        canGoNext ? "text-primary" : "text-slate-400"
+                      }`}
+                    >
+                      Next
+                    </Text>
+                    <AppIcon
+                      name="chevron-forward"
+                      size={16}
+                      color={canGoNext ? "#453956" : "#94A3B8"}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </>
           }
         />
       )}

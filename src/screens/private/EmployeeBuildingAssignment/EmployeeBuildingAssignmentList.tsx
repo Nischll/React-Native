@@ -16,17 +16,25 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { EmployeeBuildingAssignmentResponse } from "@/src/types/employeeBuildingAssignment.types";
+import { Building } from "@/src/types/building.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
 export default function EmployeeBuildingAssignmentList() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const { data, isLoading, isRefetching, refetch } =
-    useGetAllEmployeeBuildingAssignments();
+    useGetAllEmployeeBuildingAssignments(
+      { page, limit: PAGE_SIZE, search: search || undefined },
+      true,
+    );
   const { data: staffData } = useGetStaff();
   const { data: buildingsData } = useGetBuildings();
 
-  const assignments = data?.data ?? [];
+  const { items: assignments, total } =
+    extractPaginatedList<EmployeeBuildingAssignmentResponse>(data, { page, limit: PAGE_SIZE });
 
   const staffMap = new Map(
     (staffData?.data?.data ?? []).map((s) => [
@@ -35,7 +43,7 @@ export default function EmployeeBuildingAssignmentList() {
     ]),
   );
   const buildingMap = new Map(
-    (buildingsData?.data ?? []).map((b) => [b.id, b.name]),
+    extractPaginatedList<Building>(buildingsData).items.map((b) => [b.id, b.name]),
   );
 
   const [deleteTarget, setDeleteTarget] =
@@ -120,6 +128,19 @@ export default function EmployeeBuildingAssignmentList() {
           columns={columns}
           loading={isLoading}
           refreshing={isRefetching}
+          searchable
+          backendMode
+          onSearch={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          pagination={{
+            page,
+            pageSize: PAGE_SIZE,
+            total,
+            hasMore: page * PAGE_SIZE < total,
+            onPageChange: setPage,
+          }}
           keyExtractor={(item) => item.id.toString()}
           emptyMessage="No employee-building assignments found"
           onRefresh={refetch}

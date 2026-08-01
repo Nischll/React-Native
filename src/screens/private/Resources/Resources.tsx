@@ -72,7 +72,7 @@ export default function Resources() {
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No resources found"
             onRefresh={refetch}
-            pagination={{ page, pageSize: 10, hasMore: page * 10 < total, onPageChange: setPage }}
+            pagination={{ page, pageSize: 10, total, hasMore: page * 10 < total, onPageChange: setPage }}
             renderActions={(row) => (
               <AnchoredPopupMenu
                 items={[

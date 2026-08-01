@@ -1,19 +1,21 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { TenantRequestPojo, TenantResponse } from "../types/resident.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
 export const useGetTenantsByResident = (
   residentId: number | undefined,
+  params: { page?: number; limit?: number; search?: string } = {},
   enabled: boolean = true,
 ) =>
-  useApiQuery<ApiListResponseArray<TenantResponse>>(
-    `/tenant/resident/${residentId}`,
-    {
-      enabled: enabled && residentId !== undefined,
-      retry: 0,
-    },
-  );
+  useApiQuery<
+    ApiListResponse<ApiPaginatedData<TenantResponse>> | ApiListResponseArray<TenantResponse>
+  >(`/tenant/resident/${residentId}`, {
+    enabled: enabled && residentId !== undefined,
+    retry: 0,
+    queryParams: buildPageQuery(params as Record<string, any>),
+  });
 
 export const useAddTenant = (residentId: number | undefined) =>
   useApiMutation<TenantRequestPojo>("post", `/tenant/resident/${residentId}`);

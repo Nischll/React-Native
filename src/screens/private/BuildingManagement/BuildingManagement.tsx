@@ -7,6 +7,7 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Building } from "@/src/types/building.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
@@ -15,14 +16,15 @@ export default function BuildingManagement() {
   const { user } = useAuth();
   const [deleteItem, setDeleteItem] = useState<Building | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, refetch, isRefetching } = useGetBuildings(
-    { page: 1, limit: 100, buildingName: search || undefined },
+    { page, limit: PAGE_SIZE, buildingName: search || undefined },
     !!user?.userId,
   );
 
   const { mutate: deleteMutate, isPending } = useDeleteBuilding();
-  const items: Building[] = data?.data ?? [];
+  const { items, total } = extractPaginatedList<Building>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<Building>[] = [
     { key: "name", label: "Name", primary: true, searchable: true },
@@ -54,7 +56,17 @@ export default function BuildingManagement() {
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No buildings found"
             onRefresh={refetch}
-            onSearch={(v) => setSearch(v)}
+            onSearch={(v) => {
+              setPage(1);
+              setSearch(v);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             renderActions={(row) => (
               <AnchoredPopupMenu
                 items={[

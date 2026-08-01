@@ -1,13 +1,24 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-import { EmployeeBuildingAssignmentRequest, EmployeeBuildingAssignmentResponse } from "../types/employeeBuildingAssignment.types";
-import { ApiListResponseArray } from "./auth.api";
+import {
+  EmployeeBuildingAssignmentRequest,
+  EmployeeBuildingAssignmentResponse,
+} from "../types/employeeBuildingAssignment.types";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
-export const useGetAllEmployeeBuildingAssignments = () =>
-  useApiQuery<ApiListResponseArray<EmployeeBuildingAssignmentResponse>>(
-    "/employee-building-assignment",
-    { retry: 0 },
-  );
+export const useGetAllEmployeeBuildingAssignments = (
+  params: { page?: number; limit?: number; search?: string } = {},
+  enabled = true,
+) =>
+  useApiQuery<
+    | ApiListResponse<ApiPaginatedData<EmployeeBuildingAssignmentResponse>>
+    | ApiListResponseArray<EmployeeBuildingAssignmentResponse>
+  >("/employee-building-assignment", {
+    enabled,
+    retry: 0,
+    queryParams: buildPageQuery(params),
+  });
 
 export const useAddEmployeeBuildingAssignment = () =>
   useApiMutation<EmployeeBuildingAssignmentRequest>(

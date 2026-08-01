@@ -214,7 +214,7 @@ export default function BuildingImprovements() {
   const improvements: BuildingImprovementResponse[] =
     listData?.data?.data ?? [];
   const total: number = listData?.data?.total ?? 0;
-  const hasMore = improvements.length < total;
+  const hasMore = page * 10 < total;
 
   const handleEdit = (item: BuildingImprovementResponse) => {
     router.push({
@@ -268,9 +268,11 @@ export default function BuildingImprovements() {
           refreshing={isRefetching}
           searchable
           sortable
+          backendMode
           pagination={{
             page,
             pageSize: 10,
+            total,
             hasMore,
             onPageChange: setPage,
           }}

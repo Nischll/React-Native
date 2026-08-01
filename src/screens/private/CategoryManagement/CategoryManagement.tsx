@@ -7,6 +7,7 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Category } from "@/src/types/category.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
@@ -14,10 +15,15 @@ import { View } from "react-native";
 export default function CategoryManagement() {
   const { user } = useAuth();
   const [deleteItem, setDeleteItem] = useState<Category | null>(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
-  const { data, isLoading, refetch, isRefetching } = useGetCategories(!!user?.userId);
+  const { data, isLoading, refetch, isRefetching } = useGetCategories(
+    { page, limit: PAGE_SIZE, search: search || undefined },
+    !!user?.userId,
+  );
   const { mutate: deleteMutate, isPending } = useDeleteCategory();
-  const items: Category[] = data?.data ?? [];
+  const { items, total } = extractPaginatedList<Category>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<Category>[] = [
     { key: "name", label: "Name", primary: true, searchable: true },
@@ -41,6 +47,18 @@ export default function CategoryManagement() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            onSearch={(value) => {
+              setPage(1);
+              setSearch(value);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No categories found"
             onRefresh={refetch}

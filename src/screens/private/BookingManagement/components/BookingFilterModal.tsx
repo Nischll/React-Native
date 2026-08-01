@@ -2,6 +2,9 @@ import SelectField from "@/src/components/ui/SelectField";
 import { useGetAmenities } from "@/src/api/amenity.api";
 import { useGetTowers } from "@/src/api/tower.api";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { AmenityResponse } from "@/src/types/amenity.types";
+import { TowerResponse } from "@/src/types/tower.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { Modal, Pressable, Text, View } from "react-native";
 
 interface BookingFilterModalProps {
@@ -32,11 +35,11 @@ export const BookingFilterModal = ({
   const { data: towerData } = useGetTowers(visible);
   const { residences } = useResidencesForActiveBuilding();
 
-  const amenities = (amenityData?.data ?? []).map((a) => ({
+  const amenities = extractPaginatedList<AmenityResponse>(amenityData).items.map((a) => ({
     label: a.name,
     value: String(a.id),
   }));
-  const towers = (towerData?.data ?? []).map((t) => ({
+  const towers = extractPaginatedList<TowerResponse>(towerData).items.map((t) => ({
     label: t.name,
     value: String(t.id),
   }));

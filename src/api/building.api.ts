@@ -1,20 +1,24 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { Building, BuildingRequest } from "../types/building.types";
-import { ApiListResponse, ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
 export const useGetBuildings = (
-  params: { page?: number; limit?: number; buildingName?: string } = {},
+  params: { page?: number; limit?: number; buildingName?: string; search?: string } = {},
   enabled = true,
 ) => {
-  const queryParams: Record<string, any> = {};
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") queryParams[k] = v;
-  });
-  return useApiQuery<ApiListResponseArray<Building>>("/building/get-all", {
+  const q = { ...params };
+  if (q.search && !q.buildingName) {
+    q.buildingName = q.search;
+    delete q.search;
+  }
+  return useApiQuery<
+    ApiListResponse<ApiPaginatedData<Building>> | ApiListResponseArray<Building>
+  >("/building/get-all", {
     enabled,
     retry: 0,
-    queryParams: Object.keys(queryParams).length ? queryParams : undefined,
+    queryParams: buildPageQuery(q),
   });
 };
 

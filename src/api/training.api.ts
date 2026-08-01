@@ -38,7 +38,7 @@ export const useDeleteTraining = (id?: number) =>
   useApiMutation("delete", `/trainings/${id}`);
 
 export const useGetTrainingTemplates = (
-  params: { buildingId?: number } = {},
+  params: { page?: number; limit?: number; buildingId?: number } = {},
   enabled = true,
 ) => {
   const queryParams: Record<string, any> = {};

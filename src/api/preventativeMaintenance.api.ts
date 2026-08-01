@@ -4,23 +4,38 @@ import {
   PreventiveMaintenanceRequestPojo,
   PreventiveMaintenanceResponse,
 } from "../types/preventativeMaintenance.types";
-import { ApiListResponse, ApiListResponseArray } from "./auth.api";
+import {
+  ApiListResponse,
+  ApiListResponseArray,
+  ApiPaginatedData,
+} from "./auth.api";
 
 export const useGetPreventiveMaintenance = (
   buildingId: number | undefined,
   year: number | undefined,
   enabled = true,
-) =>
-  useApiQuery<ApiListResponseArray<PreventiveMaintenanceResponse>>(
+  page?: number,
+  limit?: number,
+) => {
+  const queryParams: Record<string, number> = {};
+  if (year != null) queryParams.year = year;
+  if (page != null) queryParams.page = page;
+  if (limit != null) queryParams.limit = limit;
+
+  return useApiQuery<
+    | ApiListResponse<ApiPaginatedData<PreventiveMaintenanceResponse>>
+    | ApiListResponseArray<PreventiveMaintenanceResponse>
+  >(
     buildingId != null
       ? `/preventive-maintenance/building/${buildingId}`
       : "",
     {
       enabled: enabled && buildingId != null,
       retry: 0,
-      queryParams: year != null ? { year } : undefined,
+      queryParams: Object.keys(queryParams).length ? queryParams : undefined,
     },
   );
+};
 
 export const useGetPreventiveMaintenanceYears = (enabled = true) =>
   useApiQuery<ApiListResponseArray<number>>("/preventive-maintenance/years", {

@@ -82,7 +82,7 @@ export default function Purchases() {
           keyExtractor={(item) => `${item.type}-${item.sourceId}`}
           emptyMessage="No purchases found"
           onRefresh={refetch}
-          pagination={{ page, pageSize: 10, hasMore: page * 10 < total, onPageChange: setPage }}
+          pagination={{ page, pageSize: 10, total, hasMore: page * 10 < total, onPageChange: setPage }}
         />
       </View>
     </View>

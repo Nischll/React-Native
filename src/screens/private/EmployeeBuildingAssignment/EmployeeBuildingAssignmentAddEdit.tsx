@@ -10,6 +10,8 @@ import AppInput from "@/src/components/ui/AppInput";
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import { EmployeeBuildingAssignmentResponse } from "@/src/types/employeeBuildingAssignment.types";
+import { Building } from "@/src/types/building.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -57,7 +59,7 @@ export default function EmployeeBuildingAssignmentAddEditScreen() {
     label: `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim() || s.username,
     value: String(s.id),
   }));
-  const buildingOptions = (buildingsData?.data ?? []).map((b) => ({
+  const buildingOptions = extractPaginatedList<Building>(buildingsData).items.map((b) => ({
     label: b.name ?? `Building ${b.id}`,
     value: String(b.id),
   }));

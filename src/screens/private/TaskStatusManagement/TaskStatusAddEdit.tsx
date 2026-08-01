@@ -5,6 +5,9 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
+import { Category } from "@/src/types/category.types";
+import { TaskStatus } from "@/src/types/taskStatus.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -18,12 +21,14 @@ export default function TaskStatusAddEdit() {
   const id = idParam ? Number(idParam) : undefined;
   const editMode = !!idParam;
 
-  const { data, isLoading } = useGetTaskStatuses(editMode);
-  const record = useMemo(() => data?.data?.find((s) => s.id === id), [data, id]);
+  const { data, isLoading } = useGetTaskStatuses({}, editMode);
+  const { items: taskStatuses } = extractPaginatedList<TaskStatus>(data);
+  const record = useMemo(() => taskStatuses.find((s) => s.id === id), [taskStatuses, id]);
   const { data: categoriesData } = useGetCategories();
+  const { items: categories } = extractPaginatedList<Category>(categoriesData);
   const categoryOptions = useMemo(
-    () => (categoriesData?.data ?? []).map((c) => ({ label: c.name, value: String(c.id) })),
-    [categoriesData],
+    () => categories.map((c) => ({ label: c.name, value: String(c.id) })),
+    [categories],
   );
 
   const { mutate: addMutate, isPending: adding } = useAddTaskStatus();

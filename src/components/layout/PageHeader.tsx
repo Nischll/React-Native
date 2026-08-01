@@ -65,19 +65,21 @@ export default function PageHeader({
         </View>
       )}
 
-      <View className="flex-1">
+      <View className="flex-1 min-w-0">
         <Text
           className={`text-xl font-bold ${
             isDashboard ? "text-surface" : "text-textPrimary"
           }`}
+          numberOfLines={2}
         >
           {title}
         </Text>
         {subtitle ? (
           <Text
-            className={`text-base ${
-              isDashboard ? "text-surface" : "text-textSecondary"
+            className={`text-sm ${
+              isDashboard ? "text-surface/90" : "text-textSecondary"
             }`}
+            numberOfLines={2}
           >
             {subtitle}
           </Text>

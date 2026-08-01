@@ -55,11 +55,14 @@ export function StatCard({
         ) : (
           <Text
             style={{
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: "700",
               color: "#fff",
-              lineHeight: 24,
+              lineHeight: 22,
+              textAlign: "center",
             }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             {value}
           </Text>

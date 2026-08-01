@@ -5,10 +5,21 @@ import {
   RoleRequest,
   RoleResponse,
 } from "../types/role.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
-export const useGetRoles = () =>
-  useApiQuery<ApiListResponseArray<RoleResponse>>("/role", { retry: 0 });
+export const useGetRoles = (
+  params: { page?: number; limit?: number; search?: string } = {},
+  enabled = true,
+) =>
+  useApiQuery<
+    | ApiListResponse<ApiPaginatedData<RoleResponse>>
+    | ApiListResponseArray<RoleResponse>
+  >("/role", {
+    enabled,
+    retry: 0,
+    queryParams: buildPageQuery(params),
+  });
 
 export const useAddRole = () => useApiMutation<RoleRequest>("post", "/role");
 

@@ -249,6 +249,7 @@ export default function ParcelManagement() {
             pagination={{
               page,
               pageSize: 10,
+              total,
               hasMore: page * 10 < total,
               onPageChange: setPage,
             }}

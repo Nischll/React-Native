@@ -2,9 +2,72 @@ import { useGetNotice, useGetReminders } from "@/src/api/activity.api,";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { Ionicons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 
 import { router } from "expo-router";
 import { Text, View } from "react-native";
+
+function ActivityPill({
+  onPress,
+  icon,
+  iconColor,
+  bgClass,
+  borderClass,
+  titleClass,
+  bodyClass,
+  title,
+  body,
+  badge,
+  chevronColor,
+}: {
+  onPress: () => void;
+  icon: ComponentProps<typeof Ionicons>["name"];
+  iconColor: string;
+  bgClass: string;
+  borderClass: string;
+  titleClass: string;
+  bodyClass: string;
+  title: string;
+  body: string;
+  badge?: number;
+  chevronColor: string;
+}) {
+  return (
+    <AnimatedPressable className="flex-1 min-w-[30%]" onPress={onPress}>
+      <View
+        className={`flex-row items-center gap-1.5 rounded-xl px-2.5 py-2 border ${bgClass} ${borderClass}`}
+      >
+        <AppIcon name={icon} size={14} color={iconColor} />
+        <View className="flex-1 min-w-0">
+          <Text
+            className={`text-[9px] font-semibold uppercase tracking-wide ${titleClass}`}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          <Text
+            className={`text-[11px] font-semibold mt-0.5 ${bodyClass}`}
+            numberOfLines={1}
+          >
+            {body}
+          </Text>
+        </View>
+        {badge != null && badge > 0 ? (
+          <View
+            className="rounded-full min-w-[18px] h-[18px] px-1 items-center justify-center"
+            style={{ backgroundColor: iconColor }}
+          >
+            <Text className="text-[9px] font-bold text-white">
+              {badge > 99 ? "99+" : badge}
+            </Text>
+          </View>
+        ) : null}
+        <AppIcon name="chevron-forward" size={11} color={chevronColor} />
+      </View>
+    </AnimatedPressable>
+  );
+}
 
 export function ActivityBar() {
   const { buildingId } = useAuth();
@@ -27,82 +90,47 @@ export function ActivityBar() {
       ].reduce((sum, arr) => sum + (arr?.length ?? 0), 0)
     : 0;
 
-  const hasNotices = unseenCount > 0;
-  const hasReminders = reminderCount > 0;
-
   return (
     <View className="mx-4 -mt-4 z-10">
-      <View className="flex-row gap-2 bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
-        {/* Notices pill */}
-        <AnimatedPressable
-          className="flex-1"
+      <View className="flex-row flex-wrap gap-2 bg-white rounded-2xl p-2.5 shadow-sm border border-gray-100">
+        <ActivityPill
           onPress={() => router.push("/(private)/activity?tab=notices")}
-        >
-          <View className="flex-row items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            <AppIcon name="megaphone-outline" size={16} color="#BA7517" />
-            <View className="flex-1">
-              <Text className="text-[9px] font-semibold text-amber-700 uppercase tracking-wide">
-                Notices
-              </Text>
-              <Text className="text-xs font-semibold text-amber-900 mt-0.5">
-                {hasNotices ? `${unseenCount} unread` : "All caught up"}
-              </Text>
-            </View>
-            {hasNotices && (
-              <View className="bg-amber-500 rounded-full w-5 h-5 items-center justify-center">
-                <Text className="text-[9px] font-bold text-white">
-                  {unseenCount > 99 ? "99+" : unseenCount}
-                </Text>
-              </View>
-            )}
-            <AppIcon name="chevron-forward" size={12} color="#BA7517" />
-          </View>
-        </AnimatedPressable>
-
-        {/* Reminders pill */}
-        <AnimatedPressable
-          className="flex-1"
+          icon="megaphone-outline"
+          iconColor="#BA7517"
+          bgClass="bg-amber-50"
+          borderClass="border-amber-200"
+          titleClass="text-amber-700"
+          bodyClass="text-amber-900"
+          title="Notices"
+          body={unseenCount > 0 ? `${unseenCount} unread` : "All caught up"}
+          badge={unseenCount}
+          chevronColor="#BA7517"
+        />
+        <ActivityPill
           onPress={() => router.push("/(private)/activity?tab=reminders")}
-        >
-          <View className="flex-row items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-            <AppIcon name="alarm-outline" size={16} color="#185FA5" />
-            <View className="flex-1">
-              <Text className="text-[9px] font-semibold text-blue-700 uppercase tracking-wide">
-                Reminders
-              </Text>
-              <Text className="text-xs font-semibold text-blue-900 mt-0.5">
-                {hasReminders ? `${reminderCount} today` : "Nothing due"}
-              </Text>
-            </View>
-            {hasReminders && (
-              <View className="bg-blue-500 rounded-full w-5 h-5 items-center justify-center">
-                <Text className="text-[9px] font-bold text-white">
-                  {reminderCount > 99 ? "99+" : reminderCount}
-                </Text>
-              </View>
-            )}
-            <AppIcon name="chevron-forward" size={12} color="#185FA5" />
-          </View>
-        </AnimatedPressable>
-
-        {/* Recommendations pill */}
-        <AnimatedPressable
-          className="flex-1"
+          icon="alarm-outline"
+          iconColor="#185FA5"
+          bgClass="bg-blue-50"
+          borderClass="border-blue-200"
+          titleClass="text-blue-700"
+          bodyClass="text-blue-900"
+          title="Reminders"
+          body={reminderCount > 0 ? `${reminderCount} today` : "Nothing due"}
+          badge={reminderCount}
+          chevronColor="#185FA5"
+        />
+        <ActivityPill
           onPress={() => router.push("/(private)/home/recommendations")}
-        >
-          <View className="flex-row items-center gap-2 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">
-            <AppIcon name="bulb-outline" size={16} color="#7C3AED" />
-            <View className="flex-1">
-              <Text className="text-[9px] font-semibold text-violet-700 uppercase tracking-wide">
-                Ideas
-              </Text>
-              <Text className="text-xs font-semibold text-violet-900 mt-0.5">
-                Recommendations
-              </Text>
-            </View>
-            <AppIcon name="chevron-forward" size={12} color="#7C3AED" />
-          </View>
-        </AnimatedPressable>
+          icon="bulb-outline"
+          iconColor="#7C3AED"
+          bgClass="bg-violet-50"
+          borderClass="border-violet-200"
+          titleClass="text-violet-700"
+          bodyClass="text-violet-900"
+          title="Ideas"
+          body="Recommendations"
+          chevronColor="#7C3AED"
+        />
       </View>
     </View>
   );

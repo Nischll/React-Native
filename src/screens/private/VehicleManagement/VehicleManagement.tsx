@@ -21,7 +21,8 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import SelectField from "@/src/components/ui/SelectField";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { VehicleResponse } from "@/src/types/resident.types";
-import { useState } from "react";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { View } from "react-native";
 
@@ -41,12 +42,20 @@ export default function VehicleManagement() {
   const { residences } = useResidencesForActiveBuilding();
   const [residentId, setResidentId] = useState<string>();
   const numericResidentId = residentId ? Number(residentId) : undefined;
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setPage(1);
+  }, [residentId]);
 
   const { data, isLoading, isRefetching, refetch } = useGetVehiclesByResident(
     numericResidentId,
+    { page, limit: PAGE_SIZE, search: search || undefined },
     !!numericResidentId,
   );
-  const vehicles = data?.data ?? [];
+  const { items: vehicles, total } =
+    extractPaginatedList<VehicleResponse>(data, { page, limit: PAGE_SIZE });
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<VehicleResponse | null>(null);
@@ -151,6 +160,19 @@ export default function VehicleManagement() {
             columns={columns}
             loading={isLoading}
             refreshing={isRefetching}
+            searchable
+            backendMode
+            onSearch={(value) => {
+              setPage(1);
+              setSearch(value);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => item.id.toString()}
             emptyMessage="No vehicles found for this resident"
             onRefresh={refetch}

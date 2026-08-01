@@ -23,7 +23,8 @@ import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { OwnerResponse } from "@/src/types/resident.types";
-import { useState } from "react";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
 
@@ -51,12 +52,19 @@ export default function OwnerManagement() {
   const { residences } = useResidencesForActiveBuilding();
   const [residentId, setResidentId] = useState<string>();
   const numericResidentId = residentId ? Number(residentId) : undefined;
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setPage(1);
+  }, [residentId]);
 
   const { data, isLoading, isRefetching, refetch } = useGetOwnersByResident(
     numericResidentId,
+    { page, limit: PAGE_SIZE, search: search || undefined },
     !!numericResidentId,
   );
-  const owners = data?.data ?? [];
+  const { items: owners, total } = extractPaginatedList<OwnerResponse>(data, { page, limit: PAGE_SIZE });
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<OwnerResponse | null>(null);
@@ -191,6 +199,19 @@ export default function OwnerManagement() {
             columns={columns}
             loading={isLoading}
             refreshing={isRefetching}
+            searchable
+            backendMode
+            onSearch={(value) => {
+              setPage(1);
+              setSearch(value);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => item.id.toString()}
             emptyMessage="No owners found for this resident"
             onRefresh={refetch}

@@ -1,13 +1,27 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { TowerRequest, TowerResponse } from "../types/tower.types";
-import { ApiListResponse, ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
-export const useGetTowers = (enabled = true) =>
-  useApiQuery<ApiListResponseArray<TowerResponse>>("/tower", {
+export const useGetTowers = (
+  params: { page?: number; limit?: number; search?: string; buildingId?: number } | boolean = {},
+  enabledArg = true,
+) => {
+  // Backward compatible: useGetTowers(true) / useGetTowers()
+  const paramsObj =
+    typeof params === "boolean" ? {} : (params ?? {});
+  const enabled = typeof params === "boolean" ? params : enabledArg;
+
+  return useApiQuery<
+    | ApiListResponse<ApiPaginatedData<TowerResponse>>
+    | ApiListResponseArray<TowerResponse>
+  >("/tower", {
     enabled,
     retry: 0,
+    queryParams: buildPageQuery(paramsObj as Record<string, any>),
   });
+};
 
 export const useGetTowerById = (id?: number, enabled = true) =>
   useApiQuery<ApiListResponse<TowerResponse>>(`/tower/${id}`, {

@@ -7,17 +7,23 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { TowerResponse } from "@/src/types/tower.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 
 export default function TowerManagement() {
-  const { user } = useAuth();
+  const { user, buildingId } = useAuth();
   const [deleteItem, setDeleteItem] = useState<TowerResponse | null>(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
-  const { data, isLoading, refetch, isRefetching } = useGetTowers(!!user?.userId);
+  const { data, isLoading, refetch, isRefetching } = useGetTowers(
+    { page, limit: PAGE_SIZE, search: search || undefined, buildingId: buildingId ?? undefined },
+    !!user?.userId,
+  );
   const { mutate: deleteMutate, isPending } = useDeleteTower();
-  const items: TowerResponse[] = data?.data ?? [];
+  const { items, total } = extractPaginatedList<TowerResponse>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<TowerResponse>[] = [
     { key: "name", label: "Name", primary: true, searchable: true },
@@ -42,6 +48,18 @@ export default function TowerManagement() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            onSearch={(value) => {
+              setPage(1);
+              setSearch(value);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No towers found"
             onRefresh={refetch}

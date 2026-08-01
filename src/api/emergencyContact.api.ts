@@ -4,19 +4,22 @@ import {
   EmergencyContactRequestPojo,
   EmergencyContactResponse,
 } from "../types/resident.types";
-import { ApiListResponseArray } from "./auth.api";
+import { buildPageQuery } from "../utils/listPagination";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 
 export const useGetEmergencyContactsByResident = (
   residentId: number | undefined,
+  params: { page?: number; limit?: number; search?: string } = {},
   enabled: boolean = true,
 ) =>
-  useApiQuery<ApiListResponseArray<EmergencyContactResponse>>(
-    `/emergency-contact/resident/${residentId}`,
-    {
-      enabled: enabled && residentId !== undefined,
-      retry: 0,
-    },
-  );
+  useApiQuery<
+    | ApiListResponse<ApiPaginatedData<EmergencyContactResponse>>
+    | ApiListResponseArray<EmergencyContactResponse>
+  >(`/emergency-contact/resident/${residentId}`, {
+    enabled: enabled && residentId !== undefined,
+    retry: 0,
+    queryParams: buildPageQuery(params as Record<string, any>),
+  });
 
 export const useAddEmergencyContact = (residentId: number | undefined) =>
   useApiMutation<EmergencyContactRequestPojo>(

@@ -10,13 +10,22 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { RoleResponse } from "@/src/types/role.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
+import { useState } from "react";
 import { Text, View } from "react-native";
 
 export default function RoleManagement() {
-  const { data, isLoading, isRefetching, refetch } = useGetRoles();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
-  const roles = data?.data ?? [];
+  const { data, isLoading, isRefetching, refetch } = useGetRoles({
+    page,
+    limit: PAGE_SIZE,
+    search: search || undefined,
+  });
+
+  const { items: roles, total } = extractPaginatedList<RoleResponse>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<RoleResponse>[] = [
     {
@@ -67,6 +76,18 @@ export default function RoleManagement() {
           loading={isLoading}
           refreshing={isRefetching}
           searchable
+          backendMode
+          onSearch={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          pagination={{
+            page,
+            pageSize: PAGE_SIZE,
+            total,
+            hasMore: page * PAGE_SIZE < total,
+            onPageChange: setPage,
+          }}
           keyExtractor={(item) => item.id.toString()}
           emptyMessage="No roles found"
           onRefresh={refetch}

@@ -6,6 +6,9 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
+import { AmenityResponse } from "@/src/types/amenity.types";
+import { TowerResponse } from "@/src/types/tower.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -34,11 +37,11 @@ export default function BuildingAddEdit() {
   const { mutate: updateMutate, isPending: updating } = useUpdateBuilding(id);
 
   const amenityOptions = useMemo(
-    () => (amenitiesData?.data ?? []).map((a) => ({ label: a.name, value: String(a.id) })),
+    () => extractPaginatedList<AmenityResponse>(amenitiesData).items.map((a) => ({ label: a.name, value: String(a.id) })),
     [amenitiesData],
   );
   const towerOptions = useMemo(
-    () => (towersData?.data ?? []).map((t) => ({ label: t.name, value: String(t.id) })),
+    () => extractPaginatedList<TowerResponse>(towersData).items.map((t) => ({ label: t.name, value: String(t.id) })),
     [towersData],
   );
 

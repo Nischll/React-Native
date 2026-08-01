@@ -6,6 +6,7 @@ import {
 } from "@/src/api/checklist.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
+import ListPager from "@/src/components/layout/ListPager";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -18,7 +19,8 @@ import {
   ChecklistPeriod,
   ChecklistTemplateResponse,
 } from "@/src/types/checklist.types";
-import { useMemo, useState } from "react";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
+import { useEffect, useMemo, useState } from "react";
 import {
   Keyboard,
   Modal,
@@ -38,23 +40,35 @@ export default function ChecklistTemplates({ period }: Props) {
   const config = CHECKLIST_CONFIGS[period];
   const { buildingId } = useAuth();
 
+  const [page, setPage] = useState(1);
   const [addVisible, setAddVisible] = useState(false);
   const [workTitle, setWorkTitle] = useState("");
   const [time, setTime] = useState("");
   const [deleteTarget, setDeleteTarget] =
     useState<ChecklistTemplateResponse | null>(null);
 
+  useEffect(() => {
+    setPage(1);
+  }, [buildingId, period]);
+
   const { data, isLoading, refetch, isRefetching } = useGetChecklistTemplates(
     config.basePath,
     buildingId ?? undefined,
+    true,
+    page,
+    PAGE_SIZE,
   );
 
-  const templates = useMemo(
+  const { items: templates, total } =
+    extractPaginatedList<ChecklistTemplateResponse>(data, {
+      page,
+      limit: PAGE_SIZE,
+    });
+
+  const sortedTemplates = useMemo(
     () =>
-      [...(data?.data ?? [])].sort(
-        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
-      ),
-    [data],
+      [...templates].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [templates],
   );
 
   const { mutate: addMutate, isPending: isAdding } =
@@ -74,9 +88,9 @@ export default function ChecklistTemplates({ period }: Props) {
     if (!buildingId || !workTitle.trim()) return;
 
     const nextSortOrder =
-      templates.length > 0
-        ? Math.max(...templates.map((t) => t.sortOrder ?? 0)) + 1
-        : 1;
+      sortedTemplates.length > 0
+        ? Math.max(...sortedTemplates.map((t) => t.sortOrder ?? 0), total) + 1
+        : total + 1;
 
     addMutate(
       {
@@ -110,7 +124,15 @@ export default function ChecklistTemplates({ period }: Props) {
 
   const handleLoadDefaults = () => {
     if (!buildingId) return;
-    loadDefaultsMutate({ buildingId }, { onSuccess: () => refetch() });
+    loadDefaultsMutate(
+      { buildingId },
+      {
+        onSuccess: () => {
+          setPage(1);
+          refetch();
+        },
+      },
+    );
   };
 
   return (
@@ -146,7 +168,7 @@ export default function ChecklistTemplates({ period }: Props) {
           <SkeletonCard />
           <SkeletonCard />
         </View>
-      ) : templates.length === 0 ? (
+      ) : sortedTemplates.length === 0 ? (
         <EmptyState message="No templates yet. Load defaults or add a duty." />
       ) : (
         <ScrollView
@@ -156,14 +178,14 @@ export default function ChecklistTemplates({ period }: Props) {
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
         >
-          {templates.map((item, index) => (
+          {sortedTemplates.map((item, index) => (
             <Card
               key={item.id}
               className="px-4 py-3 mb-3 flex-row items-center justify-between"
             >
               <View className="flex-1 pr-3">
                 <Text className="text-sm font-bold text-textPrimary">
-                  {index + 1}. {item.workTitle}
+                  {(page - 1) * PAGE_SIZE + index + 1}. {item.workTitle}
                 </Text>
                 {!!item.time && (
                   <Text className="text-xs text-gray-500 mt-0.5">
@@ -179,6 +201,12 @@ export default function ChecklistTemplates({ period }: Props) {
               </Pressable>
             </Card>
           ))}
+          <ListPager
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         </ScrollView>
       )}
 

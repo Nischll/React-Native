@@ -7,17 +7,23 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { AmenityResponse } from "@/src/types/amenity.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 
 export default function AmenityManagement() {
-  const { user } = useAuth();
+  const { user, buildingId } = useAuth();
   const [deleteItem, setDeleteItem] = useState<AmenityResponse | null>(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
-  const { data, isLoading, refetch, isRefetching } = useGetAmenities(!!user?.userId);
+  const { data, isLoading, refetch, isRefetching } = useGetAmenities(
+    { page, limit: PAGE_SIZE, search: search || undefined, buildingId: buildingId ?? undefined },
+    !!user?.userId,
+  );
   const { mutate: deleteMutate, isPending } = useDeleteAmenity();
-  const items: AmenityResponse[] = data?.data ?? [];
+  const { items, total } = extractPaginatedList<AmenityResponse>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<AmenityResponse>[] = [
     { key: "name", label: "Name", primary: true, searchable: true },
@@ -42,6 +48,18 @@ export default function AmenityManagement() {
             loading={isLoading}
             refreshing={isRefetching}
             searchable
+            backendMode
+            onSearch={(value) => {
+              setPage(1);
+              setSearch(value);
+            }}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
             keyExtractor={(item) => String(item.id)}
             emptyMessage="No amenities found"
             onRefresh={refetch}

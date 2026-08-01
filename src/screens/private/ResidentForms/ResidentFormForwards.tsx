@@ -11,6 +11,7 @@ import SelectField from "@/src/components/ui/SelectField";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ResidentFormForward } from "@/src/types/residentForm.types";
+import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
 
@@ -21,10 +22,11 @@ export default function ResidentFormForwards() {
   const [residentId, setResidentId] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: formsData } = useGetResidentForms({ buildingId: buildingId ?? undefined }, !!user?.userId);
   const { data, isLoading, refetch, isRefetching } = useGetResidentFormForwards(
-    { buildingId: buildingId ?? undefined },
+    { page, limit: PAGE_SIZE, buildingId: buildingId ?? undefined },
     !!user?.userId,
   );
   const { mutate: forwardMutate, isPending } = useForwardResidentForms();
@@ -39,8 +41,7 @@ export default function ResidentFormForwards() {
     [formsRaw],
   );
 
-  const raw: any = data?.data;
-  const items: ResidentFormForward[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+  const { items, total } = extractPaginatedList<ResidentFormForward>(data, { page, limit: PAGE_SIZE });
 
   const columns: MobileColumn<ResidentFormForward>[] = [
     { key: "residentFormTitle", label: "Form", primary: true, searchable: true },
@@ -89,6 +90,14 @@ export default function ResidentFormForwards() {
           loading={isLoading}
           refreshing={isRefetching}
           searchable
+          backendMode
+          pagination={{
+            page,
+            pageSize: PAGE_SIZE,
+            total,
+            hasMore: page * PAGE_SIZE < total,
+            onPageChange: setPage,
+          }}
           keyExtractor={(item) => String(item.id)}
           emptyMessage="No forwards yet"
           onRefresh={refetch}

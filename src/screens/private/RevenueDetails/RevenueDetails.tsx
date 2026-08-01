@@ -126,7 +126,7 @@ export default function RevenueDetails() {
             keyExtractor={(item) => `${item.type}-${item.sourceId}`}
             emptyMessage="No revenue records found"
             onRefresh={refetch}
-            pagination={{ page, pageSize: 10, hasMore: page * 10 < total, onPageChange: setPage }}
+            pagination={{ page, pageSize: 10, total, hasMore: page * 10 < total, onPageChange: setPage }}
             renderActions={(row) => (
               <AnchoredPopupMenu
                 items={[{ label: "Update Payment", icon: "create", onPress: () => openEdit(row) }]}

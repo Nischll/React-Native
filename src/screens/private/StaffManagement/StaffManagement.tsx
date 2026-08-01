@@ -139,6 +139,7 @@ export default function StaffManagement() {
           pagination={{
             page,
             pageSize: 10,
+            total,
             hasMore: page * 10 < total,
             onPageChange: setPage,
           }}
