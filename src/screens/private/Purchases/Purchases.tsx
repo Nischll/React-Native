@@ -290,7 +290,6 @@ export default function Purchases() {
             columns={columns}
             loading={isLoading}
             refreshing={isRefetching}
-            searchable
             backendMode
             keyExtractor={(item) => `${item.type}-${item.sourceId}`}
             emptyMessage={
