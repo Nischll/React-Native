@@ -14,6 +14,7 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import { getDatePresetRange } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
@@ -100,38 +101,12 @@ export default function ParcelManagement() {
   //     },
   //   });
   // };
-  const formatDateOnly = (date: Date) => date.toISOString().split("T")[0];
-
   const applyPreset = (type: "today" | "week" | "month" | "custom") => {
-    const today = new Date();
-
-    if (type === "today") {
-      const value = formatDateOnly(today);
-
-      setFromDate(value);
-      setToDate(value);
+    if (type !== "custom") {
+      const { fromDate: from, toDate: to } = getDatePresetRange(type);
+      setFromDate(from);
+      setToDate(to);
     }
-
-    if (type === "week") {
-      const start = new Date(today);
-      start.setDate(today.getDate() - today.getDay());
-
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-
-      setFromDate(formatDateOnly(start));
-      setToDate(formatDateOnly(end));
-    }
-
-    if (type === "month") {
-      const start = new Date(today.getFullYear(), today.getMonth(), 1);
-
-      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-      setFromDate(formatDateOnly(start));
-      setToDate(formatDateOnly(end));
-    }
-
     setDateType(type);
   };
 

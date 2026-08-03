@@ -6,6 +6,7 @@ import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { TaskResponseData } from "@/src/types/task-management.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 
 interface Props {
@@ -68,7 +69,20 @@ function toDisplayCase(str?: string | null) {
 
 export default function TaskInformationCard({ task }: Props) {
   const queryClient = useQueryClient();
-  const { taskStatus } = useTaskStatusOptions();
+  const { allTaskStatus } = useTaskStatusOptions();
+
+  const categoryId = useMemo(() => {
+    const match = allTaskStatus.find(
+      (s) => s.value === String(task.taskStatusId),
+    );
+    return match?.categoryId ?? null;
+  }, [allTaskStatus, task.taskStatusId]);
+
+  const taskStatus = useMemo(() => {
+    if (categoryId == null) return allTaskStatus;
+    return allTaskStatus.filter((s) => s.categoryId === categoryId);
+  }, [allTaskStatus, categoryId]);
+
   const { mutate: updateStatus, isPending } = useUpdateTaskStatus(task.id);
 
   const priority =
@@ -312,7 +326,13 @@ export default function TaskInformationCard({ task }: Props) {
           onPress={() =>
             router.push({
               pathname: "/(private)/task-management/task-add-edit",
-              params: { mode: "edit", taskId: String(task.id) },
+              params: {
+                mode: "edit",
+                taskId: String(task.id),
+                ...(categoryId != null
+                  ? { categoryId: String(categoryId) }
+                  : {}),
+              },
             })
           }
           size="sm"

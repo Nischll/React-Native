@@ -25,7 +25,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { AttachmentResponse } from "@/src/types/task-management.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -68,9 +68,10 @@ export default function TaskAddEdit() {
   const queryClient = useQueryClient();
 
   // ── Route params ──────────────────────────────────────────────────────────
-  const { mode, taskId } = useLocalSearchParams<{
+  const { mode, taskId, categoryId: categoryIdParam } = useLocalSearchParams<{
     mode: "create" | "edit";
     taskId?: string;
+    categoryId?: string;
   }>();
   const isEditMode = mode === "edit";
   const parsedTaskId = taskId ? Number(taskId) : undefined;
@@ -94,7 +95,26 @@ export default function TaskAddEdit() {
   // ── Hooks ─────────────────────────────────────────────────────────────────
   const { residences } = useResidencesForActiveBuilding();
   const { employees } = useEmployeeByBuildingOptions(buildingId);
-  const { taskStatus } = useTaskStatusOptions();
+  const { allTaskStatus } = useTaskStatusOptions();
+
+  const categoryId = useMemo(() => {
+    if (categoryIdParam) {
+      const parsed = Number(categoryIdParam);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    if (existingTask?.taskStatusId != null) {
+      const match = allTaskStatus.find(
+        (s) => s.value === String(existingTask.taskStatusId),
+      );
+      return match?.categoryId ?? null;
+    }
+    return null;
+  }, [categoryIdParam, existingTask?.taskStatusId, allTaskStatus]);
+
+  const taskStatus = useMemo(() => {
+    if (categoryId == null) return allTaskStatus;
+    return allTaskStatus.filter((s) => s.categoryId === categoryId);
+  }, [allTaskStatus, categoryId]);
 
   // ── Form ──────────────────────────────────────────────────────────────────
   const { control, handleSubmit, watch, setValue, reset } = useForm<FormValues>(

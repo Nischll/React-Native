@@ -7,15 +7,12 @@ import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import { formatDateOnly } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { RecommendationItem } from "@/src/types/recommendation.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
-
-function formatDateOnly(date: Date) {
-  return date.toISOString().split("T")[0];
-}
 
 export default function Recommendations() {
   const { buildingId, user } = useAuth();
