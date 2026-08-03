@@ -39,6 +39,33 @@ export interface BuildingVisitorParkingPolicyResponse
   updatedDate?: string;
 }
 
+export interface VisitorParkingRollupResponsePojo {
+  buildingId?: number;
+  buildingName?: string;
+  licensePlate?: string;
+  calendarMonthKey?: string;
+  buildingTimeZoneEffective?: string;
+  year?: number;
+  month?: number;
+  totalInspections?: number;
+  distinctObservationDays?: number;
+  maxContinuousSpanHoursInSession?: number;
+  maxConsecutiveOvernightNights?: number;
+  hoursFromFirstToLastObservation?: number;
+  policyVisitorStallCount?: number | null;
+  policyMaxSessionsPerCalendarMonth?: number | null;
+  policyMaxConsecutiveOvernightNightsPerMonth?: number | null;
+  policyMaxContinuousParkingHours?: number | null;
+  policyOvernightParkingAllowed?: boolean | null;
+  monthlyDistinctDayLimitExceeded?: boolean;
+  consecutiveNightLimitExceeded?: boolean;
+  continuousHoursLimitExceeded?: boolean;
+  overnightRuleViolated?: boolean;
+  linkedVisitorPassId?: number | null;
+  linkedVisitorPassNumber?: string | null;
+  passLinkAmbiguous?: boolean | null;
+}
+
 export interface VisitorParkingInspectionCreatePojo {
   buildingId: number;
   stallIdentifier: string;
@@ -56,9 +83,6 @@ export interface VisitorParkingInspectionCreatePojo {
   reportingCalendarYear?: number;
   reportingCalendarMonth?: number;
   violationNotes?: string;
-  residentId?: number | null;
-  residentUnit?: string | null;
-  residentName?: string | null;
 }
 
 export interface VisitorParkingInspectionResponse
@@ -68,15 +92,52 @@ export interface VisitorParkingInspectionResponse
   isActive?: boolean;
   createdDate?: string;
   updatedDate?: string;
+  /** From matched visitor pass (server-set; not writable on PUT). */
+  residentId?: number | null;
+  residentUnit?: string | null;
+  residentName?: string | null;
+  noPassViolation?: boolean | null;
+  noPassBreach?: boolean | null;
   residentVehicle?: boolean | null;
   registeredVehicleResidentId?: number | null;
   registeredVehicleResidentUnit?: string | null;
   registeredVehicleResidentName?: string | null;
+  registeredVehicleMatchAmbiguous?: boolean | null;
   checkInAt?: string | null;
   checkOutAt?: string | null;
   matchedVisitorPassId?: number | null;
   matchedVisitorPassNumber?: string | null;
+  passMatchAmbiguous?: boolean | null;
+  rollup?: VisitorParkingRollupResponsePojo | null;
   rollupPolicyViolation?: boolean | null;
   residentMatchPolicyBreach?: boolean | null;
   policy?: BuildingVisitorParkingPolicyResponse | null;
+}
+
+export function policyBreachDetailItems(
+  inspection: VisitorParkingInspectionResponse,
+): string[] {
+  const items: string[] = [];
+  if (inspection.noPassViolation || inspection.noPassBreach) {
+    items.push("No visitor pass (no-pass violation)");
+  }
+  const rollup = inspection.rollup;
+  if (rollup) {
+    if (rollup.monthlyDistinctDayLimitExceeded) {
+      items.push("Monthly distinct day limit exceeded");
+    }
+    if (rollup.consecutiveNightLimitExceeded) {
+      items.push("Consecutive overnight night limit exceeded");
+    }
+    if (rollup.continuousHoursLimitExceeded) {
+      items.push("Continuous hours (within session) limit exceeded");
+    }
+    if (rollup.overnightRuleViolated) {
+      items.push("Overnight rule violated (NIGHT period)");
+    }
+  }
+  if (inspection.residentMatchPolicyBreach) {
+    items.push("Resident vehicle registry match (visitor parking policy)");
+  }
+  return items;
 }

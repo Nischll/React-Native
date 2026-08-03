@@ -168,13 +168,46 @@ export default function Reporting() {
   );
 
   const handleDownloadPdf = async () => {
-    if (!buildingId) return;
+    if (!buildingId || !month || !/^\d{4}-\d{2}$/.test(month)) {
+      Alert.alert(
+        "Select month",
+        "Choose a calendar month and building first.",
+      );
+      return;
+    }
     setDownloading(true);
     try {
       const response = await fetchMonthlyReportPdf(month, buildingId);
-      const base64 = Buffer.from(response.data as ArrayBuffer).toString(
-        "base64",
-      );
+      const contentType = String(
+        response.headers?.["content-type"] ?? "",
+      ).toLowerCase();
+      const raw = response.data;
+
+      // Backend may return JSON error with 200/4xx while still hitting this path
+      if (contentType.includes("application/json")) {
+        let msg = "Download failed";
+        try {
+          const text =
+            typeof raw === "string"
+              ? raw
+              : Buffer.from(raw as ArrayBuffer).toString("utf8");
+          const j = JSON.parse(text) as { message?: string };
+          if (j?.message) msg = j.message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+
+      const base64 = Buffer.from(raw as ArrayBuffer).toString("base64");
+      // PDF files start with "%PDF" — catch corrupt/empty payloads early
+      const header = Buffer.from(raw as ArrayBuffer).subarray(0, 4).toString("utf8");
+      if (header !== "%PDF") {
+        throw new Error(
+          "Server did not return a valid PDF. Try again or check permissions.",
+        );
+      }
+
       const fileName = `monthly-report-${month}.pdf`;
 
       if (Platform.OS === "android") {
@@ -198,17 +231,30 @@ export default function Reporting() {
         });
         Alert.alert("Downloaded", `${fileName} saved successfully.`);
       } else {
+        if (!FileSystem.documentDirectory) {
+          throw new Error("Storage is not available on this device.");
+        }
         const fileUri = `${FileSystem.documentDirectory}${fileName}`;
         await FileSystem.writeAsStringAsync(fileUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
         });
+        const canShare = await Sharing.isAvailableAsync();
+        if (!canShare) {
+          Alert.alert("Saved", `${fileName} was saved on device.`);
+          return;
+        }
         await Sharing.shareAsync(fileUri, {
           mimeType: "application/pdf",
           dialogTitle: `Save ${fileName}`,
+          UTI: "com.adobe.pdf",
         });
       }
-    } catch {
-      Alert.alert("Error", "Failed to download the report PDF.");
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Failed to download the report PDF.";
+      Alert.alert("Error", message);
     } finally {
       setDownloading(false);
     }
@@ -232,7 +278,7 @@ export default function Reporting() {
 
       <View className="flex-row items-end gap-2 mb-3">
         <View className="flex-1">
-          <MonthYearPicker value={month} onChange={setMonth} />
+          <MonthYearPicker value={month} onChange={setMonth} variant="light" />
         </View>
         <AppButton
           variant="outline"

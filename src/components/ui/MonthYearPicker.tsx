@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Modal,
   Pressable,
@@ -12,6 +12,8 @@ type MonthYearPickerProps = {
   value?: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** `dark` for primary headers (Home); `light` for white page backgrounds */
+  variant?: "dark" | "light";
 };
 
 const MONTHS = [
@@ -33,14 +35,10 @@ export default function MonthYearPicker({
   value,
   onChange,
   placeholder = "Select Month",
+  variant = "dark",
 }: MonthYearPickerProps) {
   const [open, setOpen] = useState(false);
-
-  const parsedDate = useMemo(() => {
-    if (!value) return new Date();
-    const d = new Date(value + "-01");
-    return isNaN(d.getTime()) ? new Date() : d;
-  }, [value]);
+  const isLight = variant === "light";
 
   const getYearFromValue = () => {
     if (!value) return new Date().getFullYear();
@@ -50,10 +48,14 @@ export default function MonthYearPicker({
   const [year, setYear] = useState(() => getYearFromValue());
 
   const displayLabel = value
-    ? new Date(value + "-01").toLocaleString("default", {
-        month: "short",
-        year: "numeric",
-      })
+    ? (() => {
+        const d = new Date(`${value}-01T12:00:00`);
+        if (isNaN(d.getTime())) return value;
+        return d.toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        });
+      })()
     : placeholder;
 
   const handleSelect = (monthIndex: number) => {
@@ -71,16 +73,29 @@ export default function MonthYearPicker({
 
   return (
     <View>
-      {/* Trigger */}
       <Pressable
         onPress={() => {
           setYear(getYearFromValue());
           setOpen(true);
         }}
-        className="flex-row items-center justify-between rounded-xl bg-white/15 border border-white/20 mt-3 px-4 py-2 gap-2"
+        className={`flex-row items-center justify-between rounded-xl px-4 py-2.5 gap-2 border ${
+          isLight
+            ? "bg-white border-slate-200"
+            : "bg-white/15 border-white/20 mt-3"
+        }`}
       >
-        <Text className="text-white font-semibold text-sm">{displayLabel}</Text>
-        <Ionicons name="calendar-outline" size={16} color="#FFFFFF" />
+        <Text
+          className={`font-semibold text-sm ${
+            isLight ? "text-textPrimary" : "text-white"
+          }`}
+        >
+          {displayLabel}
+        </Text>
+        <Ionicons
+          name="calendar-outline"
+          size={16}
+          color={isLight ? "#334155" : "#FFFFFF"}
+        />
       </Pressable>
 
       <Modal
@@ -92,23 +107,26 @@ export default function MonthYearPicker({
       >
         <TouchableWithoutFeedback onPress={() => setOpen(false)}>
           <View className="flex-1 bg-black/40 justify-center px-6">
-            {/* Prevent closing when clicking inside */}
             <TouchableWithoutFeedback>
               <View className="rounded-2xl bg-white p-4 shadow-lg">
-                {/* Year Selector */}
                 <View className="flex-row items-center justify-between mb-3">
                   <Pressable onPress={() => setYear((y) => y - 1)}>
-                    <Ionicons name="chevron-back" size={20} />
+                    <Ionicons name="chevron-back" size={20} color="#0f172a" />
                   </Pressable>
 
-                  <Text className="text-base font-semibold">{year}</Text>
+                  <Text className="text-base font-semibold text-textPrimary">
+                    {year}
+                  </Text>
 
                   <Pressable onPress={() => setYear((y) => y + 1)}>
-                    <Ionicons name="chevron-forward" size={20} />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#0f172a"
+                    />
                   </Pressable>
                 </View>
 
-                {/* Month Grid */}
                 <View className="flex-row flex-wrap justify-between">
                   {MONTHS.map((m, index) => {
                     const isSelected =

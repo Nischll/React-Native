@@ -9,7 +9,6 @@ import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
-import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   PERIOD_OF_DAY_OPTIONS,
@@ -34,7 +33,6 @@ export default function AddEditInspection() {
   const editMode = !!inspectionId;
 
   const { buildingId } = useAuth();
-  const { residences } = useResidencesForActiveBuilding();
 
   const { data, isLoading } = useGetVisitorParkingInspectionById(id, editMode);
   const { mutate: checkInMutate, isPending: isCheckingIn } =
@@ -51,10 +49,12 @@ export default function AddEditInspection() {
   const [periodOfDay, setPeriodOfDay] = useState<PeriodOfDay>("DAY");
   const [towWorkflowStatus, setTowWorkflowStatus] =
     useState<TowWorkflowStatus>("NOT_APPLICABLE");
-  const [residentId, setResidentId] = useState<string>("");
   const [bylawNoticeIssued, setBylawNoticeIssued] = useState(false);
   const [violationSlipIssued, setViolationSlipIssued] = useState(false);
   const [violationNotes, setViolationNotes] = useState("");
+
+  const matchedUnit = data?.data?.residentUnit;
+  const matchedName = data?.data?.residentName;
 
   useEffect(() => {
     if (editMode && data?.data) {
@@ -67,7 +67,6 @@ export default function AddEditInspection() {
       setPassNumberDisplay(item.passNumberDisplay ?? "");
       setPeriodOfDay(item.periodOfDay ?? "DAY");
       setTowWorkflowStatus(item.towWorkflowStatus ?? "NOT_APPLICABLE");
-      setResidentId(item.residentId ? String(item.residentId) : "");
       setBylawNoticeIssued(!!item.bylawNoticeIssued);
       setViolationSlipIssued(!!item.violationSlipIssued);
       setViolationNotes(item.violationNotes ?? "");
@@ -87,7 +86,6 @@ export default function AddEditInspection() {
       passNumberDisplay: passNumberDisplay.trim() || undefined,
       periodOfDay,
       towWorkflowStatus,
-      residentId: residentId ? Number(residentId) : undefined,
       bylawNoticeIssued,
       violationSlipIssued,
       violationNotes: violationNotes.trim() || undefined,
@@ -181,17 +179,24 @@ export default function AddEditInspection() {
               onChangeText={setPassNumberDisplay}
               placeholder="Visitor pass number"
             />
+            <Text className="text-[11px] text-textSecondary mt-1.5 leading-4">
+              Unit is linked automatically when this pass number matches an
+              active visitor pass for the building.
+            </Text>
           </View>
 
-          <View className="mt-3">
-            <SelectField
-              label="Unit (optional)"
-              value={residentId}
-              onChange={setResidentId}
-              options={residences}
-              placeholder="Select unit"
-            />
-          </View>
+          {editMode && (matchedUnit || matchedName) ? (
+            <View className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <Text className="text-[11px] font-semibold uppercase tracking-wide text-textSecondary mb-1">
+                Matched unit (from pass)
+              </Text>
+              <Text className="text-sm font-medium text-textPrimary">
+                {[matchedUnit ? `Unit ${matchedUnit}` : null, matchedName]
+                  .filter(Boolean)
+                  .join(" · ") || "—"}
+              </Text>
+            </View>
+          ) : null}
 
           <View className="mt-3">
             <SelectField
@@ -217,7 +222,10 @@ export default function AddEditInspection() {
             <Text className="text-base font-medium text-slate-700">
               Bylaw Notice Issued
             </Text>
-            <Switch value={bylawNoticeIssued} onValueChange={setBylawNoticeIssued} />
+            <Switch
+              value={bylawNoticeIssued}
+              onValueChange={setBylawNoticeIssued}
+            />
           </View>
 
           <View className="mt-3 flex-row items-center justify-between">

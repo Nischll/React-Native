@@ -139,6 +139,7 @@ export default function GeneratorTests() {
           <MonthYearPicker
             value={monthFilter ?? ""}
             onChange={(v) => setMonthFilter(v || null)}
+            variant="light"
           />
         </View>
         {monthFilter ? (

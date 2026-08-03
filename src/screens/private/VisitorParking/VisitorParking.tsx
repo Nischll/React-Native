@@ -101,6 +101,14 @@ export default function VisitorParking() {
       label: "Stall",
     },
     {
+      key: "residentUnit",
+      label: "Unit",
+      render: (_value, row) =>
+        row.residentUnit?.trim() ||
+        row.registeredVehicleResidentUnit?.trim() ||
+        "—",
+    },
+    {
       key: "vehicleMake",
       label: "Vehicle",
       render: (_value, row) =>
