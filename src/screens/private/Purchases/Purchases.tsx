@@ -17,34 +17,62 @@ import {
   RevenueDetailItem,
 } from "@/src/types/revenueDetail.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
-import { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import PurchaseFormModal from "./PurchaseFormModal";
 
-const TYPES: { label: string; value: PurchaseType }[] = [
-  { label: "Filter", value: "FILTER" },
-  { label: "Rental", value: "RENTAL" },
-  { label: "Access Device", value: "ACCESS_DEVICE" },
-  { label: "Visitor Pass", value: "VISITOR_PASS" },
-  { label: "Enterphone", value: "ENTERPHONE" },
+type PurchaseSection = "all" | "one-time" | "recurring";
+
+type OneTimeTab = "FILTER" | "ENTERPHONE" | "VISITOR_PASS" | "ACCESS_DEVICE";
+
+const SECTIONS: { key: PurchaseSection; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "one-time", label: "One-time" },
+  { key: "recurring", label: "Recurring" },
 ];
+
+const ONE_TIME_TABS: { key: OneTimeTab; label: string }[] = [
+  { key: "FILTER", label: "Filter" },
+  { key: "ENTERPHONE", label: "Enterphone" },
+  { key: "VISITOR_PASS", label: "Visitor pass" },
+  { key: "ACCESS_DEVICE", label: "Access device" },
+];
+
+const ALL_CREATE_TYPES: { label: string; value: PurchaseType }[] = [
+  { label: "Filter", value: "FILTER" },
+  { label: "Enterphone", value: "ENTERPHONE" },
+  { label: "Visitor Pass", value: "VISITOR_PASS" },
+  { label: "Access Device", value: "ACCESS_DEVICE" },
+  { label: "Rental", value: "RENTAL" },
+];
+
+const ONE_TIME_CREATE_TYPES = ALL_CREATE_TYPES.filter(
+  (t) => t.value !== "RENTAL",
+);
 
 export default function Purchases() {
   const { buildingId, user } = useAuth();
   const [page, setPage] = useState(1);
-  const [type, setType] = useState<PurchaseType>("FILTER");
+  const [section, setSection] = useState<PurchaseSection>("all");
+  const [oneTimeTab, setOneTimeTab] = useState<OneTimeTab>("FILTER");
   const [formVisible, setFormVisible] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formType, setFormType] = useState<PurchaseType>("FILTER");
   const [editItem, setEditItem] = useState<RevenueDetailItem | null>(null);
   const [typePickerVisible, setTypePickerVisible] = useState(false);
 
+  const apiType: PurchaseType | undefined = useMemo(() => {
+    if (section === "all") return undefined;
+    if (section === "recurring") return "RENTAL";
+    return oneTimeTab;
+  }, [section, oneTimeTab]);
+
   const { data, isLoading, refetch, isRefetching } = useGetPurchases(
     {
       page,
       limit: PAGE_SIZE,
       buildingId: buildingId ?? undefined,
-      type,
+      type: apiType,
     },
     !!user?.userId && !!buildingId,
   );
@@ -57,7 +85,21 @@ export default function Purchases() {
     ? raw.length
     : (raw?.total ?? items.length);
 
+  const switchSection = (next: PurchaseSection) => {
+    setSection(next);
+    setPage(1);
+    if (next === "one-time") setOneTimeTab("FILTER");
+  };
+
   const openCreate = () => {
+    if (section === "recurring") {
+      startCreate("RENTAL");
+      return;
+    }
+    if (section === "one-time") {
+      startCreate(oneTimeTab);
+      return;
+    }
     setTypePickerVisible(true);
   };
 
@@ -76,11 +118,20 @@ export default function Purchases() {
     setFormVisible(true);
   };
 
+  const createPickerTypes =
+    section === "one-time" ? ONE_TIME_CREATE_TYPES : ALL_CREATE_TYPES;
+
   const columns: MobileColumn<RevenueDetailItem>[] = [
+    {
+      key: "type",
+      label: "Type",
+      primary: section === "all",
+      render: (value) => String(value ?? "—"),
+    },
     {
       key: "residentName",
       label: "Resident",
-      primary: true,
+      primary: section !== "all",
       searchable: true,
       render: (_, row) =>
         [row.residentUnit, row.residentName].filter(Boolean).join(" · ") ||
@@ -119,6 +170,13 @@ export default function Purchases() {
     },
   ];
 
+  const subtitle =
+    section === "recurring"
+      ? "Recurring rentals for the selected building"
+      : section === "one-time"
+        ? "One-time purchases for the selected building"
+        : "One-time and recurring purchases for the selected building";
+
   return (
     <>
       <View className="flex-1">
@@ -126,33 +184,70 @@ export default function Purchases() {
           showBackButton
           icon="cart"
           title="Purchases"
-          subtitle="Create and manage resident purchases."
+          subtitle={subtitle}
         />
 
-        <View className="flex-row flex-wrap gap-2 mb-3">
-          {TYPES.map((t) => (
-            <Pressable
-              key={t.value}
-              onPress={() => {
-                setType(t.value);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-full border ${
-                type === t.value
-                  ? "bg-primary border-primary"
-                  : "border-slate-300"
-              }`}
-            >
-              <Text
-                className={`text-xs font-semibold ${
-                  type === t.value ? "text-white" : "text-textPrimary"
+        {/* Section: All | One-time | Recurring */}
+        <View className="flex-row gap-2 mb-3 px-1">
+          {SECTIONS.map((s) => {
+            const active = section === s.key;
+            return (
+              <Pressable
+                key={s.key}
+                onPress={() => switchSection(s.key)}
+                className={`flex-1 items-center rounded-xl border py-2.5 ${
+                  active
+                    ? "bg-primary border-primary"
+                    : "bg-white border-slate-300"
                 }`}
               >
-                {t.label}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  className={`text-sm font-semibold ${
+                    active ? "text-white" : "text-textPrimary"
+                  }`}
+                >
+                  {s.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        {/* One-time subtype tabs */}
+        {section === "one-time" && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-3"
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
+          >
+            {ONE_TIME_TABS.map((t) => {
+              const active = oneTimeTab === t.key;
+              return (
+                <Pressable
+                  key={t.key}
+                  onPress={() => {
+                    setOneTimeTab(t.key);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-full border ${
+                    active
+                      ? "bg-primary border-primary"
+                      : "bg-white border-slate-300"
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-semibold ${
+                      active ? "text-white" : "text-textPrimary"
+                    }`}
+                  >
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         <View className="flex-1">
           <MobileDataList<RevenueDetailItem>
@@ -163,7 +258,13 @@ export default function Purchases() {
             searchable
             backendMode
             keyExtractor={(item) => `${item.type}-${item.sourceId}`}
-            emptyMessage="No purchases found"
+            emptyMessage={
+              section === "recurring"
+                ? "No recurring rentals found"
+                : section === "one-time"
+                  ? "No one-time purchases found"
+                  : "No purchases found"
+            }
             onRefresh={refetch}
             pagination={{
               page,
@@ -194,7 +295,6 @@ export default function Purchases() {
         </View>
       </View>
 
-      {/* Type picker for create */}
       <Modal
         transparent
         visible={typePickerVisible}
@@ -216,7 +316,7 @@ export default function Purchases() {
             <Text className="text-sm text-textSecondary mb-4">
               Choose the purchase type
             </Text>
-            {TYPES.map((t) => (
+            {createPickerTypes.map((t) => (
               <Pressable
                 key={t.value}
                 onPress={() => startCreate(t.value)}
