@@ -4,6 +4,7 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
 import { StatCard } from "@/src/helper/dashboardStatCard";
+import { isHiddenFromHome } from "@/src/helper/accountMenuModules";
 import { flattenModules } from "@/src/helper/flattenModules";
 import { mapIcon } from "@/src/helper/mapIcon";
 import { mapToAppRoute } from "@/src/helper/mapToAppRoute";
@@ -39,24 +40,11 @@ export default function Home() {
 
   const modules = user?.moduleList ?? [];
 
-  const EXCLUDED_MODULE_CODES = new Set([
-    "PROF",
-    "TC",
-    "TI",
-    "OI",
-    "PAI",
-    "VP",
-    "AD",
-    "V",
-    "EC",
-    "RENT",
-  ]);
-
   const quickModules = flattenModules(modules)
     .filter(
       (mod) =>
         mod.path &&
-        !EXCLUDED_MODULE_CODES.has(mod.code) &&
+        !isHiddenFromHome(mod) &&
         !mod.path.includes("/home/"),
     )
     .map((mod) => {
