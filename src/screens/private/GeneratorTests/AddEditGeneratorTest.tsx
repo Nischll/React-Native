@@ -8,16 +8,16 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import DatePickerField from "@/src/components/ui/DatePickerField";
+import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
+import { formatDateOnly } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
-import {
-  GENERATOR_CHECK_FIELDS,
-  GeneratorTestRequestPojo,
-} from "@/src/types/generatorTests.types";
+import { GENERATOR_CHECK_FIELDS } from "@/src/types/generatorTests.types";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Keyboard,
+  Platform,
   Switch,
   Text,
   TouchableWithoutFeedback,
@@ -25,12 +25,21 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
+function toTestDatePayload(isoOrDate: string): string {
+  const d = new Date(isoOrDate);
+  if (Number.isNaN(d.getTime())) {
+    const datePart = isoOrDate.split("T")[0];
+    return `${datePart}T00:00:00`;
+  }
+  return `${formatDateOnly(d)}T00:00:00`;
+}
+
 export default function AddEditGeneratorTest() {
   const { testId } = useLocalSearchParams();
   const id = testId ? Number(testId) : undefined;
   const editMode = !!testId;
 
-  const { buildingId } = useAuth();
+  const { buildingId, user } = useAuth();
 
   const { data, isLoading } = useGetGeneratorTestById(id, editMode);
   const { mutate: addMutate, isPending: isAdding } = useAddGeneratorTest(
@@ -56,6 +65,7 @@ export default function AddEditGeneratorTest() {
   const [duration, setDuration] = useState("");
   const [miscellaneous, setMiscellaneous] = useState("");
   const [comment, setComment] = useState("");
+  const [images, setImages] = useState<PickedFile[]>([]);
 
   useEffect(() => {
     if (editMode && data?.data) {
@@ -88,32 +98,60 @@ export default function AddEditGeneratorTest() {
     }
   }, [editMode, data]);
 
+  const buildFormData = () => {
+    const form = new FormData();
+    form.append("testDate", toTestDatePayload(testDate));
+    if (buildingId != null) form.append("buildingId", String(buildingId));
+    if (user?.userId != null) {
+      form.append("testedByUserId", String(user.userId));
+    }
+
+    GENERATOR_CHECK_FIELDS.forEach((field) => {
+      if (checks[field.key] === true) form.append(field.key, "true");
+      else if (checks[field.key] === false) form.append(field.key, "false");
+    });
+
+    const strings: Record<string, string> = {
+      fuelLevel,
+      batteryFluidLevel,
+      hourMeterReading,
+      oilPressure,
+      coolantTemperature,
+      voltage,
+      amps,
+      frequency,
+      damperOperation,
+      miscellaneous,
+      hourMeterReadingAfterTest,
+      duration,
+      comment,
+    };
+    Object.entries(strings).forEach(([k, v]) => {
+      if (v.trim()) form.append(k, v.trim());
+    });
+
+    images.forEach((f) => {
+      form.append("relatedImages", {
+        uri:
+          Platform.OS === "android"
+            ? f.uri
+            : f.uri.replace("file://", ""),
+        name: f.name,
+        type: f.mimeType,
+      } as any);
+    });
+
+    return form;
+  };
+
   const onSubmit = () => {
     if (!buildingId || !testDate) return;
-
-    const payload: GeneratorTestRequestPojo = {
-      buildingId,
-      testDate,
-      ...checks,
-      fuelLevel: fuelLevel.trim() || undefined,
-      batteryFluidLevel: batteryFluidLevel.trim() || undefined,
-      hourMeterReading: hourMeterReading.trim() || undefined,
-      oilPressure: oilPressure.trim() || undefined,
-      coolantTemperature: coolantTemperature.trim() || undefined,
-      voltage: voltage.trim() || undefined,
-      amps: amps.trim() || undefined,
-      frequency: frequency.trim() || undefined,
-      damperOperation: damperOperation.trim() || undefined,
-      hourMeterReadingAfterTest: hourMeterReadingAfterTest.trim() || undefined,
-      duration: duration.trim() || undefined,
-      miscellaneous: miscellaneous.trim() || undefined,
-      comment: comment.trim() || undefined,
-    };
-
+    const form = buildFormData();
+    const opts = { onSuccess: () => router.back() };
     if (editMode) {
-      updateMutate(payload, { onSuccess: () => router.back() });
+      updateMutate(form, opts);
     } else {
-      addMutate(payload, { onSuccess: () => router.back() });
+      addMutate(form, opts);
     }
   };
 
@@ -291,6 +329,16 @@ export default function AddEditGeneratorTest() {
                 value={comment}
                 onChangeText={setComment}
                 placeholder="Additional comments"
+              />
+            </View>
+            <View className="mt-3">
+              <FilePicker
+                label="Related images"
+                accept="images"
+                multiple
+                values={images}
+                onChangeMultiple={setImages}
+                hint="Optional photos from the test"
               />
             </View>
           </View>

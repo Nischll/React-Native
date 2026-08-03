@@ -12,26 +12,42 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 export default function Resources() {
-  const { buildingId, user } = useAuth();
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [type, setType] = useState<ResourceType | "ALL">("ALL");
   const [deleteItem, setDeleteItem] = useState<ResourceItem | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useGetResources(
-    { page, limit: 10, buildingId: buildingId ?? undefined, type: type === "ALL" ? undefined : type },
+    {
+      page,
+      limit: 10,
+      type: type === "ALL" ? undefined : type,
+    },
     !!user?.userId,
   );
-  const { mutate: deleteMutate, isPending } = useDeleteResource(deleteItem?.id);
+  const { mutate: deleteMutate, isPending } = useDeleteResource();
 
   const raw: any = data?.data;
   const items: ResourceItem[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
-  const total: number = Array.isArray(raw) ? items.length : (raw?.total ?? items.length);
+  const total: number = Array.isArray(raw)
+    ? items.length
+    : (raw?.total ?? items.length);
 
   const columns: MobileColumn<ResourceItem>[] = [
-    { key: "fileName", label: "File Name", primary: true, searchable: true },
-    { key: "type", label: "Type" },
+    { key: "fileName", label: "Name", primary: true, searchable: true },
+    {
+      key: "type",
+      label: "Type",
+      render: (value) =>
+        RESOURCE_TYPE_OPTIONS.find((o) => o.value === value)?.label ??
+        String(value ?? "—"),
+    },
     { key: "description", label: "Description" },
     { key: "fileSizeDisplay", label: "Size" },
+    {
+      key: "createdByUserName" as any,
+      label: "Created by",
+    },
   ];
 
   return (
@@ -108,15 +124,19 @@ export default function Resources() {
         destructive
         loading={isPending}
         onCancel={() => setDeleteItem(null)}
-        onConfirm={() =>
-          deleteMutate(undefined, {
-            onSuccess: () => {
-              setDeleteItem(null);
-              refetch();
+        onConfirm={() => {
+          if (!deleteItem?.id) return;
+          deleteMutate(
+            { id: deleteItem.id },
+            {
+              onSuccess: () => {
+                setDeleteItem(null);
+                refetch();
+              },
+              onError: () => setDeleteItem(null),
             },
-            onError: () => setDeleteItem(null),
-          })
-        }
+          );
+        }}
       />
     </>
   );

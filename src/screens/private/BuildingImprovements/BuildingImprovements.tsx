@@ -209,7 +209,7 @@ export default function BuildingImprovements() {
   );
 
   const { mutate: deleteImrovementMutate, isPending } =
-    useDeleteBuildingImprovement(deleteImprovement?.id);
+    useDeleteBuildingImprovement();
 
   const improvements: BuildingImprovementResponse[] =
     listData?.data?.data ?? [];
@@ -224,17 +224,20 @@ export default function BuildingImprovements() {
   };
 
   const handleDelete = () => {
-    if (!deleteImprovement) return;
+    if (!deleteImprovement?.id) return;
 
-    deleteImrovementMutate(undefined, {
-      onSuccess: () => {
-        setDeleteImprovement(null);
-        refetch();
+    deleteImrovementMutate(
+      { id: deleteImprovement.id },
+      {
+        onSuccess: () => {
+          setDeleteImprovement(null);
+          refetch();
+        },
+        onError: () => {
+          setDeleteImprovement(null);
+        },
       },
-      onError: () => {
-        setDeleteImprovement(null);
-      },
-    });
+    );
   };
 
   return (
@@ -317,7 +320,7 @@ export default function BuildingImprovements() {
       <ConfirmModal
         visible={!!deleteImprovement}
         title="Delete this improvement?"
-        message={`AThis action cannot be undone. The record will be removed from the list.`}
+        message="This action cannot be undone. The record will be removed from the list."
         confirmText="Delete"
         destructive
         loading={isPending}

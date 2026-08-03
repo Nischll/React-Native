@@ -6,6 +6,7 @@ import {
   TrainingDetail,
   TrainingResponse,
   TrainingTemplate,
+  TrainingUpdateRequest,
 } from "../types/training.types";
 
 export const useGetTrainings = (
@@ -34,8 +35,23 @@ export const useGetTrainingById = (id?: number, enabled = true) =>
 export const useCreateTraining = () =>
   useApiMutation<TrainingCreateRequest>("post", "/trainings");
 
+export const useUpdateTraining = (id?: number) =>
+  useApiMutation<TrainingUpdateRequest>("put", `/trainings/${id}`);
+
 export const useDeleteTraining = (id?: number) =>
   useApiMutation("delete", `/trainings/${id}`);
+
+export const useCompleteEmployeeTraining = () =>
+  useApiMutation<undefined, any, { trainingEmployeeId: number }>(
+    "put",
+    (vars) => `/trainings/employee/${vars?.trainingEmployeeId}/complete`,
+  );
+
+export const useDeleteEmployeeTraining = () =>
+  useApiMutation<undefined, any, { trainingEmployeeId: number }>(
+    "delete",
+    (vars) => `/trainings/employee/${vars?.trainingEmployeeId}`,
+  );
 
 export const useGetTrainingTemplates = (
   params: { page?: number; limit?: number; buildingId?: number } = {},
@@ -56,6 +72,9 @@ export const useGetTrainingTemplates = (
 
 export const useUploadTrainingTemplate = () =>
   useApiMutation<FormData>("post", "/training/templates");
+
+export const useUpdateTrainingTemplate = (id?: number) =>
+  useApiMutation<FormData>("put", `/training/templates/${id}`);
 
 export const useDeleteTrainingTemplate = (id?: number) =>
   useApiMutation("delete", `/training/templates/${id}`);

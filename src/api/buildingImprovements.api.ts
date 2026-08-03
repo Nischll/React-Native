@@ -39,7 +39,7 @@ export const useGetBuildingImprovementById = (
   );
 
 export const useCreateBuildingImprovement = () =>
-  useApiMutation<BuildingImprovementMutationPayload>(
+  useApiMutation<BuildingImprovementMutationPayload | FormData>(
     "post",
     "/building-improvements",
   );
@@ -47,14 +47,20 @@ export const useCreateBuildingImprovement = () =>
 export const useUpdateBuildingImprovement = (
   improvementId: number | undefined,
 ) =>
-  useApiMutation<BuildingImprovementMutationPayload>(
+  useApiMutation<BuildingImprovementMutationPayload | FormData>(
     "put",
     `/building-improvements/${improvementId}`,
   );
 
-export const useDeleteBuildingImprovement = (id: number | undefined) =>
-  useApiMutation("delete", `building-improvements/${id}`);
+export const useDeleteBuildingImprovement = () =>
+  useApiMutation<{ id: number }>(
+    "delete",
+    (vars) => `/building-improvements/${vars?.id}`,
+  );
 
-export const useDeleteBuildingImprovementImage = (
-  improvementId: number | undefined,
-) => useApiMutation("delete", `/building-improvements/${improvementId}`);
+/** DELETE /building-improvements/images/{imageId} — soft-delete one image. */
+export const useDeleteBuildingImprovementImage = () =>
+  useApiMutation<{ imageId: number }>(
+    "delete",
+    (vars) => `/building-improvements/images/${vars?.imageId}`,
+  );

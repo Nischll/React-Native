@@ -81,7 +81,13 @@ export interface WeeklyChecklistRow {
   sortOrder?: number;
   workTitle: string;
   time?: string;
-  days: Record<DayCode, WeeklyChecklistDayCell>;
+  /** Present when API returns M–F cells (daily + updated weekly). */
+  days?: Record<DayCode, WeeklyChecklistDayCell>;
+  /** Legacy weekly: single cell for the template's scheduled weekday. */
+  cell?: WeeklyChecklistDayCell;
+  scheduledDay?: string;
+  scheduledDate?: string;
+  duration?: string;
 }
 
 export interface WeeklyChecklistResponse {

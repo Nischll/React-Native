@@ -54,7 +54,7 @@ export default function ResourceAddEdit() {
 
   return (
     <KeyboardAwareScrollView keyboardShouldPersistTaps="handled" enableOnAndroid extraScrollHeight={20} className="flex-1">
-      <PageHeader showBackButton icon="folder-open" title={editMode ? "Edit Resource" : "Add Resource"} subtitle="Resources" />
+      <PageHeader showBackButton icon="folder-open" title={editMode ? "Edit Resource" : "Add Resource"} subtitle="Building documents, SOPs, and policies." />
       <View className="gap-3 pb-10">
         <Controller
           control={control}

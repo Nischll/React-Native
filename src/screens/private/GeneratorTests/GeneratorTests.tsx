@@ -13,27 +13,59 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
+import { formatDateOnly } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { GeneratorTestResponse } from "@/src/types/generatorTests.types";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+
+function monthRange(monthYm: string | null): {
+  testDateFrom?: string;
+  testDateTo?: string;
+} {
+  if (!monthYm) return {};
+  const [y, m] = monthYm.split("-").map(Number);
+  if (!y || !m) return {};
+  const from = new Date(y, m - 1, 1);
+  const to = new Date(y, m, 0);
+  return {
+    testDateFrom: formatDateOnly(from),
+    testDateTo: formatDateOnly(to),
+  };
+}
 
 export default function GeneratorTests() {
   const { user, buildingId } = useAuth();
 
   const [page, setPage] = useState(1);
+  const [monthFilter, setMonthFilter] = useState<string | null>(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [deleteItem, setDeleteItem] = useState<GeneratorTestResponse | null>(
     null,
   );
 
+  const dateRange = useMemo(() => monthRange(monthFilter), [monthFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [monthFilter, buildingId]);
+
   const { data, isLoading, refetch, isRefetching } = useGetGeneratorTests(
-    { buildingId: buildingId ?? undefined, page, limit: 10 },
+    {
+      buildingId: buildingId ?? undefined,
+      page,
+      limit: 10,
+      ...dateRange,
+    },
     !!user?.userId,
   );
 
   const { mutate: deleteMutate, isPending: isDeleting } =
-    useDeleteGeneratorTest(deleteItem?.id, buildingId ?? undefined);
+    useDeleteGeneratorTest();
 
   const tests = useMemo(() => {
     const raw = data?.data as any;
@@ -47,14 +79,17 @@ export default function GeneratorTests() {
   }, [data, tests]);
 
   const handleDelete = () => {
-    if (!deleteItem) return;
-    deleteMutate(undefined, {
-      onSuccess: () => {
-        setDeleteItem(null);
-        refetch();
+    if (!deleteItem?.id || !buildingId) return;
+    deleteMutate(
+      { id: deleteItem.id, buildingId },
+      {
+        onSuccess: () => {
+          setDeleteItem(null);
+          refetch();
+        },
+        onError: () => setDeleteItem(null),
       },
-      onError: () => setDeleteItem(null),
-    });
+    );
   };
 
   const columns: MobileColumn<GeneratorTestResponse>[] = [
@@ -66,19 +101,15 @@ export default function GeneratorTests() {
     },
     {
       key: "testedByDisplayName",
-      label: "Tested By",
-    },
-    {
-      key: "voltage",
-      label: "Voltage",
-    },
-    {
-      key: "amps",
-      label: "Amps",
+      label: "Created by",
     },
     {
       key: "duration",
       label: "Duration",
+    },
+    {
+      key: "comment",
+      label: "Comment",
     },
   ];
 
@@ -101,6 +132,25 @@ export default function GeneratorTests() {
             <AppIcon name="add" size={24} color="#fff" />
           </View>
         </AnimatedPressable>
+      </View>
+
+      <View className="flex-row items-end gap-2 mb-3 px-1">
+        <View className="flex-1">
+          <MonthYearPicker
+            value={monthFilter ?? ""}
+            onChange={(v) => setMonthFilter(v || null)}
+          />
+        </View>
+        {monthFilter ? (
+          <Pressable
+            onPress={() => setMonthFilter(null)}
+            className="px-3 py-2.5 rounded-xl border border-slate-300 mb-0.5"
+          >
+            <Text className="text-xs font-semibold text-slate-600">
+              All months
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View className="flex-1">

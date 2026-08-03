@@ -34,7 +34,12 @@ export const useDeleteResidentForm = (id?: number) =>
   useApiMutation("delete", `/resident-forms/${id}`);
 
 export const useGetResidentFormForwards = (
-  params: { page?: number; limit?: number; buildingId?: number } = {},
+  params: {
+    page?: number;
+    limit?: number;
+    buildingId?: number;
+    residentId?: number;
+  } = {},
   enabled = true,
 ) => {
   const queryParams: Record<string, any> = {};
@@ -52,3 +57,14 @@ export const useGetResidentFormForwards = (
 
 export const useForwardResidentForms = () =>
   useApiMutation<ForwardResidentFormsRequest>("post", "/resident-form-forwards");
+
+export const useGetResidentFormForwardById = (
+  id?: number,
+  residentId?: number,
+  enabled = true,
+) =>
+  useApiQuery<ApiListResponse<ResidentFormForward>>(`/resident-form-forwards/${id}`, {
+    enabled: enabled && !!id,
+    retry: 0,
+    queryParams: residentId != null ? { residentId } : undefined,
+  });

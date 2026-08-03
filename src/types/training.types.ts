@@ -45,3 +45,10 @@ export interface TrainingCreateRequest {
   description?: string;
   employeeIds: number[];
 }
+
+export interface TrainingUpdateRequest {
+  title: string;
+  description?: string;
+  /** Only adds employees not already assigned */
+  employeeIds?: number[];
+}

@@ -9,6 +9,7 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
 import {
   formatApiDate,
+  formatCompletedTime,
   formatWeekEndingDisplay,
   getCompletedDateForDay,
   getNextWeekEnding,
@@ -16,6 +17,10 @@ import {
   getTodayDayCodeForWeek,
   getWeekEndingFriday,
 } from "@/src/helper/checklistDateUtils";
+import {
+  isRowDayDone,
+  normalizeWeeklyChecklistRow,
+} from "@/src/helper/checklistRowUtils";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   CHECKLIST_CONFIGS,
@@ -31,10 +36,6 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 
 interface Props {
   period: Extract<ChecklistPeriod, "daily" | "weekly">;
-}
-
-function isRowDayDone(row: WeeklyChecklistRow, day: DayCode): boolean {
-  return !!row.days?.[day]?.isDone;
 }
 
 export default function ChecklistWeeklyGrid({ period }: Props) {
@@ -57,7 +58,13 @@ export default function ChecklistWeeklyGrid({ period }: Props) {
     !!user?.userId && buildingId != null,
   );
 
-  const rows = data?.data?.rows ?? [];
+  const rows = useMemo(
+    () =>
+      (data?.data?.rows ?? []).map((row) =>
+        normalizeWeeklyChecklistRow(row, weekEnding),
+      ),
+    [data?.data?.rows, weekEnding],
+  );
   const cellMutation = useUpdateWeeklyChecklistCell(config.basePath);
 
   const handleCellPress = async (row: WeeklyChecklistRow, day: DayCode) => {
@@ -66,7 +73,8 @@ export default function ChecklistWeeklyGrid({ period }: Props) {
     const cellKey = `${row.templateId}-${day}`;
     const nextDone = !isRowDayDone(row, day);
     const dayCell = row.days?.[day];
-    const completedDate = dayCell?.completedDate || getCompletedDateForDay(weekEnding, day);
+    const completedDate =
+      dayCell?.completedDate || getCompletedDateForDay(weekEnding, day);
 
     setPendingCell(cellKey);
     cellMutation.mutate(
@@ -74,8 +82,9 @@ export default function ChecklistWeeklyGrid({ period }: Props) {
         buildingId,
         weekEnding,
         templateId: row.templateId,
-        completedDate,
+        completedDate: String(completedDate).slice(0, 10),
         isDone: nextDone,
+        completedTime: nextDone ? formatCompletedTime() : undefined,
         employeeId: user?.userId,
       },
       {
