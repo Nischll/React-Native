@@ -375,66 +375,86 @@ export default function AddEditBooking() {
 
             {isPaid && (
               <View className="mt-3 gap-3">
-                <AppInput
-                  label="Fee Amount"
-                  value={paidFee}
-                  onChangeText={setPaidFee}
-                  placeholder="Fee amount"
-                  keyboardType="decimal-pad"
-                />
-                <AppInput
-                  label="Receipt Number"
-                  value={receiptNumber}
-                  onChangeText={setReceiptNumber}
-                  placeholder="Receipt #"
-                />
-                <SelectField
-                  label="Payment Type"
-                  value={paidType}
-                  onChange={(v) => setPaidType(v as PaidType)}
-                  options={PAID_TYPE_OPTIONS}
-                  placeholder="Select Payment Type"
-                  mode="dropdown"
-                />
-                <AppInput
-                  label="Damage Deposit"
-                  value={damageDeposit}
-                  onChangeText={setDamageDeposit}
-                  placeholder="Deposit amount"
-                  keyboardType="decimal-pad"
-                />
-                <AppInput
-                  label="Deposit Receipt Number"
-                  value={depositReceiptNumber}
-                  onChangeText={setDepositReceiptNumber}
-                  placeholder="Receipt # for deposit"
-                />
-                <SelectField
-                  label="Deposit Payment Type"
-                  value={damageDepositPaidType}
-                  onChange={(v) => setDamageDepositPaidType(v as PaidType)}
-                  options={PAID_TYPE_OPTIONS}
-                  placeholder="Select Deposit Payment Type"
-                  mode="dropdown"
-                />
-                <TextAreaField
-                  label="Pre-inspection"
-                  value={preInspection}
-                  onChangeText={setPreInspection}
-                  placeholder="Pre-inspection notes"
-                />
-                <TextAreaField
-                  label="Post-inspection"
-                  value={postInspection}
-                  onChangeText={setPostInspection}
-                  placeholder="Post-inspection notes"
-                />
-                <TextAreaField
-                  label="Revenue Notes"
-                  value={revenueDescription}
-                  onChangeText={setRevenueDescription}
-                  placeholder="Additional notes"
-                />
+                {/* Non-refundable fee */}
+                <View className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 gap-3 border-l-4 border-l-amber-500">
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                    Non-refundable fee
+                  </Text>
+                  <AppInput
+                    label="Fee Amount"
+                    value={paidFee}
+                    onChangeText={setPaidFee}
+                    placeholder="Fee amount"
+                    keyboardType="decimal-pad"
+                  />
+                  <AppInput
+                    label="Receipt Number"
+                    value={receiptNumber}
+                    onChangeText={setReceiptNumber}
+                    placeholder="Receipt #"
+                  />
+                  <SelectField
+                    label="Payment Type"
+                    value={paidType}
+                    onChange={(v) => setPaidType(v as PaidType)}
+                    options={PAID_TYPE_OPTIONS}
+                    placeholder="Select Payment Type"
+                    mode="dropdown"
+                  />
+                </View>
+
+                {/* Refundable deposit */}
+                <View className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 gap-3 border-l-4 border-l-emerald-500">
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
+                    Refundable — deposit
+                  </Text>
+                  <AppInput
+                    label="Deposit Amount"
+                    value={damageDeposit}
+                    onChangeText={setDamageDeposit}
+                    placeholder="Deposit amount"
+                    keyboardType="decimal-pad"
+                  />
+                  <AppInput
+                    label="Deposit Receipt Number"
+                    value={depositReceiptNumber}
+                    onChangeText={setDepositReceiptNumber}
+                    placeholder="Receipt # for deposit"
+                  />
+                  <SelectField
+                    label="Deposit Payment Type"
+                    value={damageDepositPaidType}
+                    onChange={(v) => setDamageDepositPaidType(v as PaidType)}
+                    options={PAID_TYPE_OPTIONS}
+                    placeholder="Select Deposit Payment Type"
+                    mode="dropdown"
+                  />
+                </View>
+
+                {/* Inspections & notes */}
+                <View className="rounded-xl border border-slate-200 bg-slate-50 p-3 gap-3">
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Inspections & notes
+                  </Text>
+                  <TextAreaField
+                    label="Pre-inspection"
+                    value={preInspection}
+                    onChangeText={setPreInspection}
+                    placeholder="Pre-inspection notes"
+                  />
+                  <TextAreaField
+                    label="Post-inspection"
+                    value={postInspection}
+                    onChangeText={setPostInspection}
+                    placeholder="Post-inspection notes"
+                  />
+                  <TextAreaField
+                    label="Revenue Notes"
+                    value={revenueDescription}
+                    onChangeText={setRevenueDescription}
+                    placeholder="Additional notes"
+                  />
+                </View>
               </View>
             )}
           </View>

@@ -1,17 +1,23 @@
 import { useGetBookingById } from "@/src/api/booking.api";
+import { useGetTowers } from "@/src/api/tower.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import Card from "@/src/components/ui/Card";
 import { formatDateTime } from "@/src/helper/formatDateTime";
+import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import {
   BookingRevenueResponse,
+  BookingResponse,
   bookingStatusLabel,
   normalizeBookingStatus,
   paidTypeLabel,
 } from "@/src/types/booking.types";
+import { TowerResponse } from "@/src/types/tower.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
+import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 function hasRevenueInfo(revenue?: BookingRevenueResponse | null): boolean {
@@ -28,34 +34,138 @@ function hasRevenueInfo(revenue?: BookingRevenueResponse | null): boolean {
   );
 }
 
+function pickDisplayName(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return null;
+}
+
+/** Resolve display fields from API booking + local tower/residence lookups (AML web does the same). */
+function resolveBookingDisplay(
+  booking: BookingResponse & Record<string, any>,
+  towers: TowerResponse[],
+  residences: { label: string; value: string }[],
+) {
+  const nestedTower = booking.tower;
+  const nestedResident = booking.resident;
+
+  const towerId =
+    booking.towerId ??
+    nestedTower?.id ??
+    null;
+
+  const residentId =
+    booking.residentId ??
+    nestedResident?.id ??
+    null;
+
+  const towerFromList = towerId
+    ? towers.find((t) => Number(t.id) === Number(towerId))
+    : undefined;
+
+  const residenceFromList = residentId
+    ? residences.find((r) => r.value === String(residentId))
+    : undefined;
+
+  // Residence option label is "UNIT - Resident Name"
+  let unitFromResidence: string | null = null;
+  let nameFromResidence: string | null = null;
+  if (residenceFromList?.label) {
+    const parts = residenceFromList.label.split(" - ");
+    unitFromResidence = parts[0]?.trim() || null;
+    nameFromResidence = parts.slice(1).join(" - ").trim() || null;
+  }
+
+  const towerName = pickDisplayName(
+    booking.towerName,
+    nestedTower?.name,
+    towerFromList?.name,
+  );
+
+  const residentUnit = pickDisplayName(
+    booking.residentUnit,
+    booking.unit,
+    nestedResident?.unit,
+    nestedResident?.residentUnit,
+    unitFromResidence,
+  );
+
+  const residentName = pickDisplayName(
+    booking.residentName,
+    nestedResident?.residentName,
+    nestedResident?.fullName,
+    nestedResident?.name,
+    nestedResident?.firstName && nestedResident?.lastName
+      ? `${nestedResident.firstName} ${nestedResident.lastName}`.trim()
+      : null,
+    nameFromResidence,
+  );
+
+  const amenityLabel = pickDisplayName(
+    booking.amenityName,
+    booking.amenity?.name,
+    booking.title,
+  );
+
+  const buildingName = pickDisplayName(
+    booking.buildingName,
+    booking.building?.name,
+  );
+
+  return {
+    towerName,
+    residentUnit,
+    residentName,
+    amenityLabel,
+    buildingName,
+  };
+}
+
 export default function BookingDetailsScreen() {
   const { bookingId } = useLocalSearchParams();
   const id = Number(bookingId);
 
   const { data, isLoading } = useGetBookingById(id);
-  const booking = data?.data;
+  const booking = data?.data as
+    | (BookingResponse & Record<string, any>)
+    | undefined;
+
+  const { data: towerData } = useGetTowers(
+    booking?.buildingId ? { buildingId: booking.buildingId } : {},
+    !!booking,
+  );
+  const { items: towers } = extractPaginatedList<TowerResponse>(towerData);
+  const { residences } = useResidencesForActiveBuilding();
+
+  const display = useMemo(() => {
+    if (!booking) return null;
+    return resolveBookingDisplay(booking, towers, residences);
+  }, [booking, towers, residences]);
 
   if (isLoading) return <LoadingState message="Booking details loading." />;
-  if (!booking) return <EmptyState message="No booking details found." />;
+  if (!booking || !display)
+    return <EmptyState message="No booking details found." />;
 
   const status = normalizeBookingStatus(booking.status);
   const isConfirmed = status === "CONFIRM";
   const isCancelled = status === "CANCEL";
   const revenue = booking.revenue;
   const showRevenue = hasRevenueInfo(revenue);
-  const unit =
-    booking.residentUnit ||
-    booking.unit ||
-    null;
-  const amenityLabel =
-    booking.amenityName || booking.title || "—";
+
+  const unitLabel =
+    display.residentUnit && display.residentName
+      ? `${display.residentUnit} (${display.residentName})`
+      : display.residentUnit || display.residentName;
 
   return (
     <View className="flex-1">
       <PageHeader
         icon="calendar"
         title="Booking Details"
-        subtitle={amenityLabel !== "—" ? amenityLabel : "View booking information"}
+        subtitle={
+          display.amenityLabel || "View booking information"
+        }
         showBackButton
       />
 
@@ -98,19 +208,12 @@ export default function BookingDetailsScreen() {
         <Card className="p-4 mb-4">
           <SectionLabel label="Booking details" />
           <InfoRow>
-            <InfoField label="Building" value={booking.buildingName} />
-            <InfoField label="Amenity" value={amenityLabel} />
+            <InfoField label="Building" value={display.buildingName} />
+            <InfoField label="Amenity" value={display.amenityLabel} />
           </InfoRow>
           <InfoRow>
-            <InfoField label="Tower" value={booking.towerName} />
-            <InfoField
-              label="Unit"
-              value={
-                unit && booking.residentName
-                  ? `${unit} (${booking.residentName})`
-                  : unit || booking.residentName
-              }
-            />
+            <InfoField label="Tower" value={display.towerName} />
+            <InfoField label="Unit" value={unitLabel} />
           </InfoRow>
           {booking.amenityDescription ? (
             <InfoRow>
@@ -129,6 +232,9 @@ export default function BookingDetailsScreen() {
           </InfoRow>
           <InfoRow>
             <InfoField label="Description" value={booking.description} />
+          </InfoRow>
+          <InfoRow>
+            <InfoField label="Resident" value={display.residentName} />
           </InfoRow>
         </Card>
 
