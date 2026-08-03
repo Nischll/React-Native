@@ -11,6 +11,7 @@ const ACCOUNT_MENU_ORDER = [
 ] as const;
 
 const EXCLUDED_CODES = new Set([
+  "D",
   "PROF",
   "TC",
   "TI",
