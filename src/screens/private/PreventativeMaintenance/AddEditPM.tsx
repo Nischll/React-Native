@@ -13,6 +13,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import {
   MONTH_CODES,
   MONTH_LABELS,
+  PREVENTIVE_MAINTENANCE_STATUS_OPTIONS,
   parseScheduledMonths,
   PreventiveMaintenanceStatus,
   serializeScheduledMonths,
@@ -23,19 +24,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Keyboard,
+  Modal,
   Pressable,
   Text,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-
-const STATUS_CYCLE: PreventiveMaintenanceStatus[] = [
-  "SCHEDULED",
-  "REQUESTED",
-  "COMPLETED",
-  "CANCELLED",
-];
 
 export default function AddEditPM() {
   const { pmId, year: yearParam } = useLocalSearchParams<{
@@ -65,6 +60,9 @@ export default function AddEditPM() {
   );
   const [statusPerMonth, setStatusPerMonth] = useState<StatusPerMonth>({});
   const [hydrated, setHydrated] = useState(!editMode);
+  const [statusPickerMonth, setStatusPickerMonth] = useState<string | null>(
+    null,
+  );
 
   const { data, isLoading, isError } = useGetPreventiveMaintenanceById(
     id,
@@ -90,31 +88,35 @@ export default function AddEditPM() {
     setHydrated(true);
   }, [editMode, editingItem]);
 
-  const toggleMonth = (monthCode: string) => {
+  const addMonth = (monthCode: string) => {
     setSelectedMonths((prev) => {
       const next = new Set(prev);
-      if (next.has(monthCode)) {
-        const currentStatus = statusPerMonth[monthCode] ?? "SCHEDULED";
-        const idx = STATUS_CYCLE.indexOf(currentStatus);
-        if (idx === STATUS_CYCLE.length - 1) {
-          next.delete(monthCode);
-          setStatusPerMonth((spm) => {
-            const copy = { ...spm };
-            delete copy[monthCode];
-            return copy;
-          });
-        } else {
-          setStatusPerMonth((spm) => ({
-            ...spm,
-            [monthCode]: STATUS_CYCLE[idx + 1],
-          }));
-        }
-      } else {
-        next.add(monthCode);
-        setStatusPerMonth((spm) => ({ ...spm, [monthCode]: "SCHEDULED" }));
-      }
+      next.add(monthCode);
       return next;
     });
+    setStatusPerMonth((spm) => ({ ...spm, [monthCode]: "SCHEDULED" }));
+  };
+
+  const removeMonth = (monthCode: string) => {
+    setSelectedMonths((prev) => {
+      const next = new Set(prev);
+      next.delete(monthCode);
+      return next;
+    });
+    setStatusPerMonth((spm) => {
+      const copy = { ...spm };
+      delete copy[monthCode];
+      return copy;
+    });
+    setStatusPickerMonth(null);
+  };
+
+  const setMonthStatus = (
+    monthCode: string,
+    status: PreventiveMaintenanceStatus,
+  ) => {
+    setStatusPerMonth((spm) => ({ ...spm, [monthCode]: status }));
+    setStatusPickerMonth(null);
   };
 
   const onSubmit = () => {
@@ -161,6 +163,11 @@ export default function AddEditPM() {
   if (editMode && !hydrated) {
     return <LoadingState message="Maintenance item loading." />;
   }
+
+  const pickerStatus =
+    statusPickerMonth != null
+      ? (statusPerMonth[statusPickerMonth] ?? "SCHEDULED")
+      : null;
 
   return (
     <View className="flex-1">
@@ -216,7 +223,7 @@ export default function AddEditPM() {
               Scheduled Months
             </Text>
             <Text className="mb-2 text-xs text-gray-500">
-              Tap a month to add it, tap again to cycle its status.
+              Tap a month to add it. Tap a selected month to change its status.
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {MONTH_LABELS.map((label, idx) => {
@@ -224,19 +231,26 @@ export default function AddEditPM() {
                 const checked = selectedMonths.has(code);
                 const status = statusPerMonth[code] ?? "SCHEDULED";
                 const style = STATUS_COLORS[status];
+                if (checked) {
+                  return (
+                    <Pressable
+                      key={code}
+                      onPress={() => setStatusPickerMonth(code)}
+                      className={`w-14 h-10 rounded-lg items-center justify-center ${style.bg}`}
+                    >
+                      <Text className="text-xs font-semibold text-white">
+                        {style.letter} · {label}
+                      </Text>
+                    </Pressable>
+                  );
+                }
                 return (
                   <Pressable
                     key={code}
-                    onPress={() => toggleMonth(code)}
-                    className={`w-14 h-10 rounded-lg items-center justify-center ${
-                      checked ? style.bg : "bg-gray-100 border border-gray-200"
-                    }`}
+                    onPress={() => addMonth(code)}
+                    className="w-14 h-10 rounded-lg items-center justify-center bg-gray-100 border border-dashed border-gray-300"
                   >
-                    <Text
-                      className={`text-xs font-semibold ${
-                        checked ? "text-white" : "text-gray-500"
-                      }`}
-                    >
+                    <Text className="text-xs font-semibold text-gray-500">
                       {label}
                     </Text>
                   </Pressable>
@@ -244,14 +258,12 @@ export default function AddEditPM() {
               })}
             </View>
             <View className="flex-row flex-wrap gap-3 mt-3">
-              {STATUS_CYCLE.map((s) => (
-                <View key={s} className="flex-row items-center gap-1">
+              {PREVENTIVE_MAINTENANCE_STATUS_OPTIONS.map((s) => (
+                <View key={s.value} className="flex-row items-center gap-1">
                   <View
-                    className={`w-4 h-4 rounded ${STATUS_COLORS[s].bg}`}
+                    className={`w-4 h-4 rounded ${STATUS_COLORS[s.value].bg}`}
                   />
-                  <Text className="text-[11px] text-gray-500">
-                    {STATUS_COLORS[s].label}
-                  </Text>
+                  <Text className="text-[11px] text-gray-500">{s.label}</Text>
                 </View>
               ))}
             </View>
@@ -294,6 +306,75 @@ export default function AddEditPM() {
           </View>
         </KeyboardAwareScrollView>
       </TouchableWithoutFeedback>
+
+      <Modal
+        transparent
+        visible={!!statusPickerMonth}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setStatusPickerMonth(null)}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 justify-end"
+          onPress={() => setStatusPickerMonth(null)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            className="rounded-t-3xl bg-white px-5 pt-4 pb-8"
+          >
+            <Text className="text-lg font-bold text-textPrimary mb-1">
+              Month status
+            </Text>
+            <Text className="text-sm text-textSecondary mb-4">
+              {statusPickerMonth
+                ? MONTH_LABELS[MONTH_CODES.indexOf(statusPickerMonth)]
+                : ""}
+            </Text>
+            {PREVENTIVE_MAINTENANCE_STATUS_OPTIONS.map((opt) => {
+              const style = STATUS_COLORS[opt.value];
+              const active = pickerStatus === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() =>
+                    statusPickerMonth &&
+                    setMonthStatus(statusPickerMonth, opt.value)
+                  }
+                  className={`flex-row items-center gap-3 py-3 border-b border-slate-100 ${
+                    active ? "opacity-100" : ""
+                  }`}
+                >
+                  <View
+                    className={`w-6 h-6 rounded-md items-center justify-center ${style.bg}`}
+                  >
+                    <Text className="text-[10px] font-bold text-white">
+                      {style.letter}
+                    </Text>
+                  </View>
+                  <Text className="text-base font-semibold text-textPrimary flex-1">
+                    {opt.label}
+                  </Text>
+                  {active ? (
+                    <Text className="text-xs font-semibold text-primary">
+                      Selected
+                    </Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() =>
+                statusPickerMonth && removeMonth(statusPickerMonth)
+              }
+              className="py-3.5"
+            >
+              <Text className="text-base font-semibold text-red-600">
+                Remove status
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

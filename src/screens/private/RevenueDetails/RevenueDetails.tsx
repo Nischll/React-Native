@@ -1,5 +1,4 @@
 import { useGetRevenueDetails } from "@/src/api/revenue.api";
-import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -26,6 +25,7 @@ import {
 import { PAGE_SIZE } from "@/src/utils/listPagination";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 import RevenueActionModal, {
   RevenueActionMode,
 } from "./RevenueActionModal";
@@ -60,6 +60,7 @@ export default function RevenueDetails() {
   const [page, setPage] = useState(1);
   const [type, setType] = useState<string>("ALL");
   const [paidFilter, setPaidFilter] = useState<string>("ALL");
+  const [filterVisible, setFilterVisible] = useState(false);
   const [actionItem, setActionItem] = useState<RevenueDetailItem | null>(null);
   const [actionMode, setActionMode] = useState<RevenueActionMode | null>(null);
 
@@ -243,17 +244,6 @@ export default function RevenueDetails() {
 
         {/* Filters */}
         <View className="mb-3 gap-2 px-1">
-          <DateRangeFilter
-            dateType={dateType}
-            fromDate={fromDate}
-            toDate={toDate}
-            onPresetChange={(type) => {
-              applyPreset(type);
-              setPage(1);
-            }}
-            onFromDateChange={setFromDate}
-            onToDateChange={setToDate}
-          />
           <View className="flex-row gap-2">
             <View className="flex-1">
               <SelectField
@@ -299,6 +289,7 @@ export default function RevenueDetails() {
                 : "No non-refundable fees found."
             }
             onRefresh={refetch}
+            onFilterPress={() => setFilterVisible(true)}
             pagination={{
               page,
               pageSize: PAGE_SIZE,
@@ -337,6 +328,18 @@ export default function RevenueDetails() {
           />
         </View>
       </View>
+
+      <TaskFilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        dateType={dateType}
+        fromDate={fromDate}
+        toDate={toDate}
+        setFromDate={setFromDate}
+        setToDate={setToDate}
+        applyPreset={applyPreset}
+        showResident={false}
+      />
 
       <RevenueActionModal
         item={actionItem}

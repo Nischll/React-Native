@@ -244,17 +244,21 @@ export function MobileDataList<T>({
 
   return (
     <View className="flex-1 gap-3 px-1">
-      {/* Search */}
-      {searchable && (
+      {/* Search / filter */}
+      {(searchable || onFilterPress) && (
         <View className="mb-2 flex-row items-center gap-2">
-          <View className="flex-1">
-            <AppInput
-              placeholder="Search..."
-              value={search}
-              onChangeText={setSearch}
-              size="sm"
-            />
-          </View>
+          {searchable ? (
+            <View className="flex-1">
+              <AppInput
+                placeholder="Search..."
+                value={search}
+                onChangeText={setSearch}
+                size="sm"
+              />
+            </View>
+          ) : (
+            <View className="flex-1" />
+          )}
 
           {onFilterPress && (
             <TouchableOpacity

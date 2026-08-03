@@ -3,7 +3,6 @@ import {
   useDeleteVisitorParkingInspection,
   useGetVisitorParkingInspections,
 } from "@/src/api/visitorParking.api";
-import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -21,12 +20,14 @@ import { VisitorParkingInspectionResponse } from "@/src/types/visitorParking.typ
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
+import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 
 export default function VisitorParking() {
   const { user, buildingId } = useAuth();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [filterVisible, setFilterVisible] = useState(false);
   const [deleteItem, setDeleteItem] =
     useState<VisitorParkingInspectionResponse | null>(null);
   const {
@@ -143,20 +144,6 @@ export default function VisitorParking() {
         </AnimatedPressable>
       </View>
 
-      <View className="mb-3 px-1">
-        <DateRangeFilter
-          dateType={dateType}
-          fromDate={fromDate}
-          toDate={toDate}
-          onPresetChange={(type) => {
-            applyPreset(type);
-            setPage(1);
-          }}
-          onFromDateChange={setFromDate}
-          onToDateChange={setToDate}
-        />
-      </View>
-
       <View className="flex-1">
         <MobileDataList<VisitorParkingInspectionResponse>
           data={inspections}
@@ -168,6 +155,7 @@ export default function VisitorParking() {
           keyExtractor={(item) => item.id.toString()}
           emptyMessage="No visitor parking inspections found"
           onRefresh={refetch}
+          onFilterPress={() => setFilterVisible(true)}
           onSearch={(value) => {
             setSearch(value);
             setPage(1);
@@ -222,6 +210,18 @@ export default function VisitorParking() {
           }}
         />
       </View>
+
+      <TaskFilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        dateType={dateType}
+        fromDate={fromDate}
+        toDate={toDate}
+        setFromDate={setFromDate}
+        setToDate={setToDate}
+        applyPreset={applyPreset}
+        showResident={false}
+      />
 
       <ConfirmModal
         visible={!!deleteItem}

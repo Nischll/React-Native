@@ -8,7 +8,7 @@ interface TaskFilterModalProps {
   onClose: () => void;
 
   residentId?: number;
-  setResidentId: (value?: number) => void;
+  setResidentId?: (value?: number) => void;
 
   dateType: "today" | "week" | "month" | "custom";
   fromDate?: string;
@@ -18,7 +18,6 @@ interface TaskFilterModalProps {
   setToDate: (value?: string) => void;
 
   applyPreset: (type: "today" | "week" | "month" | "custom") => void;
-  /** When false, only resident filter is shown (date handled elsewhere). Default true. */
   showDateRange?: boolean;
   showResident?: boolean;
 }
@@ -68,7 +67,7 @@ export const TaskFilterModal = ({
               <SelectField
                 label="Resident"
                 value={residentId?.toString()}
-                onChange={(v) => setResidentId(Number(v))}
+                onChange={(v) => setResidentId?.(Number(v))}
                 options={residences}
                 placeholder="All Residents"
               />
@@ -129,7 +128,7 @@ export const TaskFilterModal = ({
               <TouchableOpacity
                 className="flex-1 border border-gray-300 rounded-xl py-3"
                 onPress={() => {
-                  setResidentId(undefined);
+                  setResidentId?.(undefined);
                   if (showDateRange) applyPreset("month");
                 }}
               >

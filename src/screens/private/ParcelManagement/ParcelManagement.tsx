@@ -3,7 +3,6 @@ import {
   useGetParcels,
   useRemindParcel,
 } from "@/src/api/parcelManagement.api";
-import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -200,20 +199,6 @@ export default function ParcelManagement() {
           </AppButton>
         </View> */}
 
-        <View className="mb-3 px-1">
-          <DateRangeFilter
-            dateType={dateType}
-            fromDate={fromDate}
-            toDate={toDate}
-            onPresetChange={(type) => {
-              applyPreset(type);
-              setPage(1);
-            }}
-            onFromDateChange={setFromDate}
-            onToDateChange={setToDate}
-          />
-        </View>
-
         <View className="flex-1">
           <MobileDataList<ParcelResponse>
             data={parcels}
@@ -306,7 +291,6 @@ export default function ParcelManagement() {
           setFromDate={setFromDate}
           setToDate={setToDate}
           applyPreset={applyPreset}
-          showDateRange={false}
         />
         <ConfirmModal
           visible={!!deleteParcel}

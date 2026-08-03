@@ -1,5 +1,4 @@
 import { useGetTradeVisits } from "@/src/api/tradeManagement.api";
-import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -17,12 +16,14 @@ import { TradeVisitResponse } from "@/src/types/tradeManagement.types";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
+import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 
 export default function TradeManagement() {
   const { user, buildingId } = useAuth();
 
   const [page, setPage] = useState(1);
   const [lifecycle, setLifecycle] = useState<string | undefined>();
+  const [filterVisible, setFilterVisible] = useState(false);
   const {
     dateType,
     fromDate,
@@ -192,31 +193,19 @@ export default function TradeManagement() {
         })}
       </View>
 
-      <View className="mt-3 mb-1 px-1">
-        <DateRangeFilter
-          dateType={dateType}
-          fromDate={fromDate}
-          toDate={toDate}
-          onPresetChange={(type) => {
-            applyPreset(type);
-            setPage(1);
-          }}
-          onFromDateChange={setFromDate}
-          onToDateChange={setToDate}
-        />
-      </View>
-
-      <View className="flex-1 mt-2">
+      <View className="flex-1 mt-3">
         <MobileDataList<TradeVisitResponse>
           data={tradeVisits}
           columns={columns}
           loading={isLoading}
           refreshing={isRefetching}
+          searchable
           backendMode
           keyExtractor={(item) => item.id.toString()}
           emptyMessage="No trade visits found"
           onRefresh={refetch}
-          onSearch={(value) => {
+          onFilterPress={() => setFilterVisible(true)}
+          onSearch={() => {
             setPage(1);
           }}
           pagination={{
@@ -313,6 +302,18 @@ export default function TradeManagement() {
           </View>
         </AnimatedPressable>
       </View>
+
+      <TaskFilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        dateType={dateType}
+        fromDate={fromDate}
+        toDate={toDate}
+        setFromDate={setFromDate}
+        setToDate={setToDate}
+        applyPreset={applyPreset}
+        showResident={false}
+      />
     </View>
   );
 }

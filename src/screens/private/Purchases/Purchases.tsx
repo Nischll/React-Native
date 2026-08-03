@@ -1,5 +1,4 @@
 import { PurchaseType, useGetPurchases } from "@/src/api/purchases.api";
-import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -21,6 +20,7 @@ import {
 import { PAGE_SIZE } from "@/src/utils/listPagination";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
+import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 import PurchaseFormModal from "./PurchaseFormModal";
 
 type PurchaseSection = "all" | "one-time" | "recurring";
@@ -70,6 +70,7 @@ export default function Purchases() {
   const [formType, setFormType] = useState<PurchaseType>("FILTER");
   const [editItem, setEditItem] = useState<RevenueDetailItem | null>(null);
   const [typePickerVisible, setTypePickerVisible] = useState(false);
+  const [filterVisible, setFilterVisible] = useState(false);
   const {
     dateType,
     fromDate,
@@ -283,20 +284,6 @@ export default function Purchases() {
           </View>
         )}
 
-        <View className="mb-3 px-1">
-          <DateRangeFilter
-            dateType={dateType}
-            fromDate={fromDate}
-            toDate={toDate}
-            onPresetChange={(type) => {
-              applyPreset(type);
-              setPage(1);
-            }}
-            onFromDateChange={setFromDate}
-            onToDateChange={setToDate}
-          />
-        </View>
-
         <View className="flex-1">
           <MobileDataList<RevenueDetailItem>
             data={items}
@@ -314,6 +301,7 @@ export default function Purchases() {
                   : "No purchases found"
             }
             onRefresh={refetch}
+            onFilterPress={() => setFilterVisible(true)}
             pagination={{
               page,
               pageSize: PAGE_SIZE,
@@ -342,6 +330,18 @@ export default function Purchases() {
           </AnimatedPressable>
         </View>
       </View>
+
+      <TaskFilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        dateType={dateType}
+        fromDate={fromDate}
+        toDate={toDate}
+        setFromDate={setFromDate}
+        setToDate={setToDate}
+        applyPreset={applyPreset}
+        showResident={false}
+      />
 
       <Modal
         transparent

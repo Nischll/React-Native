@@ -3,6 +3,7 @@ import {
   useGetPreventiveMaintenance,
   useGetPreventiveMaintenanceYears,
   useLoadPreventiveMaintenanceDefaults,
+  useUpdatePreventiveMaintenance,
 } from "@/src/api/preventativeMaintenance.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
@@ -22,14 +23,22 @@ import {
   MONTH_CODES,
   MONTH_LABELS,
   parseScheduledMonths,
+  PreventiveMaintenanceRequestPojo,
   PreventiveMaintenanceResponse,
+  PreventiveMaintenanceStatus,
+  serializeScheduledMonths,
   STATUS_COLORS,
   getMonthStatus,
 } from "@/src/types/preventativeMaintenance.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import {
+  PMMonthActionSheet,
+  PMNoteModal,
+  PMStatusChangeModal,
+} from "./PMMonthModals";
 
 const DEFAULT_YEARS = Array.from({ length: 11 }, (_, i) => 2025 + i);
 
@@ -39,6 +48,20 @@ export default function PreventativeMaintenance() {
   const [page, setPage] = useState(1);
   const [deleteItem, setDeleteItem] =
     useState<PreventiveMaintenanceResponse | null>(null);
+
+  const [monthAction, setMonthAction] = useState<{
+    item: PreventiveMaintenanceResponse;
+    monthCode: string;
+  } | null>(null);
+  const [statusChange, setStatusChange] = useState<{
+    item: PreventiveMaintenanceResponse;
+    monthCode: string;
+    newStatus: PreventiveMaintenanceStatus;
+  } | null>(null);
+  const [noteDialog, setNoteDialog] = useState<{
+    item: PreventiveMaintenanceResponse;
+    monthCode: string;
+  } | null>(null);
 
   const { data: yearsData } = useGetPreventiveMaintenanceYears();
   const yearsList = yearsData?.data?.length ? yearsData.data : DEFAULT_YEARS;
@@ -58,6 +81,9 @@ export default function PreventativeMaintenance() {
   const { mutate: deleteMutate, isPending: isDeleting } =
     useDeletePreventiveMaintenance();
 
+  const { mutate: updateMutate, isPending: isUpdating } =
+    useUpdatePreventiveMaintenance(undefined, buildingId ?? undefined);
+
   const { mutate: loadDefaultsMutate, isPending: isLoadingDefaults } =
     useLoadPreventiveMaintenanceDefaults(buildingId ?? undefined);
 
@@ -70,6 +96,55 @@ export default function PreventativeMaintenance() {
     () => yearsList.map((y) => ({ label: String(y), value: String(y) })),
     [yearsList],
   );
+
+  const handleInlineStatusChange = (
+    item: PreventiveMaintenanceResponse,
+    monthCode: string,
+    newStatus: PreventiveMaintenanceStatus | null,
+    note?: string,
+  ) => {
+    if (!buildingId || !item.id) return;
+
+    const months = parseScheduledMonths(item.scheduledMonths);
+    const spm = { ...(item.statusPerMonth ?? {}) };
+    const npm = { ...(item.notesPerMonth ?? {}) };
+
+    if (newStatus === null) {
+      months.delete(monthCode);
+      delete spm[monthCode];
+      delete npm[monthCode];
+    } else {
+      months.add(monthCode);
+      spm[monthCode] = newStatus;
+      if (note !== undefined) {
+        if (note.trim()) npm[monthCode] = note.trim();
+        else delete npm[monthCode];
+      }
+    }
+
+    const payload: PreventiveMaintenanceRequestPojo & {
+      pathVars: { id: number; buildingId: number };
+    } = {
+      id: item.id,
+      buildingId,
+      year: item.year ?? year,
+      maintenanceItem: item.maintenanceItem ?? "",
+      frequency: item.frequency,
+      estCost: item.estCost,
+      trade: item.trade ?? item.tradeInvolved,
+      tradeInvolved: item.trade ?? item.tradeInvolved,
+      status: item.status,
+      statusPerMonth: Object.keys(spm).length > 0 ? spm : undefined,
+      notesPerMonth: Object.keys(npm).length > 0 ? npm : undefined,
+      notes: item.notes,
+      scheduledMonths: serializeScheduledMonths(months),
+      pathVars: { id: item.id, buildingId },
+    };
+
+    updateMutate(payload as any, {
+      onSuccess: () => refetch(),
+    });
+  };
 
   const handleDelete = () => {
     if (!deleteItem?.id || !buildingId) return;
@@ -93,6 +168,16 @@ export default function PreventativeMaintenance() {
         onSuccess: () => refetch(),
       },
     );
+  };
+
+  const openEdit = (item: PreventiveMaintenanceResponse) => {
+    router.push({
+      pathname: "/(private)/preventative-maintenance/pm-add-edit",
+      params: {
+        pmId: String(item.id),
+        year: String(item.year ?? year),
+      },
+    });
   };
 
   return (
@@ -198,15 +283,7 @@ export default function PreventativeMaintenance() {
               {
                 label: "Edit",
                 icon: "pencil",
-                onPress: () =>
-                  router.push({
-                    pathname:
-                      "/(private)/preventative-maintenance/pm-add-edit",
-                    params: {
-                      pmId: String(item.id),
-                      year: String(item.year ?? year),
-                    },
-                  }),
+                onPress: () => openEdit(item),
               },
               {
                 label: "Delete",
@@ -238,21 +315,26 @@ export default function PreventativeMaintenance() {
                     const scheduled = months.has(code);
                     const status = getMonthStatus(item, code);
                     const style = STATUS_COLORS[status];
+                    const hasNote = !!item.notesPerMonth?.[code];
                     return (
-                      <View
+                      <Pressable
                         key={code}
+                        disabled={isUpdating}
+                        onPress={() =>
+                          setMonthAction({ item, monthCode: code })
+                        }
                         className={`w-7 h-7 rounded-md items-center justify-center ${
                           scheduled ? style.bg : "bg-gray-100"
-                        }`}
+                        } ${hasNote ? "border border-white/40" : ""}`}
                       >
                         <Text
                           className={`text-[10px] font-bold ${
                             scheduled ? "text-white" : "text-gray-400"
                           }`}
                         >
-                          {MONTH_LABELS[idx][0]}
+                          {scheduled ? style.letter : MONTH_LABELS[idx][0]}
                         </Text>
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -267,6 +349,87 @@ export default function PreventativeMaintenance() {
           }}
         />
       )}
+
+      <PMMonthActionSheet
+        visible={!!monthAction}
+        item={monthAction?.item ?? null}
+        monthCode={monthAction?.monthCode ?? null}
+        isScheduled={
+          !!monthAction &&
+          parseScheduledMonths(monthAction.item.scheduledMonths).has(
+            monthAction.monthCode,
+          )
+        }
+        onClose={() => setMonthAction(null)}
+        onSelectStatus={(status) => {
+          if (!monthAction) return;
+          setStatusChange({
+            item: monthAction.item,
+            monthCode: monthAction.monthCode,
+            newStatus: status,
+          });
+          setMonthAction(null);
+        }}
+        onRemoveStatus={() => {
+          if (!monthAction) return;
+          handleInlineStatusChange(
+            monthAction.item,
+            monthAction.monthCode,
+            null,
+          );
+          setMonthAction(null);
+        }}
+        onEditNote={() => {
+          if (!monthAction) return;
+          setNoteDialog({
+            item: monthAction.item,
+            monthCode: monthAction.monthCode,
+          });
+          setMonthAction(null);
+        }}
+        onEditDetails={() => {
+          if (!monthAction) return;
+          openEdit(monthAction.item);
+          setMonthAction(null);
+        }}
+      />
+
+      <PMStatusChangeModal
+        visible={!!statusChange}
+        item={statusChange?.item ?? null}
+        monthCode={statusChange?.monthCode ?? null}
+        newStatus={statusChange?.newStatus ?? null}
+        loading={isUpdating}
+        onClose={() => setStatusChange(null)}
+        onSave={(note) => {
+          if (!statusChange) return;
+          handleInlineStatusChange(
+            statusChange.item,
+            statusChange.monthCode,
+            statusChange.newStatus,
+            note,
+          );
+          setStatusChange(null);
+        }}
+      />
+
+      <PMNoteModal
+        visible={!!noteDialog}
+        item={noteDialog?.item ?? null}
+        monthCode={noteDialog?.monthCode ?? null}
+        loading={isUpdating}
+        onClose={() => setNoteDialog(null)}
+        onSave={(note) => {
+          if (!noteDialog) return;
+          handleInlineStatusChange(
+            noteDialog.item,
+            noteDialog.monthCode,
+            getMonthStatus(noteDialog.item, noteDialog.monthCode),
+            note,
+          );
+          setNoteDialog(null);
+        }}
+      />
 
       <ConfirmModal
         visible={!!deleteItem}
