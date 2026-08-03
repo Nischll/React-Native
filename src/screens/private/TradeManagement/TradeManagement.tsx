@@ -23,6 +23,7 @@ export default function TradeManagement() {
 
   const [page, setPage] = useState(1);
   const [lifecycle, setLifecycle] = useState<string | undefined>();
+  const [residentId, setResidentId] = useState<number>();
   const [filterVisible, setFilterVisible] = useState(false);
   const {
     dateType,
@@ -35,7 +36,12 @@ export default function TradeManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [fromDate, toDate, lifecycle]);
+  }, [fromDate, toDate, lifecycle, residentId]);
+
+  useEffect(() => {
+    setResidentId(undefined);
+    setPage(1);
+  }, [buildingId]);
 
   const { data, isLoading, refetch, isRefetching } = useGetTradeVisits(
     {
@@ -43,6 +49,7 @@ export default function TradeManagement() {
       limit: 10,
       buildingId: buildingId ?? undefined,
       lifecycle,
+      residentId,
       fromDate,
       toDate,
     },
@@ -199,15 +206,11 @@ export default function TradeManagement() {
           columns={columns}
           loading={isLoading}
           refreshing={isRefetching}
-          searchable
           backendMode
           keyExtractor={(item) => item.id.toString()}
           emptyMessage="No trade visits found"
           onRefresh={refetch}
           onFilterPress={() => setFilterVisible(true)}
-          onSearch={() => {
-            setPage(1);
-          }}
           pagination={{
             page,
             pageSize: 10,
@@ -306,13 +309,16 @@ export default function TradeManagement() {
       <TaskFilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
+        residentId={residentId}
+        setResidentId={setResidentId}
         dateType={dateType}
         fromDate={fromDate}
         toDate={toDate}
         setFromDate={setFromDate}
         setToDate={setToDate}
         applyPreset={applyPreset}
-        showResident={false}
+        showResident
+        residentLabel="Unit"
       />
     </View>
   );

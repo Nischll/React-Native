@@ -20,6 +20,8 @@ interface TaskFilterModalProps {
   applyPreset: (type: "today" | "week" | "month" | "custom") => void;
   showDateRange?: boolean;
   showResident?: boolean;
+  /** Label for the unit/resident select. Default "Resident". */
+  residentLabel?: string;
 }
 
 export const TaskFilterModal = ({
@@ -35,6 +37,7 @@ export const TaskFilterModal = ({
   applyPreset,
   showDateRange = true,
   showResident = true,
+  residentLabel = "Resident",
 }: TaskFilterModalProps) => {
   const { residences } = useResidencesForActiveBuilding();
 
@@ -65,11 +68,16 @@ export const TaskFilterModal = ({
             <Text className="text-lg font-bold mb-4">Filters</Text>
             {showResident && (
               <SelectField
-                label="Resident"
+                label={residentLabel}
                 value={residentId?.toString()}
-                onChange={(v) => setResidentId?.(Number(v))}
-                options={residences}
-                placeholder="All Residents"
+                onChange={(v) =>
+                  setResidentId?.(v ? Number(v) : undefined)
+                }
+                options={[
+                  { label: "All units", value: "" },
+                  ...residences,
+                ]}
+                placeholder="All units"
               />
             )}
 

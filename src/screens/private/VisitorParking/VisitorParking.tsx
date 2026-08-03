@@ -27,6 +27,7 @@ export default function VisitorParking() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [residentId, setResidentId] = useState<number>();
   const [filterVisible, setFilterVisible] = useState(false);
   const [deleteItem, setDeleteItem] =
     useState<VisitorParkingInspectionResponse | null>(null);
@@ -41,7 +42,12 @@ export default function VisitorParking() {
 
   useEffect(() => {
     setPage(1);
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, residentId]);
+
+  useEffect(() => {
+    setResidentId(undefined);
+    setPage(1);
+  }, [buildingId]);
 
   const { data, isLoading, refetch, isRefetching } =
     useGetVisitorParkingInspections(
@@ -50,6 +56,7 @@ export default function VisitorParking() {
         limit: 10,
         buildingId: buildingId ?? undefined,
         licensePlate: search || undefined,
+        residentId,
         fromDate,
         toDate,
       },
@@ -214,13 +221,16 @@ export default function VisitorParking() {
       <TaskFilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
+        residentId={residentId}
+        setResidentId={setResidentId}
         dateType={dateType}
         fromDate={fromDate}
         toDate={toDate}
         setFromDate={setFromDate}
         setToDate={setToDate}
         applyPreset={applyPreset}
-        showResident={false}
+        showResident
+        residentLabel="Resident"
       />
 
       <ConfirmModal
