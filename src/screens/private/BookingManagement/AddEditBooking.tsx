@@ -399,7 +399,6 @@ export default function AddEditBooking() {
                     onChange={(v) => setPaidType(v as PaidType)}
                     options={PAID_TYPE_OPTIONS}
                     placeholder="Select Payment Type"
-                    mode="dropdown"
                   />
                 </View>
 
@@ -427,7 +426,6 @@ export default function AddEditBooking() {
                     onChange={(v) => setDamageDepositPaidType(v as PaidType)}
                     options={PAID_TYPE_OPTIONS}
                     placeholder="Select Deposit Payment Type"
-                    mode="dropdown"
                   />
                 </View>
 
