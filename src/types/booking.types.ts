@@ -1,11 +1,22 @@
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
+/** Backend enum values: CONFIRM | CANCEL | PENDING */
+export type BookingStatus = "PENDING" | "CONFIRM" | "CANCEL";
 
 export const BOOKING_STATUS_OPTIONS: { value: BookingStatus; label: string }[] =
   [
     { value: "PENDING", label: "Pending" },
-    { value: "CONFIRMED", label: "Confirmed" },
-    { value: "CANCELLED", label: "Cancelled" },
+    { value: "CONFIRM", label: "Confirmed" },
+    { value: "CANCEL", label: "Cancelled" },
   ];
+
+/** Normalize any API / legacy status string to the backend enum. */
+export function normalizeBookingStatus(
+  value?: string | null,
+): BookingStatus {
+  const raw = String(value ?? "PENDING").toUpperCase();
+  if (raw === "CONFIRM" || raw === "CONFIRMED") return "CONFIRM";
+  if (raw === "CANCEL" || raw === "CANCELLED") return "CANCEL";
+  return "PENDING";
+}
 
 export type PaidType = "CASH" | "CHEQUE" | "EFT" | "CARD" | "NONE";
 

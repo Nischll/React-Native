@@ -19,6 +19,7 @@ import {
   BookingStatus,
   PAID_TYPE_OPTIONS,
   PaidType,
+  normalizeBookingStatus,
 } from "@/src/types/booking.types";
 import { AmenityResponse } from "@/src/types/amenity.types";
 import { TowerResponse } from "@/src/types/tower.types";
@@ -120,20 +121,13 @@ export default function AddEditBooking() {
   useEffect(() => {
     if (editMode && data?.data) {
       const booking = data.data;
-      const rawStatus = String(booking.status ?? "PENDING").toUpperCase();
-      const status: BookingStatus =
-        rawStatus === "CONFIRM" || rawStatus === "CONFIRMED"
-          ? "CONFIRMED"
-          : rawStatus === "CANCEL" || rawStatus === "CANCELLED"
-            ? "CANCELLED"
-            : "PENDING";
 
       reset({
         amenityId: String(booking.amenityId ?? ""),
         towerId: String(booking.towerId ?? ""),
         residentId: String(booking.residentId ?? ""),
         description: booking.description ?? "",
-        status,
+        status: normalizeBookingStatus(booking.status),
         startDate: booking.startDate ?? "",
         endDate: booking.endDate ?? "",
       });
@@ -183,7 +177,7 @@ export default function AddEditBooking() {
       buildingId,
       startDate: values.startDate,
       endDate: values.endDate,
-      status: values.status,
+      status: normalizeBookingStatus(values.status),
     };
 
     if (values.towerId) payload.towerId = Number(values.towerId);

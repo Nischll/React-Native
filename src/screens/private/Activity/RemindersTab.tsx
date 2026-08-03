@@ -50,6 +50,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   CONFIRM: { bg: "#E7F3EA", text: "#1E7C3A" },
   CONFIRMED: { bg: "#E7F3EA", text: "#1E7C3A" },
   PENDING: { bg: "#FAEEDA", text: "#854F0B" },
+  CANCEL: { bg: "#FCEBEB", text: "#A32D2D" },
   CANCELLED: { bg: "#FCEBEB", text: "#A32D2D" },
   COMPLETED: { bg: "#E7F3EA", text: "#1E7C3A" },
   BOOKED: { bg: "#E7F3EA", text: "#1E7C3A" },

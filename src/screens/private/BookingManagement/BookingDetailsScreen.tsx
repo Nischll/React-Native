@@ -4,6 +4,7 @@ import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import Card from "@/src/components/ui/Card";
 import { formatDateTime } from "@/src/helper/formatDateTime";
+import { normalizeBookingStatus } from "@/src/types/booking.types";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 
@@ -17,8 +18,9 @@ export default function BookingDetailsScreen() {
   if (isLoading) return <LoadingState message="Booking details loading." />;
   if (!booking) return <EmptyState message="No booking details found." />;
 
-  const isConfirmed = booking.status === "CONFIRMED";
-  const isCancelled = booking.status === "CANCELLED";
+  const status = normalizeBookingStatus(booking.status);
+  const isConfirmed = status === "CONFIRM";
+  const isCancelled = status === "CANCEL";
 
   return (
     <View className="flex-1">
@@ -61,7 +63,7 @@ export default function BookingDetailsScreen() {
                   : "text-amber-600"
             }`}
           >
-            {booking.status}
+            {isConfirmed ? "Confirmed" : isCancelled ? "Cancelled" : "Pending"}
           </Text>
         </View>
 
