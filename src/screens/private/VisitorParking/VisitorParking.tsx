@@ -230,7 +230,6 @@ export default function VisitorParking() {
         setToDate={setToDate}
         applyPreset={applyPreset}
         showResident
-        residentLabel="Resident"
       />
 
       <ConfirmModal

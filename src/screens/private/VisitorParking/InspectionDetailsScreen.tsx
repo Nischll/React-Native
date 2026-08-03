@@ -94,7 +94,7 @@ export default function InspectionDetailsScreen() {
           <InfoRow>
             <InfoField label="Period of Day" value={inspection.periodOfDay} />
             <InfoField
-              label="Resident"
+              label="Unit"
               value={inspection.residentName ?? inspection.registeredVehicleResidentName}
             />
           </InfoRow>

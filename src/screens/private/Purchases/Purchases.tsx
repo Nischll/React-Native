@@ -155,7 +155,7 @@ export default function Purchases() {
     },
     {
       key: "residentName",
-      label: "Resident",
+      label: "Unit",
       primary: section !== "all",
       searchable: true,
       render: (_, row) =>

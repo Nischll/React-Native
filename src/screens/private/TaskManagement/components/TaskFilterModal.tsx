@@ -20,7 +20,7 @@ interface TaskFilterModalProps {
   applyPreset: (type: "today" | "week" | "month" | "custom") => void;
   showDateRange?: boolean;
   showResident?: boolean;
-  /** Label for the unit/resident select. Default "Resident". */
+  /** Label for the unit select. Default "Unit". */
   residentLabel?: string;
 }
 
@@ -37,7 +37,7 @@ export const TaskFilterModal = ({
   applyPreset,
   showDateRange = true,
   showResident = true,
-  residentLabel = "Resident",
+  residentLabel = "Unit",
 }: TaskFilterModalProps) => {
   const { residences } = useResidencesForActiveBuilding();
 

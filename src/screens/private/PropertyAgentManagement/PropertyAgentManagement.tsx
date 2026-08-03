@@ -166,18 +166,18 @@ export default function PropertyAgentManagement() {
 
       <View className="mb-3">
         <SelectField
-          label="Resident"
+          label="Unit"
           value={residentId}
           onChange={setResidentId}
           options={residences}
-          placeholder="Select a resident"
+          placeholder="Select a unit"
           mode="dropdown"
         />
       </View>
 
       {!numericResidentId ? (
         <EmptyState
-          title="Select a resident"
+          title="Select a unit"
           message="Choose a resident above to view and manage their property agents."
         />
       ) : (

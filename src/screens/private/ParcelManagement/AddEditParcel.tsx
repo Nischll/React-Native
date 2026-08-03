@@ -142,11 +142,11 @@ export default function AddEditParcelScreen() {
               name="residentId"
               render={({ field: { onChange, value } }) => (
                 <SelectField
-                  label="Resident"
+                  label="Unit"
                   value={value}
                   onChange={onChange}
                   options={residences}
-                  placeholder="Select Resident"
+                  placeholder="Select unit"
                 />
               )}
             />

@@ -76,7 +76,7 @@ export default function ResidentFormForwards() {
       <PageHeader showBackButton icon="send" title="Form Forwards" subtitle="Email resident forms to residents." />
       <View className="gap-3 mb-4">
         <SelectField label="Forms" multi placeholder="Select forms" options={formOptions} value={formIds} onChange={setFormIds} />
-        <SelectField label="Resident" placeholder="Select resident" options={residences} value={residentId} onChange={setResidentId} />
+        <SelectField label="Unit" placeholder="Select unit" options={residences} value={residentId} onChange={setResidentId} />
         <AppInput label="Subject" value={subject} onChangeText={setSubject} />
         <AppInput label="Message" value={message} onChangeText={setMessage} multiline numberOfLines={3} />
         <AppButton loading={isPending} disabled={!residentId || formIds.length === 0} onPress={handleForward}>

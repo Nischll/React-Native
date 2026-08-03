@@ -234,7 +234,7 @@ export default function BookingDetailsScreen() {
             <InfoField label="Description" value={booking.description} />
           </InfoRow>
           <InfoRow>
-            <InfoField label="Resident" value={display.residentName} />
+            <InfoField label="Unit" value={display.residentName} />
           </InfoRow>
         </Card>
 

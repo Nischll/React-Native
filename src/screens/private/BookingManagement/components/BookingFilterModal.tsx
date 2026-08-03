@@ -76,11 +76,14 @@ export const BookingFilterModal = ({
 
           <View className="mt-3">
             <SelectField
-              label="Resident"
+              label="Unit"
               value={residentId?.toString()}
               onChange={(v) => setResidentId(v ? Number(v) : undefined)}
-              options={residences}
-              placeholder="All Residents"
+              options={[
+                { label: "All units", value: "" },
+                ...residences,
+              ]}
+              placeholder="All units"
             />
           </View>
 

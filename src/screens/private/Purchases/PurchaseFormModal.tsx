@@ -506,7 +506,7 @@ export default function PurchaseFormModal({
               showsVerticalScrollIndicator={false}
             >
               <SelectField
-                label="Unit / Resident *"
+                label="Unit *"
                 value={residentId}
                 onChange={setResidentId}
                 options={residences}

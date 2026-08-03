@@ -318,7 +318,6 @@ export default function TradeManagement() {
         setToDate={setToDate}
         applyPreset={applyPreset}
         showResident
-        residentLabel="Unit"
       />
     </View>
   );

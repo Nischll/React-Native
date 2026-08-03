@@ -121,7 +121,7 @@ export default function BookingManagement() {
     },
     {
       key: "residentName",
-      label: "Resident",
+      label: "Unit",
     },
     {
       key: "startDate",

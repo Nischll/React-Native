@@ -117,7 +117,7 @@ export default function ParcelManagement() {
     },
     {
       key: "residentName",
-      label: "Resident",
+      label: "Unit",
       searchable: true,
     },
     {

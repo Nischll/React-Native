@@ -185,11 +185,11 @@ export default function AddEditInspection() {
 
           <View className="mt-3">
             <SelectField
-              label="Resident (optional)"
+              label="Unit (optional)"
               value={residentId}
               onChange={setResidentId}
               options={residences}
-              placeholder="Select Resident"
+              placeholder="Select unit"
             />
           </View>
 

@@ -413,7 +413,7 @@ export default function TaskInformationCard({ task }: Props) {
         {task.residentName && (
           <InfoItem
             icon="home-outline"
-            label="Resident"
+            label="Unit"
             value={`${task.residentUnit ?? ""} · ${task.residentName}`}
           />
         )}

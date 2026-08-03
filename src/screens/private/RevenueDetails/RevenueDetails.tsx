@@ -117,7 +117,7 @@ export default function RevenueDetails() {
       },
       {
         key: "residentName",
-        label: "Resident",
+        label: "Unit",
         searchable: true,
         render: (_, row) =>
           [row.residentUnit, row.residentName].filter(Boolean).join(" · ") ||

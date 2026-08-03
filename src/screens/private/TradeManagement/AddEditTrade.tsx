@@ -199,7 +199,8 @@ export default function AddEditTrade() {
             {showResident && (
               <View className="mt-3">
                 <SelectField
-                  placeholder="Select Unit / Resident"
+                  label="Unit"
+                  placeholder="Select unit"
                   value={form.residentId}
                   options={residences}
                   onChange={(v) => updateField("residentId", v)}
