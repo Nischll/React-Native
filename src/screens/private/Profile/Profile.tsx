@@ -6,10 +6,14 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import Card from "@/src/components/ui/Card";
 import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
+import ModuleCard from "@/src/components/ui/ModuleCard";
 import { BASE_URL } from "@/src/constants/env";
+import { getAccountMenuModules } from "@/src/helper/accountMenuModules";
 import { AvatarPicker } from "@/src/helper/AvatarPicker";
+import { mapToAppRoute } from "@/src/helper/mapToAppRoute";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, Platform, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -102,6 +106,12 @@ export default function Profile() {
 
   const [showPersonal, setShowPersonal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const accountMenuModules = useMemo(
+    () => getAccountMenuModules(user?.moduleList ?? []),
+    [user?.moduleList],
+  );
 
   const handleLogout = () => {
     mutateLogout(undefined, {
@@ -509,6 +519,31 @@ export default function Profile() {
             </AppButton>
           </View>
         </CollapsibleCard>
+
+        {/* ── Settings (User / Master Management) ── */}
+        {accountMenuModules.length > 0 && (
+          <CollapsibleCard
+            icon="settings-outline"
+            title="Settings"
+            subtitle="User, master & checklist templates"
+            expanded={showSettings}
+            onToggle={() => setShowSettings((v) => !v)}
+            accentColor="#0F766E"
+          >
+            <View style={{ paddingBottom: 4 }}>
+              {accountMenuModules.map((mod) => (
+                <ModuleCard
+                  key={mod.code || mod.name}
+                  module={mod}
+                  onPress={(item) => {
+                    const route = mapToAppRoute(item.path ?? null);
+                    if (route) router.push(route);
+                  }}
+                />
+              ))}
+            </View>
+          </CollapsibleCard>
+        )}
       </KeyboardAwareScrollView>
       <View className="py-4 border-t border-gray-200 bg-white">
         <AppButton

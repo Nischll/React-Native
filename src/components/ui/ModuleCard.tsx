@@ -1,3 +1,4 @@
+import { mapIcon } from "@/src/helper/mapIcon";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -26,6 +27,7 @@ export default function ModuleCard({
 
   const children = module.moduleList ?? [];
   const hasChildren = children.length > 0;
+  const iconName = mapIcon(module.icon);
 
   const handlePress = () => {
     if (hasChildren) {
@@ -62,7 +64,7 @@ export default function ModuleCard({
             ${depth > 0 ? "bg-primary/5" : "bg-primary/10"}
           `}
         >
-          <AppIcon name={module.icon as any} size={22} color="#453956" />
+          <AppIcon name={iconName} size={22} color="#453956" />
         </View>
 
         {/* TEXT */}
