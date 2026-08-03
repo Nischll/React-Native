@@ -18,24 +18,32 @@ import {
 } from "@/src/types/revenueDetail.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
 import { useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 import PurchaseFormModal from "./PurchaseFormModal";
 
 type PurchaseSection = "all" | "one-time" | "recurring";
 
 type OneTimeTab = "FILTER" | "ENTERPHONE" | "VISITOR_PASS" | "ACCESS_DEVICE";
 
-const SECTIONS: { key: PurchaseSection; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "one-time", label: "One-time" },
-  { key: "recurring", label: "Recurring" },
+const SECTIONS: {
+  key: PurchaseSection;
+  label: string;
+  icon: React.ComponentProps<typeof AppIcon>["name"];
+}[] = [
+  { key: "all", label: "All", icon: "grid-outline" },
+  { key: "one-time", label: "One-time", icon: "flash-outline" },
+  { key: "recurring", label: "Recurring", icon: "repeat-outline" },
 ];
 
-const ONE_TIME_TABS: { key: OneTimeTab; label: string }[] = [
-  { key: "FILTER", label: "Filter" },
-  { key: "ENTERPHONE", label: "Enterphone" },
-  { key: "VISITOR_PASS", label: "Visitor pass" },
-  { key: "ACCESS_DEVICE", label: "Access device" },
+const ONE_TIME_TABS: {
+  key: OneTimeTab;
+  label: string;
+  icon: React.ComponentProps<typeof AppIcon>["name"];
+}[] = [
+  { key: "FILTER", label: "Filter", icon: "funnel-outline" },
+  { key: "ENTERPHONE", label: "Enterphone", icon: "call-outline" },
+  { key: "VISITOR_PASS", label: "Visitor pass", icon: "ticket-outline" },
+  { key: "ACCESS_DEVICE", label: "Access device", icon: "key-outline" },
 ];
 
 const ALL_CREATE_TYPES: { label: string; value: PurchaseType }[] = [
@@ -188,65 +196,75 @@ export default function Purchases() {
         />
 
         {/* Section: All | One-time | Recurring */}
-        <View className="flex-row gap-2 mb-3 px-1">
+        <View className="flex-row mb-3 bg-slate-100 rounded-xl p-1 gap-1">
           {SECTIONS.map((s) => {
             const active = section === s.key;
             return (
               <Pressable
                 key={s.key}
                 onPress={() => switchSection(s.key)}
-                className={`flex-1 items-center rounded-xl border py-2.5 ${
-                  active
-                    ? "bg-primary border-primary"
-                    : "bg-white border-slate-300"
-                }`}
+                className="flex-1"
               >
-                <Text
-                  className={`text-sm font-semibold ${
-                    active ? "text-white" : "text-textPrimary"
+                <View
+                  className={`py-2.5 rounded-lg flex-row items-center justify-center gap-1 ${
+                    active ? "bg-primary" : "bg-transparent"
                   }`}
                 >
-                  {s.label}
-                </Text>
+                  <AppIcon
+                    name={s.icon}
+                    size={14}
+                    color={active ? "#fff" : "#64748B"}
+                  />
+                  <Text
+                    className={`text-xs font-semibold ${
+                      active ? "text-white" : "text-slate-500"
+                    }`}
+                    numberOfLines={1}
+                  >
+                    {s.label}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
         </View>
 
-        {/* One-time subtype tabs */}
+        {/* One-time subtype tabs — 2×2 grid, no horizontal scroll */}
         {section === "one-time" && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mb-3"
-            contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
-          >
-            {ONE_TIME_TABS.map((t) => {
-              const active = oneTimeTab === t.key;
-              return (
-                <Pressable
-                  key={t.key}
-                  onPress={() => {
-                    setOneTimeTab(t.key);
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-full border ${
-                    active
-                      ? "bg-primary border-primary"
-                      : "bg-white border-slate-300"
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${
-                      active ? "text-white" : "text-textPrimary"
-                    }`}
-                  >
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View className="mb-3 rounded-xl border border-slate-200 bg-white p-1.5">
+            <View className="flex-row flex-wrap">
+              {ONE_TIME_TABS.map((t) => {
+                const active = oneTimeTab === t.key;
+                return (
+                  <View key={t.key} className="w-1/2 p-1">
+                    <Pressable
+                      onPress={() => {
+                        setOneTimeTab(t.key);
+                        setPage(1);
+                      }}
+                      className={`flex-row items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 ${
+                        active ? "bg-primary" : "bg-slate-50"
+                      }`}
+                    >
+                      <AppIcon
+                        name={t.icon}
+                        size={14}
+                        color={active ? "#fff" : "#64748B"}
+                      />
+                      <Text
+                        className={`text-xs font-semibold ${
+                          active ? "text-white" : "text-slate-600"
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {t.label}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
         )}
 
         <View className="flex-1">
