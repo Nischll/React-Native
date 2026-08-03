@@ -23,6 +23,7 @@ import {
 import { AmenityResponse } from "@/src/types/amenity.types";
 import { TowerResponse } from "@/src/types/tower.types";
 import { extractPaginatedList } from "@/src/utils/listPagination";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -55,6 +56,7 @@ export default function AddEditBooking() {
   const editMode = !!bookingId;
 
   const { buildingId } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: amenityData } = useGetAmenities();
   const { data: towerData } = useGetTowers();
@@ -158,6 +160,15 @@ export default function AddEditBooking() {
     }
   }, [editMode, data, reset, presetStart, presetEnd]);
 
+  const refreshBookingQueries = async () => {
+    await queryClient.invalidateQueries({
+      predicate: (query) => String(query.queryKey[0]).includes("/booking"),
+    });
+    await queryClient.refetchQueries({
+      predicate: (query) => String(query.queryKey[0]).includes("/booking"),
+    });
+  };
+
   const onSubmit = (values: FormValues) => {
     if (!buildingId || !values.amenityId) return;
 
@@ -195,14 +206,15 @@ export default function AddEditBooking() {
           damageDepositPaidType: "NONE",
         };
 
+    const onSuccess = async () => {
+      await refreshBookingQueries();
+      router.back();
+    };
+
     if (editMode) {
-      updateBooking(payload, {
-        onSuccess: () => router.back(),
-      });
+      updateBooking(payload, { onSuccess });
     } else {
-      addBooking(payload, {
-        onSuccess: () => router.back(),
-      });
+      addBooking(payload, { onSuccess });
     }
   };
 
