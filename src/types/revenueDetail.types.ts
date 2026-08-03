@@ -36,6 +36,7 @@ export interface RevenueDetailItem {
   filterDetail?: RevenueSubDetail | null;
   visitorPassDetail?: RevenueSubDetail | null;
   rentalDetail?: RevenueSubDetail | null;
+  enterphoneDetail?: RevenueSubDetail | null;
   [key: string]: any;
 }
 
@@ -90,6 +91,7 @@ export function getRevenueSubDetail(
   if (item.type === "RENTAL") return item.rentalDetail ?? null;
   if (item.type === "ACCESS_DEVICE") return item.accessDeviceDetail ?? null;
   if (item.type === "VISITOR_PASS") return item.visitorPassDetail ?? null;
+  if (item.type === "ENTERPHONE") return item.enterphoneDetail ?? null;
   return null;
 }
 
@@ -138,6 +140,10 @@ export function getRevenueReference(item: RevenueDetailItem): string {
   }
   if (item.type === "RENTAL") {
     return item.rentalDetail?.purchaseFor || `#${item.sourceId}`;
+  }
+  if (item.type === "ENTERPHONE") {
+    const d = item.enterphoneDetail;
+    return d?.displayName || d?.code || `#${item.sourceId}`;
   }
   return `#${item.sourceId}`;
 }
