@@ -2,11 +2,31 @@ import { useGetBookingById } from "@/src/api/booking.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
+import AppButton from "@/src/components/ui/AppButton";
 import Card from "@/src/components/ui/Card";
 import { formatDateTime } from "@/src/helper/formatDateTime";
-import { normalizeBookingStatus } from "@/src/types/booking.types";
-import { useLocalSearchParams } from "expo-router";
+import {
+  BookingRevenueResponse,
+  bookingStatusLabel,
+  normalizeBookingStatus,
+  paidTypeLabel,
+} from "@/src/types/booking.types";
+import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
+
+function hasRevenueInfo(revenue?: BookingRevenueResponse | null): boolean {
+  if (!revenue || typeof revenue !== "object") return false;
+  if (revenue.isPaid === true) return true;
+  return Object.entries(revenue).some(
+    ([key, value]) =>
+      key !== "isPaid" &&
+      key !== "id" &&
+      key !== "bookingId" &&
+      value != null &&
+      value !== "" &&
+      value !== "NONE",
+  );
+}
 
 export default function BookingDetailsScreen() {
   const { bookingId } = useLocalSearchParams();
@@ -21,13 +41,21 @@ export default function BookingDetailsScreen() {
   const status = normalizeBookingStatus(booking.status);
   const isConfirmed = status === "CONFIRM";
   const isCancelled = status === "CANCEL";
+  const revenue = booking.revenue;
+  const showRevenue = hasRevenueInfo(revenue);
+  const unit =
+    booking.residentUnit ||
+    booking.unit ||
+    null;
+  const amenityLabel =
+    booking.amenityName || booking.title || "—";
 
   return (
     <View className="flex-1">
       <PageHeader
         icon="calendar"
         title="Booking Details"
-        subtitle={booking.title}
+        subtitle={amenityLabel !== "—" ? amenityLabel : "View booking information"}
         showBackButton
       />
 
@@ -63,24 +91,35 @@ export default function BookingDetailsScreen() {
                   : "text-amber-600"
             }`}
           >
-            {isConfirmed ? "Confirmed" : isCancelled ? "Cancelled" : "Pending"}
+            {bookingStatusLabel(booking.status)}
           </Text>
         </View>
 
         <Card className="p-4 mb-4">
-          <SectionLabel label="Location" />
+          <SectionLabel label="Booking details" />
           <InfoRow>
-            <InfoField label="Amenity" value={booking.amenityName} />
+            <InfoField label="Building" value={booking.buildingName} />
+            <InfoField label="Amenity" value={amenityLabel} />
+          </InfoRow>
+          <InfoRow>
             <InfoField label="Tower" value={booking.towerName} />
+            <InfoField
+              label="Unit"
+              value={
+                unit && booking.residentName
+                  ? `${unit} (${booking.residentName})`
+                  : unit || booking.residentName
+              }
+            />
           </InfoRow>
-          <InfoRow>
-            <InfoField label="Resident" value={booking.residentName} />
-            <InfoField label="Unit" value={booking.unit} />
-          </InfoRow>
-        </Card>
-
-        <Card className="p-4 mb-4">
-          <SectionLabel label="Schedule" />
+          {booking.amenityDescription ? (
+            <InfoRow>
+              <InfoField
+                label="Amenity description"
+                value={booking.amenityDescription}
+              />
+            </InfoRow>
+          ) : null}
           <InfoRow>
             <InfoField
               label="Start"
@@ -93,35 +132,84 @@ export default function BookingDetailsScreen() {
           </InfoRow>
         </Card>
 
-        {booking.revenue && (
+        {showRevenue && revenue ? (
           <Card className="p-4 mb-4">
-            <SectionLabel label="Revenue" />
+            <SectionLabel label="Revenue information" />
             <InfoRow>
               <InfoField
                 label="Paid"
-                value={booking.revenue.isPaid ? "Yes" : "No"}
+                value={revenue.isPaid ? "Yes" : "No"}
               />
-              <InfoField label="Fee" value={booking.revenue.paidFee} />
+              <InfoField
+                label="Deposit status"
+                value={revenue.depositAmountStatus}
+              />
+            </InfoRow>
+
+            <Text className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 mb-2 mt-1">
+              Non-refundable fee
+            </Text>
+            <InfoRow>
+              <InfoField label="Fee amount" value={revenue.paidFee} />
+              <InfoField label="Receipt number" value={revenue.receiptNumber} />
             </InfoRow>
             <InfoRow>
               <InfoField
-                label="Receipt #"
-                value={booking.revenue.receiptNumber}
+                label="Payment type"
+                value={paidTypeLabel(revenue.paidType)}
               />
+            </InfoRow>
+
+            <Text className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-2 mt-2">
+              Refundable — deposit
+            </Text>
+            <InfoRow>
+              <InfoField label="Deposit amount" value={revenue.damageDeposit} />
               <InfoField
-                label="Deposit"
-                value={booking.revenue.damageDeposit}
+                label="Deposit receipt number"
+                value={revenue.depositReceiptNumber}
               />
             </InfoRow>
             <InfoRow>
               <InfoField
-                label="Deposit Receipt #"
-                value={booking.revenue.depositReceiptNumber}
+                label="Deposit payment type"
+                value={paidTypeLabel(revenue.damageDepositPaidType)}
               />
-              <InfoField label="Payment Type" value={booking.revenue.paidType} />
+              <InfoField label="Refunded by" value={revenue.refundedBy} />
             </InfoRow>
+
+            <InfoRow>
+              <InfoField label="Pre-inspection" value={revenue.preInspection} />
+              <InfoField
+                label="Post-inspection"
+                value={revenue.postInspection}
+              />
+            </InfoRow>
+            <InfoRow>
+              <InfoField label="Revenue notes" value={revenue.description} />
+            </InfoRow>
+            {revenue.attachmentForDeposit ? (
+              <InfoRow>
+                <InfoField
+                  label="Deposit attachment"
+                  value={revenue.attachmentForDeposit}
+                />
+              </InfoRow>
+            ) : null}
           </Card>
-        )}
+        ) : null}
+
+        <AppButton
+          onPress={() =>
+            router.push({
+              pathname: "/(private)/booking-management/booking-add-edit",
+              params: { bookingId: String(booking.id) },
+            })
+          }
+          leftIcon="pencil-outline"
+        >
+          Edit Booking
+        </AppButton>
       </ScrollView>
     </View>
   );
@@ -139,12 +227,20 @@ function InfoRow({ children }: { children: React.ReactNode }) {
   return <View className="flex-row mb-3 last:mb-0">{children}</View>;
 }
 
-function InfoField({ label, value }: { label: string; value?: string | null }) {
+function InfoField({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
   return (
     <View className="flex-1 pr-3">
       <Text className="text-xs text-gray-400 mb-0.5">{label}</Text>
       <Text className="text-sm font-medium text-gray-800">
-        {value && String(value).trim() ? value : "—"}
+        {value && String(value).trim() && String(value).trim() !== "—"
+          ? value
+          : "—"}
       </Text>
     </View>
   );

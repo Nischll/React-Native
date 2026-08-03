@@ -76,6 +76,10 @@ export default function AddEditBooking() {
   const [damageDeposit, setDamageDeposit] = useState("");
   const [depositReceiptNumber, setDepositReceiptNumber] = useState("");
   const [paidType, setPaidType] = useState<PaidType>("NONE");
+  const [damageDepositPaidType, setDamageDepositPaidType] =
+    useState<PaidType>("NONE");
+  const [preInspection, setPreInspection] = useState("");
+  const [postInspection, setPostInspection] = useState("");
   const [revenueDescription, setRevenueDescription] = useState("");
 
   const amenities = useMemo(
@@ -139,6 +143,11 @@ export default function AddEditBooking() {
         setDamageDeposit(booking.revenue.damageDeposit ?? "");
         setDepositReceiptNumber(booking.revenue.depositReceiptNumber ?? "");
         setPaidType(booking.revenue.paidType ?? "NONE");
+        setDamageDepositPaidType(
+          booking.revenue.damageDepositPaidType ?? "NONE",
+        );
+        setPreInspection(booking.revenue.preInspection ?? "");
+        setPostInspection(booking.revenue.postInspection ?? "");
         setRevenueDescription(booking.revenue.description ?? "");
       }
       return;
@@ -191,7 +200,9 @@ export default function AddEditBooking() {
           damageDeposit: damageDeposit || undefined,
           depositReceiptNumber: depositReceiptNumber || undefined,
           paidType,
-          damageDepositPaidType: paidType,
+          damageDepositPaidType,
+          preInspection: preInspection || undefined,
+          postInspection: postInspection || undefined,
           description: revenueDescription || undefined,
         }
       : {
@@ -377,6 +388,14 @@ export default function AddEditBooking() {
                   onChangeText={setReceiptNumber}
                   placeholder="Receipt #"
                 />
+                <SelectField
+                  label="Payment Type"
+                  value={paidType}
+                  onChange={(v) => setPaidType(v as PaidType)}
+                  options={PAID_TYPE_OPTIONS}
+                  placeholder="Select Payment Type"
+                  mode="dropdown"
+                />
                 <AppInput
                   label="Damage Deposit"
                   value={damageDeposit}
@@ -391,12 +410,24 @@ export default function AddEditBooking() {
                   placeholder="Receipt # for deposit"
                 />
                 <SelectField
-                  label="Payment Type"
-                  value={paidType}
-                  onChange={(v) => setPaidType(v as PaidType)}
+                  label="Deposit Payment Type"
+                  value={damageDepositPaidType}
+                  onChange={(v) => setDamageDepositPaidType(v as PaidType)}
                   options={PAID_TYPE_OPTIONS}
-                  placeholder="Select Payment Type"
+                  placeholder="Select Deposit Payment Type"
                   mode="dropdown"
+                />
+                <TextAreaField
+                  label="Pre-inspection"
+                  value={preInspection}
+                  onChangeText={setPreInspection}
+                  placeholder="Pre-inspection notes"
+                />
+                <TextAreaField
+                  label="Post-inspection"
+                  value={postInspection}
+                  onChangeText={setPostInspection}
+                  placeholder="Post-inspection notes"
                 />
                 <TextAreaField
                   label="Revenue Notes"

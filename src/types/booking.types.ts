@@ -18,6 +18,13 @@ export function normalizeBookingStatus(
   return "PENDING";
 }
 
+export function bookingStatusLabel(value?: string | null): string {
+  const status = normalizeBookingStatus(value);
+  if (status === "CONFIRM") return "Confirmed";
+  if (status === "CANCEL") return "Cancelled";
+  return "Pending";
+}
+
 export type PaidType = "CASH" | "CHEQUE" | "EFT" | "CARD" | "NONE";
 
 export const PAID_TYPE_OPTIONS: { value: PaidType; label: string }[] = [
@@ -27,6 +34,12 @@ export const PAID_TYPE_OPTIONS: { value: PaidType; label: string }[] = [
   { value: "EFT", label: "EFT" },
   { value: "CARD", label: "Card" },
 ];
+
+export function paidTypeLabel(value?: string | null): string {
+  if (!value || value === "NONE") return "—";
+  const match = PAID_TYPE_OPTIONS.find((o) => o.value === value);
+  return match?.label ?? value;
+}
 
 export interface BookingRevenueRequestPojo {
   isPaid?: boolean;
@@ -43,6 +56,10 @@ export interface BookingRevenueRequestPojo {
 
 export interface BookingRevenueResponse extends BookingRevenueRequestPojo {
   id?: number;
+  bookingId?: number;
+  depositAmountStatus?: string | null;
+  refundedBy?: string | null;
+  attachmentForDeposit?: string | null;
 }
 
 export interface BookingRequestPojo {
@@ -58,12 +75,25 @@ export interface BookingRequestPojo {
   revenue?: BookingRevenueRequestPojo;
 }
 
-export interface BookingResponse extends BookingRequestPojo {
+export interface BookingResponse {
   id: number;
+  title?: string;
+  description?: string;
+  buildingId?: number;
   buildingName?: string;
+  amenityId?: number;
   amenityName?: string;
+  amenityDescription?: string;
+  towerId?: number;
   towerName?: string;
+  residentId?: number;
   residentName?: string;
+  /** Backend field name */
+  residentUnit?: string;
+  /** Legacy / list alias */
   unit?: string;
+  startDate: string;
+  endDate: string;
+  status: BookingStatus | string;
   revenue?: BookingRevenueResponse;
 }
