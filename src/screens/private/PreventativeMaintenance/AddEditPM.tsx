@@ -1,8 +1,9 @@
 import {
   useAddPreventiveMaintenance,
-  useGetPreventiveMaintenance,
+  useGetPreventiveMaintenanceById,
   useUpdatePreventiveMaintenance,
 } from "@/src/api/preventativeMaintenance.api";
+import EmptyState from "@/src/components/feedback/EmptyState";
 import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
@@ -19,7 +20,7 @@ import {
   STATUS_COLORS,
 } from "@/src/types/preventativeMaintenance.types";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Keyboard,
   Pressable,
@@ -37,33 +38,39 @@ const STATUS_CYCLE: PreventiveMaintenanceStatus[] = [
 ];
 
 export default function AddEditPM() {
-  const { pmId } = useLocalSearchParams();
+  const { pmId, year: yearParam } = useLocalSearchParams<{
+    pmId?: string;
+    year?: string;
+  }>();
   const id = pmId ? Number(pmId) : undefined;
-  const editMode = !!pmId;
+  const editMode = !!id && !Number.isNaN(id);
 
   const { buildingId } = useAuth();
+
+  const initialYear = (() => {
+    const n = yearParam ? Number(yearParam) : NaN;
+    return !Number.isNaN(n) && n >= 2025 && n <= 2035
+      ? n
+      : new Date().getFullYear();
+  })();
 
   const [maintenanceItem, setMaintenanceItem] = useState("");
   const [frequency, setFrequency] = useState("");
   const [estCost, setEstCost] = useState("");
   const [trade, setTrade] = useState("");
   const [notes, setNotes] = useState("");
-  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [year, setYear] = useState<number>(initialYear);
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(
     new Set(),
   );
   const [statusPerMonth, setStatusPerMonth] = useState<StatusPerMonth>({});
+  const [hydrated, setHydrated] = useState(!editMode);
 
-  const { data, isLoading } = useGetPreventiveMaintenance(
-    buildingId ?? undefined,
-    year,
+  const { data, isLoading, isError } = useGetPreventiveMaintenanceById(
+    id,
     editMode,
   );
-
-  const editingItem = useMemo(
-    () => data?.data?.find((item) => item.id === id),
-    [data, id],
-  );
+  const editingItem = data?.data;
 
   const { mutate: addMutate, isPending: isAdding } =
     useAddPreventiveMaintenance(buildingId ?? undefined);
@@ -71,18 +78,16 @@ export default function AddEditPM() {
     useUpdatePreventiveMaintenance(id, buildingId ?? undefined);
 
   useEffect(() => {
-    if (editMode && editingItem) {
-      setMaintenanceItem(editingItem.maintenanceItem ?? "");
-      setFrequency(editingItem.frequency ?? "");
-      setEstCost(editingItem.estCost ?? "");
-      setTrade(editingItem.trade ?? editingItem.tradeInvolved ?? "");
-      setNotes(editingItem.notes ?? "");
-      setYear(editingItem.year ?? year);
-      const months = parseScheduledMonths(editingItem.scheduledMonths);
-      setSelectedMonths(months);
-      setStatusPerMonth(editingItem.statusPerMonth ?? {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!editMode || !editingItem) return;
+    setMaintenanceItem(editingItem.maintenanceItem ?? "");
+    setFrequency(editingItem.frequency ?? "");
+    setEstCost(editingItem.estCost ?? "");
+    setTrade(editingItem.trade ?? editingItem.tradeInvolved ?? "");
+    setNotes(editingItem.notes ?? "");
+    if (editingItem.year != null) setYear(editingItem.year);
+    setSelectedMonths(parseScheduledMonths(editingItem.scheduledMonths));
+    setStatusPerMonth(editingItem.statusPerMonth ?? {});
+    setHydrated(true);
   }, [editMode, editingItem]);
 
   const toggleMonth = (monthCode: string) => {
@@ -135,14 +140,25 @@ export default function AddEditPM() {
       buildingId,
     };
 
-    if (editMode) {
-      updateMutate(payload, { onSuccess: () => router.back() });
+    if (editMode && id) {
+      updateMutate(
+        { ...payload, pathVars: { id, buildingId } } as any,
+        { onSuccess: () => router.back() },
+      );
     } else {
       addMutate(payload, { onSuccess: () => router.back() });
     }
   };
 
   if (editMode && isLoading) {
+    return <LoadingState message="Maintenance item loading." />;
+  }
+
+  if (editMode && (isError || (!isLoading && !editingItem))) {
+    return <EmptyState message="Maintenance item not found." />;
+  }
+
+  if (editMode && !hydrated) {
     return <LoadingState message="Maintenance item loading." />;
   }
 

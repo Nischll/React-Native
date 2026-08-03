@@ -1,4 +1,5 @@
 import { PurchaseType, useGetPurchases } from "@/src/api/purchases.api";
+import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -9,6 +10,7 @@ import AnchoredPopupMenu, {
 } from "@/src/components/ui/AnchoredPopMenu";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
+import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   getRevenueAmount,
@@ -17,7 +19,7 @@ import {
   RevenueDetailItem,
 } from "@/src/types/revenueDetail.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import PurchaseFormModal from "./PurchaseFormModal";
 
@@ -68,6 +70,14 @@ export default function Purchases() {
   const [formType, setFormType] = useState<PurchaseType>("FILTER");
   const [editItem, setEditItem] = useState<RevenueDetailItem | null>(null);
   const [typePickerVisible, setTypePickerVisible] = useState(false);
+  const {
+    dateType,
+    fromDate,
+    toDate,
+    applyPreset,
+    setFromDate,
+    setToDate,
+  } = useDateRangeFilter("month");
 
   const apiType: PurchaseType | undefined = useMemo(() => {
     if (section === "all") return undefined;
@@ -75,12 +85,18 @@ export default function Purchases() {
     return oneTimeTab;
   }, [section, oneTimeTab]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, section, oneTimeTab]);
+
   const { data, isLoading, refetch, isRefetching } = useGetPurchases(
     {
       page,
       limit: PAGE_SIZE,
       buildingId: buildingId ?? undefined,
       type: apiType,
+      fromDate,
+      toDate,
     },
     !!user?.userId && !!buildingId,
   );
@@ -266,6 +282,20 @@ export default function Purchases() {
             </View>
           </View>
         )}
+
+        <View className="mb-3 px-1">
+          <DateRangeFilter
+            dateType={dateType}
+            fromDate={fromDate}
+            toDate={toDate}
+            onPresetChange={(type) => {
+              applyPreset(type);
+              setPage(1);
+            }}
+            onFromDateChange={setFromDate}
+            onToDateChange={setToDate}
+          />
+        </View>
 
         <View className="flex-1">
           <MobileDataList<RevenueDetailItem>

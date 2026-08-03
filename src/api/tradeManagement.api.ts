@@ -14,6 +14,8 @@ export const useGetTradeVisits = (
     buildingId?: number;
     residentId?: number;
     lifecycle?: string;
+    fromDate?: string;
+    toDate?: string;
   },
   enabled = true,
 ) => {
@@ -23,6 +25,8 @@ export const useGetTradeVisits = (
   if (params.buildingId != null) queryParams.buildingId = params.buildingId;
   if (params.residentId != null) queryParams.residentId = params.residentId;
   if (params.lifecycle?.trim()) queryParams.lifecycle = params.lifecycle.trim();
+  if (params.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params.toDate?.trim()) queryParams.toDate = params.toDate.trim();
 
   return useApiQuery<ApiListResponse<ApiPaginatedData<TradeVisitResponse>>>(
     "/trade-visit",

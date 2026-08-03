@@ -18,6 +18,9 @@ interface TaskFilterModalProps {
   setToDate: (value?: string) => void;
 
   applyPreset: (type: "today" | "week" | "month" | "custom") => void;
+  /** When false, only resident filter is shown (date handled elsewhere). Default true. */
+  showDateRange?: boolean;
+  showResident?: boolean;
 }
 
 export const TaskFilterModal = ({
@@ -31,6 +34,8 @@ export const TaskFilterModal = ({
   setFromDate,
   setToDate,
   applyPreset,
+  showDateRange = true,
+  showResident = true,
 }: TaskFilterModalProps) => {
   const { residences } = useResidencesForActiveBuilding();
 
@@ -53,76 +58,79 @@ export const TaskFilterModal = ({
           <Pressable
             className="bg-white rounded-t-3xl p-5"
             style={{
-              minHeight: 420,
+              minHeight: showDateRange ? 420 : 280,
               maxHeight: "80%",
             }}
             onPress={(e) => e.stopPropagation()}
           >
             <Text className="text-lg font-bold mb-4">Filters</Text>
-            <SelectField
-              label="Resident"
-              value={residentId?.toString()}
-              onChange={(v) => setResidentId(Number(v))}
-              options={residences}
-              placeholder="All Residents"
-            />
+            {showResident && (
+              <SelectField
+                label="Resident"
+                value={residentId?.toString()}
+                onChange={(v) => setResidentId(Number(v))}
+                options={residences}
+                placeholder="All Residents"
+              />
+            )}
 
-            {/* chips */}
-            <Text className="text-sm font-medium text-gray-700 mt-4 mb-2">
-              Date Range
-            </Text>
-
-            <View className="flex-row flex-wrap gap-2 mb-4">
-              {[
-                { key: "today", label: "Today" },
-                { key: "week", label: "This Week" },
-                { key: "month", label: "This Month" },
-                { key: "custom", label: "Custom" },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  onPress={() => applyPreset(item.key as any)}
-                  className={`px-4 py-2 rounded-full ${
-                    dateType === item.key ? "bg-primary" : "bg-gray-100"
-                  }`}
-                >
-                  <Text
-                    className={
-                      dateType === item.key ? "text-white" : "text-gray-600"
-                    }
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* date pickers */}
-            {dateType === "custom" && (
+            {showDateRange && (
               <>
-                <DatePickerField
-                  value={fromDate}
-                  onChange={handleFromDateChange}
-                  placeholder="From Date"
-                />
+                <Text className="text-sm font-medium text-gray-700 mt-4 mb-2">
+                  Date Range
+                </Text>
 
-                <View className="h-3" />
+                <View className="flex-row flex-wrap gap-2 mb-4">
+                  {[
+                    { key: "today", label: "Today" },
+                    { key: "week", label: "This Week" },
+                    { key: "month", label: "This Month" },
+                    { key: "custom", label: "Custom" },
+                  ].map((item) => (
+                    <TouchableOpacity
+                      key={item.key}
+                      onPress={() => applyPreset(item.key as any)}
+                      className={`px-4 py-2 rounded-full ${
+                        dateType === item.key ? "bg-primary" : "bg-gray-100"
+                      }`}
+                    >
+                      <Text
+                        className={
+                          dateType === item.key ? "text-white" : "text-gray-600"
+                        }
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
-                <DatePickerField
-                  value={toDate}
-                  onChange={handleToDateChange}
-                  placeholder="To Date"
-                />
+                {dateType === "custom" && (
+                  <>
+                    <DatePickerField
+                      value={fromDate}
+                      onChange={handleFromDateChange}
+                      placeholder="From Date"
+                    />
+
+                    <View className="h-3" />
+
+                    <DatePickerField
+                      value={toDate}
+                      onChange={handleToDateChange}
+                      placeholder="To Date"
+                    />
+                  </>
+                )}
               </>
             )}
 
-            {/* buttons */}
             <View className="flex-row gap-3 mt-5">
               <TouchableOpacity
                 className="flex-1 border border-gray-300 rounded-xl py-3"
                 onPress={() => {
                   setResidentId(undefined);
-                  applyPreset("month");
+                  if (showDateRange) applyPreset("month");
                 }}
               >
                 <Text className="text-center">Reset</Text>

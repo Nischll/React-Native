@@ -3,6 +3,7 @@ import {
   useDeleteVisitorParkingInspection,
   useGetVisitorParkingInspections,
 } from "@/src/api/visitorParking.api";
+import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -14,10 +15,11 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { VisitorParkingInspectionResponse } from "@/src/types/visitorParking.types";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
 export default function VisitorParking() {
@@ -27,6 +29,18 @@ export default function VisitorParking() {
   const [search, setSearch] = useState("");
   const [deleteItem, setDeleteItem] =
     useState<VisitorParkingInspectionResponse | null>(null);
+  const {
+    dateType,
+    fromDate,
+    toDate,
+    applyPreset,
+    setFromDate,
+    setToDate,
+  } = useDateRangeFilter("month");
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate]);
 
   const { data, isLoading, refetch, isRefetching } =
     useGetVisitorParkingInspections(
@@ -35,6 +49,8 @@ export default function VisitorParking() {
         limit: 10,
         buildingId: buildingId ?? undefined,
         licensePlate: search || undefined,
+        fromDate,
+        toDate,
       },
       !!user?.userId,
     );
@@ -125,6 +141,20 @@ export default function VisitorParking() {
             <AppIcon name="add" size={24} color="#fff" />
           </View>
         </AnimatedPressable>
+      </View>
+
+      <View className="mb-3 px-1">
+        <DateRangeFilter
+          dateType={dateType}
+          fromDate={fromDate}
+          toDate={toDate}
+          onPresetChange={(type) => {
+            applyPreset(type);
+            setPage(1);
+          }}
+          onFromDateChange={setFromDate}
+          onToDateChange={setToDate}
+        />
       </View>
 
       <View className="flex-1">

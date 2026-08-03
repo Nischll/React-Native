@@ -56,7 +56,7 @@ export default function PreventativeMaintenance() {
   );
 
   const { mutate: deleteMutate, isPending: isDeleting } =
-    useDeletePreventiveMaintenance(deleteItem?.id, buildingId ?? undefined);
+    useDeletePreventiveMaintenance();
 
   const { mutate: loadDefaultsMutate, isPending: isLoadingDefaults } =
     useLoadPreventiveMaintenanceDefaults(buildingId ?? undefined);
@@ -72,14 +72,17 @@ export default function PreventativeMaintenance() {
   );
 
   const handleDelete = () => {
-    if (!deleteItem) return;
-    deleteMutate(undefined, {
-      onSuccess: () => {
-        setDeleteItem(null);
-        refetch();
+    if (!deleteItem?.id || !buildingId) return;
+    deleteMutate(
+      { id: deleteItem.id, buildingId },
+      {
+        onSuccess: () => {
+          setDeleteItem(null);
+          refetch();
+        },
+        onError: () => setDeleteItem(null),
       },
-      onError: () => setDeleteItem(null),
-    });
+    );
   };
 
   const handleLoadDefaults = () => {
@@ -104,7 +107,10 @@ export default function PreventativeMaintenance() {
       <View className="absolute bottom-6 right-6 z-50">
         <AnimatedPressable
           onPress={() =>
-            router.push("/(private)/preventative-maintenance/pm-add-edit")
+            router.push({
+              pathname: "/(private)/preventative-maintenance/pm-add-edit",
+              params: { year: String(year) },
+            })
           }
         >
           <View className="bg-primary rounded-full p-4 elevation-5">
@@ -132,10 +138,32 @@ export default function PreventativeMaintenance() {
           fullWidth={false}
           loading={isLoadingDefaults}
           onPress={handleLoadDefaults}
+          disabled={!buildingId}
         >
           Load Defaults
         </AppButton>
       </View>
+
+      {items.length > 0 && (
+        <View className="flex-row flex-wrap gap-x-3 gap-y-1 px-1 mb-2">
+          {(
+            ["SCHEDULED", "REQUESTED", "COMPLETED", "CANCELLED"] as const
+          ).map((s) => (
+            <View key={s} className="flex-row items-center gap-1">
+              <View
+                className={`w-4 h-4 rounded items-center justify-center ${STATUS_COLORS[s].bg}`}
+              >
+                <Text className="text-[8px] font-bold text-white">
+                  {STATUS_COLORS[s].letter}
+                </Text>
+              </View>
+              <Text className="text-[10px] text-gray-500">
+                {STATUS_COLORS[s].label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {isLoading ? (
         <View>
@@ -163,10 +191,10 @@ export default function PreventativeMaintenance() {
               />
             ) : null
           }
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: 96 }}
           renderItem={({ item }) => {
             const months = parseScheduledMonths(item.scheduledMonths);
-            const items = [
+            const menuItems = [
               {
                 label: "Edit",
                 icon: "pencil",
@@ -174,7 +202,10 @@ export default function PreventativeMaintenance() {
                   router.push({
                     pathname:
                       "/(private)/preventative-maintenance/pm-add-edit",
-                    params: { pmId: item.id },
+                    params: {
+                      pmId: String(item.id),
+                      year: String(item.year ?? year),
+                    },
                   }),
               },
               {
@@ -199,7 +230,7 @@ export default function PreventativeMaintenance() {
                         : ""}
                     </Text>
                   </View>
-                  <AnchoredPopupMenu items={items} />
+                  <AnchoredPopupMenu items={menuItems} />
                 </View>
 
                 <View className="flex-row flex-wrap gap-1 mt-1">

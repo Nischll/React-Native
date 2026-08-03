@@ -1,4 +1,5 @@
 import { useGetTradeVisits } from "@/src/api/tradeManagement.api";
+import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -10,10 +11,11 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { formatDateTime } from "@/src/helper/formatDateTime";
+import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { TradeVisitResponse } from "@/src/types/tradeManagement.types";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 
 export default function TradeManagement() {
@@ -21,6 +23,18 @@ export default function TradeManagement() {
 
   const [page, setPage] = useState(1);
   const [lifecycle, setLifecycle] = useState<string | undefined>();
+  const {
+    dateType,
+    fromDate,
+    toDate,
+    applyPreset,
+    setFromDate,
+    setToDate,
+  } = useDateRangeFilter("month");
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, lifecycle]);
 
   const { data, isLoading, refetch, isRefetching } = useGetTradeVisits(
     {
@@ -28,6 +42,8 @@ export default function TradeManagement() {
       limit: 10,
       buildingId: buildingId ?? undefined,
       lifecycle,
+      fromDate,
+      toDate,
     },
     !!user?.userId,
   );
@@ -176,7 +192,21 @@ export default function TradeManagement() {
         })}
       </View>
 
-      <View className="flex-1 mt-4">
+      <View className="mt-3 mb-1 px-1">
+        <DateRangeFilter
+          dateType={dateType}
+          fromDate={fromDate}
+          toDate={toDate}
+          onPresetChange={(type) => {
+            applyPreset(type);
+            setPage(1);
+          }}
+          onFromDateChange={setFromDate}
+          onToDateChange={setToDate}
+        />
+      </View>
+
+      <View className="flex-1 mt-2">
         <MobileDataList<TradeVisitResponse>
           data={tradeVisits}
           columns={columns}

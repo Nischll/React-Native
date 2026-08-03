@@ -3,6 +3,7 @@ import {
   useGetParcels,
   useRemindParcel,
 } from "@/src/api/parcelManagement.api";
+import DateRangeFilter from "@/src/components/filters/DateRangeFilter";
 import {
   MobileColumn,
   MobileDataList,
@@ -14,7 +15,7 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
-import { getDatePresetRange } from "@/src/helper/formatDateTime";
+import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
@@ -31,11 +32,18 @@ export default function ParcelManagement() {
   const [remindParcel, setRemindParcel] = useState<ParcelResponse | null>(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const [residentId, setResidentId] = useState<number>();
-  const [dateType, setDateType] = useState<
-    "today" | "week" | "month" | "custom"
-  >("month");
-  const [fromDate, setFromDate] = useState<string>();
-  const [toDate, setToDate] = useState<string>();
+  const {
+    dateType,
+    fromDate,
+    toDate,
+    applyPreset,
+    setFromDate,
+    setToDate,
+  } = useDateRangeFilter("month");
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, residentId]);
 
   const { data, isLoading, refetch, isRefetching } = useGetParcels(
     {
@@ -44,8 +52,8 @@ export default function ParcelManagement() {
       buildingId: buildingId ?? undefined,
       trackingId: trackingId || undefined,
       residentId: residentId,
-      fromDate: fromDate,
-      toDate: toDate,
+      fromDate,
+      toDate,
     },
     !!user?.userId,
   );
@@ -101,19 +109,6 @@ export default function ParcelManagement() {
   //     },
   //   });
   // };
-  const applyPreset = (type: "today" | "week" | "month" | "custom") => {
-    if (type !== "custom") {
-      const { fromDate: from, toDate: to } = getDatePresetRange(type);
-      setFromDate(from);
-      setToDate(to);
-    }
-    setDateType(type);
-  };
-
-  useEffect(() => {
-    applyPreset("month");
-  }, []);
-
   const columns: MobileColumn<ParcelResponse>[] = [
     {
       key: "trackingId",
@@ -204,6 +199,20 @@ export default function ParcelManagement() {
             Log Parcel
           </AppButton>
         </View> */}
+
+        <View className="mb-3 px-1">
+          <DateRangeFilter
+            dateType={dateType}
+            fromDate={fromDate}
+            toDate={toDate}
+            onPresetChange={(type) => {
+              applyPreset(type);
+              setPage(1);
+            }}
+            onFromDateChange={setFromDate}
+            onToDateChange={setToDate}
+          />
+        </View>
 
         <View className="flex-1">
           <MobileDataList<ParcelResponse>
@@ -297,6 +306,7 @@ export default function ParcelManagement() {
           setFromDate={setFromDate}
           setToDate={setToDate}
           applyPreset={applyPreset}
+          showDateRange={false}
         />
         <ConfirmModal
           visible={!!deleteParcel}

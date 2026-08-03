@@ -37,6 +37,18 @@ export const useGetPreventiveMaintenance = (
   );
 };
 
+export const useGetPreventiveMaintenanceById = (
+  id: number | undefined,
+  enabled = true,
+) =>
+  useApiQuery<ApiListResponse<PreventiveMaintenanceResponse>>(
+    id != null ? `/preventive-maintenance/${id}` : "",
+    {
+      enabled: enabled && id != null,
+      retry: 0,
+    },
+  );
+
 export const useGetPreventiveMaintenanceYears = (enabled = true) =>
   useApiQuery<ApiListResponseArray<number>>("/preventive-maintenance/years", {
     enabled,
@@ -55,23 +67,29 @@ export const useUpdatePreventiveMaintenance = (
 ) =>
   useApiMutation<PreventiveMaintenanceRequestPojo>(
     "put",
-    `/preventive-maintenance/${id}/building/${buildingId}`,
+    (vars?: { id?: number; buildingId?: number }) =>
+      `/preventive-maintenance/${vars?.id ?? id}/building/${vars?.buildingId ?? buildingId}`,
   );
 
-export const useDeletePreventiveMaintenance = (
-  id: number | undefined,
-  buildingId: number | undefined,
-) =>
-  useApiMutation(
+export const useDeletePreventiveMaintenance = () =>
+  useApiMutation<{ id: number; buildingId: number }>(
     "delete",
-    `/preventive-maintenance/${id}/building/${buildingId}`,
+    (vars) =>
+      `/preventive-maintenance/${vars?.id}/building/${vars?.buildingId}`,
   );
 
+/** Year must be a query param — backend uses @RequestParam, not body. */
 export const useLoadPreventiveMaintenanceDefaults = (
   buildingId: number | undefined,
 ) =>
   useApiMutation<{ year?: number }>(
     "post",
-    `/preventive-maintenance/building/${buildingId}/load-defaults`,
+    (vars) => {
+      const bid = buildingId ?? 0;
+      const year = vars?.year;
+      return `/preventive-maintenance/building/${bid}/load-defaults${
+        year != null ? `?year=${year}` : ""
+      }`;
+    },
     { showSuccessToast: true },
   );
