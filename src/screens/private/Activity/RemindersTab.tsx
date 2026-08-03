@@ -441,7 +441,7 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
       <Pressable
         onPress={() =>
           router.push({
-            pathname: "/(private)/task-management",
+            pathname: "/(private)/task-management/task-details",
             params: { taskId: String(task.id) },
           })
         }
@@ -495,7 +495,12 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
 
     return (
       <Pressable
-        onPress={() => router.push("/(private)/booking-management")}
+        onPress={() =>
+          router.push({
+            pathname: "/(private)/booking-management/booking-details",
+            params: { bookingId: String(booking.id) },
+          })
+        }
         className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
       >
         <AppIcon name="calendar-outline" size={18} color="#185FA5" />
