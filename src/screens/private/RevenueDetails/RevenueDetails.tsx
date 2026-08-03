@@ -111,7 +111,7 @@ export default function RevenueDetails() {
           "—",
       },
       {
-        key: "sourceId" as any,
+        key: "reference" as any,
         label: "Reference",
         render: (_, row) => getRevenueReference(row),
       },
@@ -121,12 +121,12 @@ export default function RevenueDetails() {
       return [
         ...base,
         {
-          key: "sourceId" as any,
+          key: "depositAmount" as any,
           label: "Deposit",
           render: (_, row) => `$${getDepositAmount(row)}`,
         },
         {
-          key: "sourceId" as any,
+          key: "depositStatus" as any,
           label: "Deposit status",
           render: (_, row) =>
             depositStatusLabel(
@@ -134,13 +134,13 @@ export default function RevenueDetails() {
             ),
         },
         {
-          key: "sourceId" as any,
+          key: "refundedBy" as any,
           label: "Refunded by",
           render: (_, row) =>
             getRevenueSubDetail(row)?.refundedBy?.trim() || "—",
         },
         {
-          key: "sourceId" as any,
+          key: "paidStatus" as any,
           label: "Paid",
           render: (_, row) => (
             <Text
@@ -158,12 +158,12 @@ export default function RevenueDetails() {
     return [
       ...base,
       {
-        key: "sourceId" as any,
+        key: "amount" as any,
         label: "Amount",
         render: (_, row) => `$${getRevenueAmount(row)}`,
       },
       {
-        key: "sourceId" as any,
+        key: "paidStatus" as any,
         label: "Paid",
         render: (_, row) => (
           <Text
