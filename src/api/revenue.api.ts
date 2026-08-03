@@ -1,10 +1,9 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-import { ApiListResponseArray, ApiPaginatedData } from "./auth.api";
+import { ApiListResponse, ApiListResponseArray, ApiPaginatedData } from "./auth.api";
 import {
   RevenueDetailItem,
   RevenueDetailQueryParams,
-  RevenueDetailUpdateRequest,
 } from "../types/revenueDetail.types";
 
 export const useGetRevenueDetails = (
@@ -16,7 +15,8 @@ export const useGetRevenueDetails = (
     if (v !== undefined && v !== null && v !== "") queryParams[k] = v;
   });
   return useApiQuery<
-    ApiListResponseArray<RevenueDetailItem> | ApiPaginatedData<RevenueDetailItem>
+    | ApiListResponse<ApiPaginatedData<RevenueDetailItem>>
+    | ApiListResponseArray<RevenueDetailItem>
   >("/revenue-detail", {
     enabled,
     retry: 0,
@@ -24,5 +24,40 @@ export const useGetRevenueDetails = (
   });
 };
 
-export const useUpdateRevenueDetail = (id?: number) =>
-  useApiMutation<RevenueDetailUpdateRequest>("put", `/revenue-detail/${id}`);
+/** Entity updates used by web Revenue Details (not PUT /revenue-detail/:id). */
+export const useUpdateBookingRevenue = (bookingId?: number) =>
+  useApiMutation("put", `/booking/${bookingId}`, {
+    successMessage: "Revenue updated",
+  });
+
+export const useUpdateFilterRevenue = () =>
+  useApiMutation(
+    "put",
+    (vars?: { id?: number; residentId?: number }) =>
+      `/filter/${vars?.id}/resident/${vars?.residentId}`,
+    { successMessage: "Revenue updated" },
+  );
+
+export const useUpdateAccessDeviceRevenue = () =>
+  useApiMutation(
+    "put",
+    (vars?: { id?: number; residentId?: number }) =>
+      `/access-device/${vars?.id}/resident/${vars?.residentId}`,
+    { successMessage: "Revenue updated" },
+  );
+
+export const useUpdateVisitorPassRevenue = () =>
+  useApiMutation(
+    "put",
+    (vars?: { id?: number; residentId?: number }) =>
+      `/visitor-pass/${vars?.id}/resident/${vars?.residentId}`,
+    { successMessage: "Revenue updated" },
+  );
+
+export const useUpdateRentalRevenue = () =>
+  useApiMutation(
+    "put",
+    (vars?: { id?: number; residentId?: number }) =>
+      `/rental/${vars?.id}/resident/${vars?.residentId}`,
+    { successMessage: "Revenue updated" },
+  );

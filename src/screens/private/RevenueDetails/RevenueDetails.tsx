@@ -1,120 +1,269 @@
-import { useGetRevenueDetails, useUpdateRevenueDetail } from "@/src/api/revenue.api";
-import { MobileColumn, MobileDataList } from "@/src/components/layout/MobileDataList";
+import { useGetRevenueDetails } from "@/src/api/revenue.api";
+import {
+  MobileColumn,
+  MobileDataList,
+} from "@/src/components/layout/MobileDataList";
 import PageHeader from "@/src/components/layout/PageHeader";
-import AnchoredPopupMenu from "@/src/components/ui/AnchoredPopMenu";
-import AppButton from "@/src/components/ui/AppButton";
-import AppInput from "@/src/components/ui/AppInput";
+import AnchoredPopupMenu, {
+  MenuItem,
+} from "@/src/components/ui/AnchoredPopMenu";
+import SelectField from "@/src/components/ui/SelectField";
+import { getDatePresetRange } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
+  depositStatusLabel,
+  getDepositAmount,
   getRevenueAmount,
+  getRevenueReference,
   getRevenueSubDetail,
   isRevenuePaid,
   RevenueDetailItem,
   RevenueDetailType,
+  RevenueTab,
+  typeLabel,
 } from "@/src/types/revenueDetail.types";
-import { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { PAGE_SIZE } from "@/src/utils/listPagination";
+import { useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import RevenueActionModal, {
+  RevenueActionMode,
+} from "./RevenueActionModal";
 
-const TYPES: { label: string; value: RevenueDetailType | "ALL" }[] = [
-  { label: "All", value: "ALL" },
+const TYPE_OPTIONS: { label: string; value: string }[] = [
+  { label: "All types", value: "ALL" },
   { label: "Booking", value: "BOOKING" },
   { label: "Filter", value: "FILTER" },
+  { label: "Access device", value: "ACCESS_DEVICE" },
+  { label: "Visitor pass", value: "VISITOR_PASS" },
   { label: "Rental", value: "RENTAL" },
-  { label: "Access Device", value: "ACCESS_DEVICE" },
-  { label: "Visitor Pass", value: "VISITOR_PASS" },
-  { label: "Enterphone", value: "ENTERPHONE" },
+];
+
+const PAID_FILTER_OPTIONS: { label: string; value: string }[] = [
+  { label: "All", value: "ALL" },
+  { label: "Paid", value: "true" },
+  { label: "Unpaid", value: "false" },
 ];
 
 export default function RevenueDetails() {
   const { buildingId, user } = useAuth();
+  const monthRange = useMemo(() => getDatePresetRange("month"), []);
+
+  const [tab, setTab] = useState<RevenueTab>("non-refundable");
   const [page, setPage] = useState(1);
-  const [type, setType] = useState<RevenueDetailType | "ALL">("ALL");
-  const [editItem, setEditItem] = useState<RevenueDetailItem | null>(null);
-  const [amount, setAmount] = useState("");
-  const [receiptNumber, setReceiptNumber] = useState("");
+  const [type, setType] = useState<string>("ALL");
+  const [paidFilter, setPaidFilter] = useState<string>("ALL");
+  const [actionItem, setActionItem] = useState<RevenueDetailItem | null>(null);
+  const [actionMode, setActionMode] = useState<RevenueActionMode | null>(null);
+
+  const isRefundable = tab === "refundable";
 
   const { data, isLoading, refetch, isRefetching } = useGetRevenueDetails(
     {
       page,
-      limit: 10,
+      limit: PAGE_SIZE,
       buildingId: buildingId ?? undefined,
-      type: type === "ALL" ? undefined : type,
+      fromDate: monthRange.fromDate,
+      toDate: monthRange.toDate,
+      excludeFree: true,
+      refundable: isRefundable,
+      type:
+        !isRefundable && type !== "ALL"
+          ? (type as RevenueDetailType)
+          : undefined,
+      isPaid:
+        paidFilter === "ALL" ? undefined : paidFilter === "true",
     },
     !!user?.userId && !!buildingId,
   );
 
   const raw: any = data?.data;
-  const items: RevenueDetailItem[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
-  const total: number = Array.isArray(raw) ? raw.length : (raw?.total ?? items.length);
+  const items: RevenueDetailItem[] = Array.isArray(raw)
+    ? raw
+    : (raw?.data ?? []);
+  const total: number = Array.isArray(raw)
+    ? raw.length
+    : (raw?.total ?? items.length);
 
-  const { mutate: updateMutate, isPending } = useUpdateRevenueDetail(editItem?.sourceId);
-
-  const columns: MobileColumn<RevenueDetailItem>[] = [
-    { key: "type", label: "Type", primary: true },
-    { key: "residentName", label: "Resident", searchable: true },
-    { key: "residentUnit", label: "Unit" },
-    {
-      key: "type" as any,
-      label: "Amount",
-      render: (_, row) => `$${getRevenueAmount(row)}`,
-    },
-    {
-      key: "sourceId" as any,
-      label: "Status",
-      render: (_, row) => (
-        <Text className={`font-semibold ${isRevenuePaid(row) ? "text-green-600" : "text-amber-600"}`}>
-          {isRevenuePaid(row) ? "Paid" : "Unpaid"}
-        </Text>
-      ),
-    },
-  ];
-
-  const openEdit = (row: RevenueDetailItem) => {
-    const detail = getRevenueSubDetail(row);
-    setEditItem(row);
-    setAmount(String(detail?.paidFee ?? detail?.paidAmount ?? ""));
-    setReceiptNumber(String(detail?.receiptNumber ?? detail?.receipt ?? ""));
+  const openAction = (row: RevenueDetailItem, mode: RevenueActionMode) => {
+    setActionItem(row);
+    setActionMode(mode);
   };
 
-  const submitPayment = (markPaid: boolean) => {
-    if (!editItem) return;
-    updateMutate(
+  const closeAction = () => {
+    setActionItem(null);
+    setActionMode(null);
+  };
+
+  const columns: MobileColumn<RevenueDetailItem>[] = useMemo(() => {
+    const base: MobileColumn<RevenueDetailItem>[] = [
       {
-        isPaid: markPaid,
-        paidFee: amount || undefined,
-        paidAmount: amount || undefined,
-        receiptNumber: receiptNumber || undefined,
-        receipt: receiptNumber || undefined,
+        key: "type",
+        label: "Type",
+        primary: true,
+        render: (value) => typeLabel(value as RevenueDetailType),
       },
       {
-        onSuccess: () => {
-          setEditItem(null);
-          refetch();
+        key: "residentName",
+        label: "Resident",
+        searchable: true,
+        render: (_, row) =>
+          [row.residentUnit, row.residentName].filter(Boolean).join(" · ") ||
+          "—",
+      },
+      {
+        key: "sourceId" as any,
+        label: "Reference",
+        render: (_, row) => getRevenueReference(row),
+      },
+    ];
+
+    if (isRefundable) {
+      return [
+        ...base,
+        {
+          key: "sourceId" as any,
+          label: "Deposit",
+          render: (_, row) => `$${getDepositAmount(row)}`,
         },
+        {
+          key: "sourceId" as any,
+          label: "Deposit status",
+          render: (_, row) =>
+            depositStatusLabel(
+              getRevenueSubDetail(row)?.depositAmountStatus,
+            ),
+        },
+        {
+          key: "sourceId" as any,
+          label: "Refunded by",
+          render: (_, row) =>
+            getRevenueSubDetail(row)?.refundedBy?.trim() || "—",
+        },
+        {
+          key: "sourceId" as any,
+          label: "Paid",
+          render: (_, row) => (
+            <Text
+              className={`font-semibold ${
+                isRevenuePaid(row) ? "text-green-600" : "text-amber-600"
+              }`}
+            >
+              {isRevenuePaid(row) ? "Yes" : "No"}
+            </Text>
+          ),
+        },
+      ];
+    }
+
+    return [
+      ...base,
+      {
+        key: "sourceId" as any,
+        label: "Amount",
+        render: (_, row) => `$${getRevenueAmount(row)}`,
       },
-    );
+      {
+        key: "sourceId" as any,
+        label: "Paid",
+        render: (_, row) => (
+          <Text
+            className={`font-semibold ${
+              isRevenuePaid(row) ? "text-green-600" : "text-amber-600"
+            }`}
+          >
+            {isRevenuePaid(row) ? "Yes" : "No"}
+          </Text>
+        ),
+      },
+    ];
+  }, [isRefundable]);
+
+  const switchTab = (next: RevenueTab) => {
+    setTab(next);
+    setPage(1);
+    if (next === "refundable") setType("ALL");
   };
 
   return (
     <>
       <View className="flex-1">
-        <PageHeader showBackButton icon="cash" title="Revenue Details" subtitle="Track fees, deposits, and payments." />
-        <View className="flex-row flex-wrap gap-2 mb-3">
-          {TYPES.map((t) => (
-            <Pressable
-              key={t.value}
-              onPress={() => {
-                setType(t.value);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-full border ${type === t.value ? "bg-primary border-primary" : "border-slate-300"}`}
-            >
-              <Text className={`text-xs font-semibold ${type === t.value ? "text-white" : "text-textPrimary"}`}>
-                {t.label}
-              </Text>
-            </Pressable>
-          ))}
+        <PageHeader
+          showBackButton
+          icon="cash"
+          title="Revenue Details"
+          subtitle={
+            isRefundable
+              ? "Booking deposits — on hold / refunded"
+              : "Fees across bookings, filters, devices, passes & rentals"
+          }
+        />
+
+        {/* Tabs */}
+        <View className="flex-row gap-2 mb-3 px-1">
+          {(
+            [
+              { key: "non-refundable", label: "Non-refundable" },
+              { key: "refundable", label: "Refundable" },
+            ] as const
+          ).map((t) => {
+            const active = tab === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => switchTab(t.key)}
+                className={`flex-1 items-center rounded-xl border py-2.5 ${
+                  active
+                    ? "bg-primary border-primary"
+                    : "bg-white border-slate-300"
+                }`}
+              >
+                <Text
+                  className={`text-sm font-semibold ${
+                    active ? "text-white" : "text-textPrimary"
+                  }`}
+                >
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        {/* Filters */}
+        <View className="mb-3 gap-2 px-1">
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <SelectField
+                label="Paid"
+                value={paidFilter}
+                onChange={(v) => {
+                  setPaidFilter(v);
+                  setPage(1);
+                }}
+                options={PAID_FILTER_OPTIONS}
+                placeholder="Paid filter"
+              />
+            </View>
+            {!isRefundable && (
+              <View className="flex-1">
+                <SelectField
+                  label="Type"
+                  value={type}
+                  onChange={(v) => {
+                    setType(v);
+                    setPage(1);
+                  }}
+                  options={TYPE_OPTIONS}
+                  placeholder="Type"
+                />
+              </View>
+            )}
+          </View>
+          <Text className="text-[11px] text-slate-500 px-1">
+            Showing {monthRange.fromDate} → {monthRange.toDate}
+          </Text>
+        </View>
+
         <View className="flex-1">
           <MobileDataList<RevenueDetailItem>
             data={items}
@@ -124,50 +273,57 @@ export default function RevenueDetails() {
             searchable
             backendMode
             keyExtractor={(item) => `${item.type}-${item.sourceId}`}
-            emptyMessage="No revenue records found"
+            emptyMessage={
+              isRefundable
+                ? "No refundable booking deposits found."
+                : "No non-refundable fees found."
+            }
             onRefresh={refetch}
-            pagination={{ page, pageSize: 10, total, hasMore: page * 10 < total, onPageChange: setPage }}
-            renderActions={(row) => (
-              <AnchoredPopupMenu
-                items={[{ label: "Update Payment", icon: "create", onPress: () => openEdit(row) }]}
-              />
-            )}
+            pagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total,
+              hasMore: page * PAGE_SIZE < total,
+              onPageChange: setPage,
+            }}
+            renderActions={(row) => {
+              const items: MenuItem[] = isRefundable
+                ? [
+                    {
+                      label: "Deposit update",
+                      icon: "wallet",
+                      onPress: () => openAction(row, "deposit"),
+                    },
+                    {
+                      label: "View details",
+                      icon: "eye",
+                      onPress: () => openAction(row, "view"),
+                    },
+                  ]
+                : [
+                    {
+                      label: "Pay now",
+                      icon: "card",
+                      onPress: () => openAction(row, "pay"),
+                    },
+                    {
+                      label: "View details",
+                      icon: "eye",
+                      onPress: () => openAction(row, "view"),
+                    },
+                  ];
+              return <AnchoredPopupMenu items={items} />;
+            }}
           />
         </View>
       </View>
-      <Modal
-        transparent
-        visible={!!editItem}
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setEditItem(null)}
-      >
-        <Pressable
-          onPress={() => setEditItem(null)}
-          className="flex-1 bg-black/50 items-center justify-center px-6"
-        >
-          <Pressable onPress={(e) => e.stopPropagation()} className="w-full rounded-2xl bg-white p-5 gap-3">
-            <Text className="text-lg font-bold text-textPrimary">Update Payment</Text>
-            <Text className="text-sm text-textSecondary">
-              {editItem?.residentName} · {editItem?.residentUnit}
-            </Text>
-            <AppInput label="Amount" value={amount} onChangeText={setAmount} keyboardType="numeric" />
-            <AppInput label="Receipt Number" value={receiptNumber} onChangeText={setReceiptNumber} />
-            <View className="flex-row gap-3 mt-2">
-              <View className="flex-1">
-                <AppButton variant="outline" onPress={() => setEditItem(null)} disabled={isPending}>
-                  Cancel
-                </AppButton>
-              </View>
-              <View className="flex-1">
-                <AppButton onPress={() => submitPayment(true)} loading={isPending}>
-                  Mark Paid
-                </AppButton>
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+
+      <RevenueActionModal
+        item={actionItem}
+        mode={actionMode}
+        onClose={closeAction}
+        onSaved={refetch}
+      />
     </>
   );
 }
