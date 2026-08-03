@@ -111,10 +111,14 @@ export default function VisitorParking() {
     {
       key: "vehicleMake",
       label: "Vehicle",
-      render: (_value, row) =>
-        [row.vehicleMake, row.vehicleModel, row.vehicleColor]
+      render: (_value, row) => {
+        const name = [row.vehicleMake, row.vehicleModel]
+          .map((v) => v?.trim())
           .filter(Boolean)
-          .join(" ") || "—",
+          .filter((v, i, arr) => arr.indexOf(v) === i)
+          .join(" ");
+        return [name, row.vehicleColor].filter(Boolean).join(" · ") || "—";
+      },
     },
     {
       key: "checkInAt",

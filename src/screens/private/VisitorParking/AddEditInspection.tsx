@@ -1,6 +1,7 @@
 import {
   useCheckInVisitorParkingInspection,
   useGetVisitorParkingInspectionById,
+  useGetVisitorParkingPlateVehicleDetails,
   useUpdateVisitorParkingInspection,
 } from "@/src/api/visitorParking.api";
 import LoadingState from "@/src/components/feedback/LoadingState";
@@ -17,8 +18,9 @@ import {
   TowWorkflowStatus,
 } from "@/src/types/visitorParking.types";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Keyboard,
   Switch,
   Text,
@@ -26,6 +28,18 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+
+function combineVehicleMakeModel(
+  make?: string | null,
+  model?: string | null,
+): string {
+  return [make, model]
+    .map((v) => v?.trim())
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(" ")
+    .trim();
+}
 
 export default function AddEditInspection() {
   const { inspectionId } = useLocalSearchParams();
@@ -42,8 +56,8 @@ export default function AddEditInspection() {
 
   const [stallIdentifier, setStallIdentifier] = useState("");
   const [licensePlate, setLicensePlate] = useState("");
-  const [vehicleMake, setVehicleMake] = useState("");
-  const [vehicleModel, setVehicleModel] = useState("");
+  const [debouncedPlate, setDebouncedPlate] = useState("");
+  const [vehicle, setVehicle] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
   const [passNumberDisplay, setPassNumberDisplay] = useState("");
   const [periodOfDay, setPeriodOfDay] = useState<PeriodOfDay>("DAY");
@@ -53,16 +67,67 @@ export default function AddEditInspection() {
   const [violationSlipIssued, setViolationSlipIssued] = useState(false);
   const [violationNotes, setViolationNotes] = useState("");
 
+  const lastAutofillKey = useRef("");
   const matchedUnit = data?.data?.residentUnit;
   const matchedName = data?.data?.residentName;
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedPlate(licensePlate.trim()), 400);
+    return () => clearTimeout(t);
+  }, [licensePlate]);
+
+  const { data: vehicleDetailsApi, isFetching: vehicleDetailsLoading } =
+    useGetVisitorParkingPlateVehicleDetails(
+      {
+        buildingId: buildingId ?? undefined,
+        licensePlate: debouncedPlate,
+      },
+      !editMode && buildingId != null && debouncedPlate.length >= 2,
+    );
+  const vehicleDetails = vehicleDetailsApi?.data;
+
+  // Create only: autofill vehicle + color from plate lookup (same as web)
+  useEffect(() => {
+    if (editMode || !buildingId) {
+      lastAutofillKey.current = "";
+      return;
+    }
+    if (!debouncedPlate || debouncedPlate.length < 2) {
+      lastAutofillKey.current = "";
+      return;
+    }
+    const ambiguous = !!vehicleDetails?.registeredVehicleMatchAmbiguous;
+    const fromPrior = !!vehicleDetails?.fromPriorInspection;
+    const hasVehicleFields = !!(
+      vehicleDetails?.vehicleMake?.trim() ||
+      vehicleDetails?.vehicleModel?.trim() ||
+      vehicleDetails?.vehicleColor?.trim()
+    );
+    if (!vehicleDetails || !hasVehicleFields || (ambiguous && !fromPrior)) {
+      return;
+    }
+    const respPlate = (vehicleDetails.licensePlate ?? "").trim().toLowerCase();
+    if (respPlate && respPlate !== debouncedPlate.toLowerCase()) return;
+
+    const key = `${buildingId}|${debouncedPlate.toLowerCase()}`;
+    if (lastAutofillKey.current === key) return;
+    lastAutofillKey.current = key;
+
+    setVehicle(
+      combineVehicleMakeModel(
+        vehicleDetails.vehicleMake,
+        vehicleDetails.vehicleModel,
+      ),
+    );
+    setVehicleColor(vehicleDetails.vehicleColor?.trim() ?? "");
+  }, [editMode, buildingId, debouncedPlate, vehicleDetails]);
 
   useEffect(() => {
     if (editMode && data?.data) {
       const item = data.data;
       setStallIdentifier(item.stallIdentifier ?? "");
       setLicensePlate(item.licensePlate ?? "");
-      setVehicleMake(item.vehicleMake ?? "");
-      setVehicleModel(item.vehicleModel ?? "");
+      setVehicle(combineVehicleMakeModel(item.vehicleMake, item.vehicleModel));
       setVehicleColor(item.vehicleColor ?? "");
       setPassNumberDisplay(item.passNumberDisplay ?? "");
       setPeriodOfDay(item.periodOfDay ?? "DAY");
@@ -73,29 +138,50 @@ export default function AddEditInspection() {
     }
   }, [editMode, data]);
 
-  const onSubmit = () => {
-    if (!buildingId || !stallIdentifier.trim() || !licensePlate.trim()) return;
+  const canSubmit =
+    !!buildingId && !!stallIdentifier.trim() && !!licensePlate.trim();
 
-    const payload = {
-      buildingId,
-      stallIdentifier: stallIdentifier.trim(),
-      licensePlate: licensePlate.trim().toUpperCase(),
-      vehicleMake: vehicleMake.trim() || undefined,
-      vehicleModel: vehicleModel.trim() || undefined,
-      vehicleColor: vehicleColor.trim() || undefined,
-      passNumberDisplay: passNumberDisplay.trim() || undefined,
-      periodOfDay,
-      towWorkflowStatus,
-      bylawNoticeIssued,
-      violationSlipIssued,
-      violationNotes: violationNotes.trim() || undefined,
-    };
+  const onSubmit = () => {
+    if (!canSubmit || !buildingId) return;
+
+    const vehicleCombined = vehicle.trim() || undefined;
 
     if (editMode) {
-      updateMutate(payload, { onSuccess: () => router.back() });
-    } else {
-      checkInMutate(payload, { onSuccess: () => router.back() });
+      updateMutate(
+        {
+          stallIdentifier: stallIdentifier.trim(),
+          licensePlate: licensePlate.trim().toUpperCase(),
+          vehicleMake: vehicleCombined,
+          vehicleModel: vehicleCombined,
+          vehicleColor: vehicleColor.trim() || undefined,
+          passNumberDisplay: passNumberDisplay.trim() || undefined,
+          periodOfDay,
+          towWorkflowStatus,
+          bylawNoticeIssued,
+          violationSlipIssued,
+          violationNotes: violationNotes.trim() || undefined,
+        },
+        { onSuccess: () => router.back() },
+      );
+      return;
     }
+
+    // Create / check-in — same combined vehicle field as web
+    checkInMutate(
+      {
+        buildingId,
+        stallIdentifier: stallIdentifier.trim(),
+        licensePlate: licensePlate.trim().toUpperCase(),
+        vehicleMake: vehicleCombined,
+        vehicleModel: vehicleCombined,
+        vehicleColor: vehicleColor.trim() || undefined,
+        passNumberDisplay: passNumberDisplay.trim() || undefined,
+        periodOfDay,
+        towWorkflowStatus: "NOT_APPLICABLE",
+        violationSlipIssued: false,
+      },
+      { onSuccess: () => router.back() },
+    );
   };
 
   if (editMode && isLoading) {
@@ -110,8 +196,8 @@ export default function AddEditInspection() {
         title={editMode ? "Edit Inspection" : "Check In Vehicle"}
         subtitle={
           editMode
-            ? "Update this visitor parking inspection"
-            : "Log a new visitor vehicle in a stall"
+            ? "Update stall, vehicle, or pass for this visit"
+            : "Log stall, plate, and vehicle — check-in time is set on save"
         }
       />
 
@@ -127,7 +213,7 @@ export default function AddEditInspection() {
           <View className="flex-row gap-3">
             <View className="flex-1">
               <AppInput
-                label="Stall Identifier"
+                label="Stall *"
                 value={stallIdentifier}
                 onChangeText={setStallIdentifier}
                 placeholder="e.g. V-12"
@@ -135,7 +221,7 @@ export default function AddEditInspection() {
             </View>
             <View className="flex-1">
               <AppInput
-                label="License Plate"
+                label="License Plate *"
                 value={licensePlate}
                 onChangeText={setLicensePlate}
                 placeholder="e.g. ABC 123"
@@ -144,31 +230,30 @@ export default function AddEditInspection() {
             </View>
           </View>
 
-          <View className="mt-3 flex-row gap-3">
-            <View className="flex-1">
-              <AppInput
-                label="Vehicle Make"
-                value={vehicleMake}
-                onChangeText={setVehicleMake}
-                placeholder="e.g. Honda"
-              />
+          {!editMode && vehicleDetailsLoading && debouncedPlate.length >= 2 ? (
+            <View className="flex-row items-center gap-2 mt-2 px-1">
+              <ActivityIndicator size="small" color="#2563eb" />
+              <Text className="text-xs text-textSecondary">
+                Looking up vehicle details…
+              </Text>
             </View>
-            <View className="flex-1">
-              <AppInput
-                label="Vehicle Model"
-                value={vehicleModel}
-                onChangeText={setVehicleModel}
-                placeholder="e.g. Civic"
-              />
-            </View>
+          ) : null}
+
+          <View className="mt-3">
+            <AppInput
+              label="Vehicle (make & model)"
+              value={vehicle}
+              onChangeText={setVehicle}
+              placeholder="e.g. Toyota Corolla"
+            />
           </View>
 
           <View className="mt-3">
             <AppInput
-              label="Vehicle Color"
+              label="Color"
               value={vehicleColor}
               onChangeText={setVehicleColor}
-              placeholder="e.g. Black"
+              placeholder="e.g. Silver"
             />
           </View>
 
@@ -208,48 +293,53 @@ export default function AddEditInspection() {
             />
           </View>
 
-          <View className="mt-3">
-            <SelectField
-              label="Tow Workflow Status"
-              value={towWorkflowStatus}
-              onChange={(v) => setTowWorkflowStatus(v as TowWorkflowStatus)}
-              options={TOW_WORKFLOW_STATUS_OPTIONS}
-              mode="dropdown"
-            />
-          </View>
+          {editMode ? (
+            <>
+              <View className="mt-3">
+                <SelectField
+                  label="Tow Workflow Status"
+                  value={towWorkflowStatus}
+                  onChange={(v) => setTowWorkflowStatus(v as TowWorkflowStatus)}
+                  options={TOW_WORKFLOW_STATUS_OPTIONS}
+                  mode="dropdown"
+                />
+              </View>
 
-          <View className="mt-4 flex-row items-center justify-between">
-            <Text className="text-base font-medium text-slate-700">
-              Bylaw Notice Issued
-            </Text>
-            <Switch
-              value={bylawNoticeIssued}
-              onValueChange={setBylawNoticeIssued}
-            />
-          </View>
+              <View className="mt-4 flex-row items-center justify-between">
+                <Text className="text-base font-medium text-slate-700">
+                  Bylaw Notice Issued
+                </Text>
+                <Switch
+                  value={bylawNoticeIssued}
+                  onValueChange={setBylawNoticeIssued}
+                />
+              </View>
 
-          <View className="mt-3 flex-row items-center justify-between">
-            <Text className="text-base font-medium text-slate-700">
-              Violation Slip Issued
-            </Text>
-            <Switch
-              value={violationSlipIssued}
-              onValueChange={setViolationSlipIssued}
-            />
-          </View>
+              <View className="mt-3 flex-row items-center justify-between">
+                <Text className="text-base font-medium text-slate-700">
+                  Violation Slip Issued
+                </Text>
+                <Switch
+                  value={violationSlipIssued}
+                  onValueChange={setViolationSlipIssued}
+                />
+              </View>
 
-          <View className="mt-3">
-            <TextAreaField
-              label="Violation Notes"
-              value={violationNotes}
-              onChangeText={setViolationNotes}
-              placeholder="No pass, over limit, over hours, tow notes, etc."
-            />
-          </View>
+              <View className="mt-3">
+                <TextAreaField
+                  label="Violation Notes"
+                  value={violationNotes}
+                  onChangeText={setViolationNotes}
+                  placeholder="No pass, over limit, over hours, tow notes, etc."
+                />
+              </View>
+            </>
+          ) : null}
 
           <View className="mt-6">
             <AppButton
               loading={editMode ? isUpdating : isCheckingIn}
+              disabled={!canSubmit}
               onPress={onSubmit}
             >
               {editMode ? "Update Inspection" : "Check In"}

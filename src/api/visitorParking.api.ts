@@ -5,6 +5,8 @@ import {
   BuildingVisitorParkingPolicyResponse,
   VisitorParkingInspectionCreatePojo,
   VisitorParkingInspectionResponse,
+  VisitorParkingInspectionUpdatePojo,
+  VisitorParkingPlateVehicleDetailsPojo,
 } from "../types/visitorParking.types";
 import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
@@ -47,6 +49,28 @@ export const useGetVisitorParkingInspectionById = (
     { enabled: enabled && id != null, retry: 0 },
   );
 
+export const useGetVisitorParkingPlateVehicleDetails = (
+  params: { buildingId?: number; licensePlate: string },
+  enabled = true,
+) => {
+  const plate = params.licensePlate.trim();
+  return useApiQuery<ApiListResponse<VisitorParkingPlateVehicleDetailsPojo>>(
+    "/visitor-parking-inspection/vehicle-details",
+    {
+      enabled:
+        enabled &&
+        params.buildingId != null &&
+        params.buildingId > 0 &&
+        plate.length >= 2,
+      retry: 0,
+      queryParams: {
+        buildingId: params.buildingId,
+        licensePlate: plate,
+      },
+    },
+  );
+};
+
 export const useCheckInVisitorParkingInspection = () =>
   useApiMutation<VisitorParkingInspectionCreatePojo>(
     "post",
@@ -62,7 +86,7 @@ export const useCheckOutVisitorParkingInspection = () =>
   );
 
 export const useUpdateVisitorParkingInspection = (id: number | undefined) =>
-  useApiMutation<VisitorParkingInspectionCreatePojo>(
+  useApiMutation<VisitorParkingInspectionUpdatePojo>(
     "put",
     `/visitor-parking-inspection/${id}`,
   );

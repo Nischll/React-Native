@@ -66,6 +66,32 @@ export interface VisitorParkingRollupResponsePojo {
   passLinkAmbiguous?: boolean | null;
 }
 
+export interface VisitorParkingPlateVehicleDetailsPojo {
+  buildingId?: number;
+  licensePlate?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleColor?: string;
+  residentVehicle?: boolean | null;
+  registeredVehicleMatchAmbiguous?: boolean | null;
+  fromPriorInspection?: boolean;
+}
+
+export interface VisitorParkingInspectionUpdatePojo {
+  stallIdentifier: string;
+  licensePlate: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleColor?: string;
+  passNumberDisplay?: string;
+  towWorkflowStatus?: TowWorkflowStatus;
+  bylawNoticeIssued?: boolean;
+  violationSlipIssued?: boolean;
+  periodOfDay?: PeriodOfDay;
+  visitDayCountInMonth?: number;
+  violationNotes?: string;
+}
+
 export interface VisitorParkingInspectionCreatePojo {
   buildingId: number;
   stallIdentifier: string;

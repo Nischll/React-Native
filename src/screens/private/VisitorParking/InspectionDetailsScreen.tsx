@@ -277,11 +277,12 @@ export default function InspectionDetailsScreen() {
   if (!inspection) return <EmptyState message="No inspection details found." />;
 
   const checkedOut = !!inspection.checkOutAt;
-  const vehicleLine = [
-    inspection.vehicleMake,
-    inspection.vehicleModel,
-    inspection.vehicleColor,
-  ]
+  const vehicleDisplay = [inspection.vehicleMake, inspection.vehicleModel]
+    .map((v) => v?.trim())
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(" ");
+  const vehicleWithColor = [vehicleDisplay, inspection.vehicleColor?.trim()]
     .filter(Boolean)
     .join(" · ");
 
@@ -351,7 +352,7 @@ export default function InspectionDetailsScreen() {
             <InfoField label="Pass Number" value={inspection.passNumberDisplay} />
           </InfoRow>
           <InfoRow>
-            <InfoField label="Vehicle" value={vehicleLine || undefined} />
+            <InfoField label="Vehicle" value={vehicleWithColor || undefined} />
             <InfoField
               label="Plate in registry"
               value={
