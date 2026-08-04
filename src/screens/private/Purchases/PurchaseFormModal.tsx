@@ -522,6 +522,7 @@ export default function PurchaseFormModal({
                 onChange={setResidentId}
                 options={residences}
                 placeholder="Select unit"
+                mode="inline"
               />
 
               {purchaseType === "FILTER" && (
@@ -573,6 +574,7 @@ export default function PurchaseFormModal({
                     value={enterphoneStatus}
                     onChange={(v) => setEnterphoneStatus(v as EnterphoneStatus)}
                     options={ENTERPHONE_STATUS_OPTIONS}
+                    mode="inline"
                   />
                 </View>
               )}
@@ -590,6 +592,7 @@ export default function PurchaseFormModal({
                     value={deviceType}
                     onChange={(v) => setDeviceType(v as FobType)}
                     options={DEVICE_TYPE_OPTIONS}
+                    mode="inline"
                   />
                   <AppInput
                     label="Access level"
@@ -602,12 +605,14 @@ export default function PurchaseFormModal({
                     value={assignedTo}
                     onChange={(v) => setAssignedTo(v as FobAssignedTo)}
                     options={ASSIGNED_TO_OPTIONS}
+                    mode="inline"
                   />
                   <SelectField
                     label="Status"
                     value={deviceStatus}
                     onChange={(v) => setDeviceStatus(v as FobStatus)}
                     options={FOB_STATUS_OPTIONS}
+                    mode="inline"
                   />
                   {assignedTo === "TENANT" && (
                     <FilePicker
@@ -644,6 +649,7 @@ export default function PurchaseFormModal({
                     value={passStatus}
                     onChange={(v) => setPassStatus(v as VisitorPassStatus)}
                     options={VISITOR_STATUS_OPTIONS}
+                    mode="inline"
                   />
                 </View>
               )}
@@ -655,12 +661,14 @@ export default function PurchaseFormModal({
                     value={purchaseFor}
                     onChange={(v) => setPurchaseFor(v as PurchaseFor)}
                     options={PURCHASE_FOR_OPTIONS}
+                    mode="inline"
                   />
                   <SelectField
                     label="Payment option"
                     value={paymentOption}
                     onChange={(v) => setPaymentOption(v as PaymentOption)}
                     options={PAYMENT_OPTION_OPTIONS}
+                    mode="inline"
                   />
                   <AppInput
                     label="Parking stall"
@@ -693,6 +701,7 @@ export default function PurchaseFormModal({
                     value={rentalStatus}
                     onChange={(v) => setRentalStatus(v as RentalStatus)}
                     options={RENTAL_STATUS_OPTIONS}
+                    mode="inline"
                   />
                 </View>
               )}
@@ -769,7 +778,7 @@ export default function PurchaseFormModal({
                       onChange={(v) => setPaidType(v as PaidType)}
                       options={PAID_TYPE_OPTIONS}
                       placeholder="Select type"
-                      mode="dropdown"
+                      mode="inline"
                     />
                     <AppInput
                       label="Receipt"

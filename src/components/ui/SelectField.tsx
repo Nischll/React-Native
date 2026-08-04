@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import {
   Animated,
+  Dimensions,
   LayoutChangeEvent,
   Modal,
   Pressable,
@@ -34,7 +35,8 @@ type SelectFieldProps = {
   placeholder?: string;
   options: SelectOption[];
   error?: string;
-  mode?: "modal" | "dropdown";
+  /** inline = expand under trigger (best inside parent Modals / bottom sheets) */
+  mode?: "modal" | "dropdown" | "inline";
 } & (SingleSelectProps | MultiSelectProps);
 
 export default function SelectField(props: SelectFieldProps) {
@@ -51,6 +53,7 @@ export default function SelectField(props: SelectFieldProps) {
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
+  const triggerRef = useRef<View>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(-8)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -106,9 +109,12 @@ export default function SelectField(props: SelectFieldProps) {
       (props.onChange as (v: string[]) => void)(next);
     } else {
       (props.onChange as (v: string) => void)(val);
-      closeDropdown();
-      setOpen(false);
-      setSearch("");
+      if (mode === "dropdown") {
+        closeDropdown();
+      } else {
+        setOpen(false);
+        setSearch("");
+      }
     }
   };
 
@@ -119,25 +125,39 @@ export default function SelectField(props: SelectFieldProps) {
   };
 
   // ── Animations ───────────────────────────────────────────
+  const measureTrigger = (cb?: (next: typeof layout) => void) => {
+    triggerRef.current?.measureInWindow(
+      (x: number, y: number, width: number, height: number) => {
+        const next = { x, y, width, height };
+        setLayout(next);
+        cb?.(next);
+      },
+    );
+  };
+
   const openDropdown = () => {
-    setOpen(true);
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateAnim, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    measureTrigger(() => {
+      setOpen(true);
+      fadeAnim.setValue(0);
+      translateAnim.setValue(-8);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateAnim, {
+          toValue: 0,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
   };
 
   const closeDropdown = () => {
@@ -164,11 +184,9 @@ export default function SelectField(props: SelectFieldProps) {
   };
 
   const measure = (e: LayoutChangeEvent) => {
-    (e.target as any).measureInWindow(
-      (x: number, y: number, width: number, height: number) => {
-        setLayout({ x, y, width, height });
-      },
-    );
+    const { width, height } = e.nativeEvent.layout;
+    // Width/height from onLayout; x/y refreshed on open via measureInWindow
+    setLayout((prev) => ({ ...prev, width, height }));
   };
 
   // ── Select all row ───────────────────────────────────────
@@ -217,7 +235,12 @@ export default function SelectField(props: SelectFieldProps) {
 
   // ── Trigger button ───────────────────────────────────────
   const renderTrigger = () => {
-    const onPress = mode === "dropdown" ? openDropdown : () => setOpen(true);
+    const onPress =
+      mode === "dropdown"
+        ? openDropdown
+        : mode === "inline"
+          ? () => setOpen((p) => !p)
+          : () => setOpen(true);
 
     if (multi && selectedValues.length > 0) {
       const visibleChips = selectedLabels.slice(0, 2);
@@ -389,15 +412,52 @@ export default function SelectField(props: SelectFieldProps) {
         </Text>
       ) : null}
 
-      <View onLayout={measure}>{renderTrigger()}</View>
+      <View ref={triggerRef} onLayout={measure} collapsable={false}>
+        {renderTrigger()}
+      </View>
 
       {error ? (
         <Text className="mt-2 text-sm text-rose-500">{error}</Text>
       ) : null}
 
+      {/* ── Inline mode (safe inside parent Modal / bottom sheet) ── */}
+      {mode === "inline" && open && (
+        <View
+          style={{
+            marginTop: 8,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: "#E2E8F0",
+            backgroundColor: "#fff",
+            overflow: "hidden",
+            maxHeight: 220,
+          }}
+        >
+          <ScrollView
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {renderSelectAll()}
+            {options.map((item) =>
+              renderOption(item, () => handleSelect(item.value)),
+            )}
+          </ScrollView>
+        </View>
+      )}
+
       {/* ── Modal mode ── */}
       {mode === "modal" && (
-        <Modal visible={open} animationType="slide" statusBarTranslucent>
+        <Modal
+          visible={open}
+          animationType="slide"
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => {
+            setOpen(false);
+            setSearch("");
+          }}
+        >
           <SafeAreaView
             style={{ flex: 1, backgroundColor: "#fff" }}
             edges={["top", "bottom", "left", "right"]}
@@ -453,7 +513,10 @@ export default function SelectField(props: SelectFieldProps) {
                 }}
               />
 
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
                 {renderSelectAll()}
                 {filteredOptions.map((item) =>
                   renderOption(item, () => handleSelect(item.value)),
@@ -466,63 +529,102 @@ export default function SelectField(props: SelectFieldProps) {
 
       {/* ── Dropdown mode ── */}
       {mode === "dropdown" && open && (
-        <Modal transparent animationType="none">
-          <Pressable onPress={closeDropdown} style={{ flex: 1 }} />
-          <View
-            style={{
-              position: "absolute",
-              left: layout.x,
-              width: layout.width,
-              top:
-                layout.y + layout.height + 6 > 600
-                  ? layout.y - 180
-                  : layout.y + layout.height,
-            }}
-          >
-            <Animated.View
+        <Modal transparent animationType="none" onRequestClose={closeDropdown}>
+          <View style={{ flex: 1 }}>
+            <Pressable
+              onPress={closeDropdown}
               style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: translateAnim }],
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#E2E8F0",
-                backgroundColor: "#fff",
-                overflow: "hidden",
-                maxHeight: 240,
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
               }}
-            >
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {renderSelectAll()}
-                {options.map((item) =>
-                  renderOption(item, () => handleSelect(item.value)),
-                )}
-              </ScrollView>
-              {multi && (
-                <Pressable
-                  onPress={closeDropdown}
+            />
+            {(() => {
+              const windowH = Dimensions.get("window").height;
+              const menuMaxH = 240;
+              const spaceBelow = windowH - (layout.y + layout.height + 8);
+              const openUp = spaceBelow < menuMaxH && layout.y > menuMaxH;
+              const top = openUp
+                ? Math.max(8, layout.y - menuMaxH - 4)
+                : layout.y + layout.height + 4;
+              const width = Math.max(layout.width, 160);
+              const left = Math.max(
+                8,
+                Math.min(
+                  layout.x,
+                  Dimensions.get("window").width - width - 8,
+                ),
+              );
+
+              return (
+                <View
                   style={{
-                    padding: 12,
-                    alignItems: "center",
-                    borderTopWidth: 1,
-                    borderTopColor: "#F1F5F9",
-                    backgroundColor: "#FAFAFA",
+                    position: "absolute",
+                    left,
+                    width,
+                    top,
+                    zIndex: 1000,
+                    elevation: 8,
                   }}
+                  pointerEvents="box-none"
                 >
-                  <Text
+                  <Animated.View
                     style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: "#7C3AED",
+                      opacity: fadeAnim,
+                      transform: [{ translateY: translateAnim }],
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: "#E2E8F0",
+                      backgroundColor: "#fff",
+                      overflow: "hidden",
+                      maxHeight: menuMaxH,
+                      shadowColor: "#000",
+                      shadowOpacity: 0.12,
+                      shadowRadius: 8,
+                      shadowOffset: { width: 0, height: 4 },
                     }}
                   >
-                    Done
-                    {selectedValues.length > 0
-                      ? ` (${selectedValues.length})`
-                      : ""}
-                  </Text>
-                </Pressable>
-              )}
-            </Animated.View>
+                    <ScrollView
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {renderSelectAll()}
+                      {options.map((item) =>
+                        renderOption(item, () => handleSelect(item.value)),
+                      )}
+                    </ScrollView>
+                    {multi && (
+                      <Pressable
+                        onPress={closeDropdown}
+                        style={{
+                          padding: 12,
+                          alignItems: "center",
+                          borderTopWidth: 1,
+                          borderTopColor: "#F1F5F9",
+                          backgroundColor: "#FAFAFA",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: "#7C3AED",
+                          }}
+                        >
+                          Done
+                          {selectedValues.length > 0
+                            ? ` (${selectedValues.length})`
+                            : ""}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </Animated.View>
+                </View>
+              );
+            })()}
           </View>
         </Modal>
       )}

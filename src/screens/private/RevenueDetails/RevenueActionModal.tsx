@@ -597,7 +597,7 @@ export default function RevenueActionModal({
                             }
                             options={PAID_TYPE_OPTIONS}
                             placeholder="Select type"
-                            mode="dropdown"
+                            mode="inline"
                           />
                         </>
                       ) : (
@@ -631,7 +631,7 @@ export default function RevenueActionModal({
                             }
                             options={PAID_TYPE_NO_NONE}
                             placeholder="Select type"
-                            mode="dropdown"
+                            mode="inline"
                           />
                           <TextAreaField
                             label="Payment notes"
@@ -672,7 +672,7 @@ export default function RevenueActionModal({
                           }
                           options={PAID_TYPE_OPTIONS}
                           placeholder="Select type"
-                          mode="dropdown"
+                          mode="inline"
                         />
                       </View>
                     )}
@@ -738,7 +738,7 @@ export default function RevenueActionModal({
                       }
                       options={DEPOSIT_STATUS_OPTIONS}
                       placeholder="Select status"
-                      mode="dropdown"
+                      mode="inline"
                     />
                     <AppInput
                       label="Refunded by"
@@ -769,7 +769,7 @@ export default function RevenueActionModal({
                       }
                       options={PAID_TYPE_OPTIONS}
                       placeholder="Select type"
-                      mode="dropdown"
+                      mode="inline"
                     />
                   </View>
 
