@@ -20,6 +20,7 @@ import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
 import { formatDateOnly } from "@/src/helper/formatDateTime";
+import { validatePurchaseRevenueWhenPaid } from "@/src/helper/revenueAmountUtils";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { PAID_TYPE_OPTIONS, PaidType } from "@/src/types/booking.types";
 import {
@@ -212,10 +213,19 @@ export default function PurchaseFormModal({
                 : item.rentalDetail;
 
       setResidentId(String(item.residentId ?? ""));
-      setIsPaid(!!(detail.isPaid ?? nested?.isPaid));
-      setPaidAmount(String(detail.paidAmount ?? nested?.paidAmount ?? ""));
-      setPaidType((detail.paidType || nested?.paidType || "NONE") as PaidType);
-      setReceipt(String(detail.receipt ?? nested?.receipt ?? ""));
+      const amount = String(detail.paidAmount ?? nested?.paidAmount ?? "");
+      const type = (detail.paidType || nested?.paidType || "NONE") as PaidType;
+      const receiptVal = String(detail.receipt ?? nested?.receipt ?? "");
+      setIsPaid(
+        !!(
+          detail.isPaid ??
+          nested?.isPaid ??
+          !!(amount || receiptVal || (type && type !== "NONE"))
+        ),
+      );
+      setPaidAmount(amount);
+      setPaidType(type);
+      setReceipt(receiptVal);
       setPaidNotes(String(detail.paidNotes ?? nested?.paidNotes ?? ""));
 
       if (purchaseType === "FILTER") {
@@ -297,11 +307,12 @@ export default function PurchaseFormModal({
   const validatePayment = () => {
     if (!supportsPayment) return true;
     if (!isPaid) return true;
-    if (!paidAmount.trim() || paidType === "NONE") {
-      showToast(
-        "error",
-        "When marked to pay, amount and payment type (other than None) are required.",
-      );
+    const validation = validatePurchaseRevenueWhenPaid({
+      paidAmount,
+      paidType,
+    });
+    if (!validation.ok) {
+      showToast("error", validation.message);
       return false;
     }
     return true;
@@ -689,12 +700,28 @@ export default function PurchaseFormModal({
               {supportsPayment && (
                 <View className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3 gap-3">
                   <Pressable
-                    onPress={() => setIsPaid((p) => !p)}
+                    onPress={() => {
+                      setIsPaid((p) => {
+                        if (p) {
+                          setPaidAmount("");
+                          setPaidType("NONE");
+                          setReceipt("");
+                          setPaidNotes("");
+                          return false;
+                        }
+                        return true;
+                      });
+                    }}
                     className="flex-row items-center justify-between"
                   >
-                    <Text className="text-sm font-semibold text-textPrimary">
-                      Marked to pay
-                    </Text>
+                    <View className="flex-1 pr-3">
+                      <Text className="text-sm font-semibold text-textPrimary">
+                        Marked to pay
+                      </Text>
+                      <Text className="text-xs text-textSecondary mt-0.5">
+                        Check to edit payment details and save.
+                      </Text>
+                    </View>
                     <View
                       className={`rounded-full px-3 py-1 ${
                         isPaid ? "bg-green-100" : "bg-slate-200"
@@ -709,6 +736,12 @@ export default function PurchaseFormModal({
                       </Text>
                     </View>
                   </Pressable>
+                  {!isPaid && (
+                    <Text className="text-xs font-medium text-amber-600">
+                      Check Marked to pay to enable payment fields. Unchecked
+                      Save records unpaid and clears payment fields.
+                    </Text>
+                  )}
 
                   {isPaid && (
                     <>
@@ -726,6 +759,7 @@ export default function PurchaseFormModal({
                         options={PAID_TYPE_OPTIONS.filter(
                           (o) => o.value !== "NONE",
                         )}
+                        mode="dropdown"
                       />
                       <AppInput
                         label="Receipt"

@@ -7,11 +7,14 @@ import {
 } from "@/src/api/revenue.api";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
+import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
 import {
   bookingRevenueAmountsForPayload,
+  unpaidBookingRevenuePayload,
   validateBookingRevenueWhenPaid,
+  validatePurchaseRevenueWhenPaid,
 } from "@/src/helper/revenueAmountUtils";
 import { PAID_TYPE_OPTIONS, PaidType } from "@/src/types/booking.types";
 import {
@@ -23,7 +26,7 @@ import {
   typeLabel,
 } from "@/src/types/revenueDetail.types";
 import { showToast } from "@/src/utils/toast";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -59,6 +62,7 @@ type FormState = {
   preInspection: string;
   postInspection: string;
   description: string;
+  attachmentForDeposit: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -77,7 +81,10 @@ const emptyForm = (): FormState => ({
   preInspection: "",
   postInspection: "",
   description: "",
+  attachmentForDeposit: "",
 });
+
+const PAID_TYPE_NO_NONE = PAID_TYPE_OPTIONS.filter((o) => o.value !== "NONE");
 
 export default function RevenueActionModal({
   item,
@@ -85,13 +92,21 @@ export default function RevenueActionModal({
   onClose,
   onSaved,
 }: Props) {
+  const visible = !!item && !!mode;
   const [form, setForm] = useState<FormState>(emptyForm());
+  const [attachmentFile, setAttachmentFile] = useState<PickedFile | null>(null);
+
   const readOnly = mode === "view";
   const isDepositMode = mode === "deposit";
+  const isPayMode = mode === "pay";
   const isBooking = item?.type === "BOOKING";
+  const fieldsEnabled = readOnly || isDepositMode || form.isPaid;
+
+  const bookingId =
+    item?.type === "BOOKING" ? item.sourceId : undefined;
 
   const { mutate: updateBooking, isPending: bookingPending } =
-    useUpdateBookingRevenue(item?.type === "BOOKING" ? item.sourceId : undefined);
+    useUpdateBookingRevenue(bookingId);
   const { mutate: updateFilter, isPending: filterPending } =
     useUpdateFilterRevenue();
   const { mutate: updateDevice, isPending: devicePending } =
@@ -109,18 +124,40 @@ export default function RevenueActionModal({
     rentalPending;
 
   useEffect(() => {
-    if (!item) {
+    if (!item || !mode) {
       setForm(emptyForm());
+      setAttachmentFile(null);
       return;
     }
     const rev = getRevenueSubDetail(item);
+    const hasBookingPayment = !!(
+      rev?.paidFee ||
+      rev?.receiptNumber ||
+      rev?.damageDeposit ||
+      (rev?.paidType && rev.paidType !== "NONE")
+    );
+    const hasOtherPayment = !!(
+      rev?.paidAmount ||
+      rev?.receipt ||
+      (rev?.paidType && rev.paidType !== "NONE")
+    );
+    const inferredPaid =
+      rev?.isPaid ??
+      (item.type === "BOOKING" ? hasBookingPayment : hasOtherPayment);
+
+    const defaultPaidType: PaidType =
+      item.type === "BOOKING"
+        ? "NONE"
+        : ((rev?.paidType as PaidType) || "CASH");
+
+    setAttachmentFile(null);
     setForm({
-      isPaid: !!rev?.isPaid,
+      isPaid: !!inferredPaid,
       paidFee: String(rev?.paidFee ?? ""),
       paidAmount: String(rev?.paidAmount ?? ""),
       receiptNumber: String(rev?.receiptNumber ?? ""),
       receipt: String(rev?.receipt ?? ""),
-      paidType: (rev?.paidType as PaidType) || "NONE",
+      paidType: (rev?.paidType as PaidType) || defaultPaidType,
       paidNotes: String(rev?.paidNotes ?? ""),
       damageDeposit: String(rev?.damageDeposit ?? ""),
       depositReceiptNumber: String(rev?.depositReceiptNumber ?? ""),
@@ -132,11 +169,53 @@ export default function RevenueActionModal({
       preInspection: String(rev?.preInspection ?? ""),
       postInspection: String(rev?.postInspection ?? ""),
       description: String(rev?.description ?? ""),
+      attachmentForDeposit: String(rev?.attachmentForDeposit ?? ""),
     });
   }, [item, mode]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const attachmentPickerValue = useMemo((): PickedFile | null => {
+    if (attachmentFile) return attachmentFile;
+    if (form.attachmentForDeposit) {
+      return {
+        uri: form.attachmentForDeposit,
+        name: form.attachmentForDeposit.split("/").pop() || "attachment",
+        mimeType: "application/octet-stream",
+        isLocal: false,
+      };
+    }
+    return null;
+  }, [attachmentFile, form.attachmentForDeposit]);
+
+  const toggleMarkedToPay = () => {
+    setForm((prev) => {
+      const next = !prev.isPaid;
+      if (next) return { ...prev, isPaid: true };
+      if (isBooking) {
+        return {
+          ...prev,
+          isPaid: false,
+          paidFee: "",
+          receiptNumber: "",
+          paidType: "NONE",
+          damageDeposit: "",
+          depositReceiptNumber: "",
+          damageDepositPaidType: "NONE",
+        };
+      }
+      return {
+        ...prev,
+        isPaid: false,
+        paidAmount: "",
+        receipt: "",
+        receiptNumber: "",
+        paidType: item?.type === "FILTER" ? "CASH" : "NONE",
+        paidNotes: "",
+      };
+    });
+  };
 
   const title =
     mode === "deposit"
@@ -149,7 +228,7 @@ export default function RevenueActionModal({
     if (!item || readOnly) return;
 
     if (isBooking) {
-      if (form.isPaid && !isDepositMode) {
+      if (form.isPaid && isPayMode) {
         const validation = validateBookingRevenueWhenPaid({
           paidFee: form.paidFee,
           damageDeposit: form.damageDeposit,
@@ -167,7 +246,8 @@ export default function RevenueActionModal({
         form.paidFee,
         form.damageDeposit,
       );
-      const paid = isDepositMode ? !!getRevenueSubDetail(item)?.isPaid : form.isPaid;
+      const existing = getRevenueSubDetail(item);
+      const paid = isDepositMode ? !!existing?.isPaid : form.isPaid;
 
       const revenue: Record<string, any> = paid
         ? {
@@ -178,40 +258,40 @@ export default function RevenueActionModal({
             damageDeposit: amounts.damageDeposit,
             depositReceiptNumber: form.depositReceiptNumber || "",
             damageDepositPaidType: form.damageDepositPaidType,
-            preInspection: form.preInspection || undefined,
-            postInspection: form.postInspection || undefined,
-            description: form.description || undefined,
           }
-        : {
-            isPaid: false,
-            paidType: "NONE",
-            damageDepositPaidType: "NONE",
-            paidFee: null,
-            receiptNumber: null,
-            damageDeposit: null,
-            depositReceiptNumber: null,
-          };
+        : { ...unpaidBookingRevenuePayload() };
 
-      if (isDepositMode || form.depositAmountStatus) {
+      revenue.preInspection = form.preInspection || null;
+      revenue.postInspection = form.postInspection || null;
+      revenue.description = form.description || null;
+
+      if (isDepositMode) {
         revenue.depositAmountStatus = form.depositAmountStatus || null;
         revenue.refundedBy = form.refundedBy || null;
-        revenue.damageDeposit = form.damageDeposit || amounts.damageDeposit || null;
+        revenue.damageDeposit =
+          form.damageDeposit || amounts.damageDeposit || null;
         revenue.depositReceiptNumber = form.depositReceiptNumber || null;
         revenue.damageDepositPaidType = form.damageDepositPaidType;
-        revenue.preInspection = form.preInspection || null;
-        revenue.postInspection = form.postInspection || null;
-        revenue.description = form.description || null;
-        // Keep existing fee fields when updating deposit
-        if (isDepositMode) {
-          const existing = getRevenueSubDetail(item);
-          revenue.isPaid = !!existing?.isPaid;
-          revenue.paidFee = existing?.paidFee ?? amounts.paidFee;
-          revenue.receiptNumber = existing?.receiptNumber ?? "";
-          revenue.paidType = (existing?.paidType as PaidType) || "NONE";
+        revenue.isPaid = !!existing?.isPaid;
+        revenue.paidFee = existing?.paidFee ?? amounts.paidFee;
+        revenue.receiptNumber = existing?.receiptNumber ?? "";
+        revenue.paidType = (existing?.paidType as PaidType) || "NONE";
+        if (!attachmentFile && form.attachmentForDeposit) {
+          revenue.attachmentForDeposit = form.attachmentForDeposit;
+        }
+      } else if (paid) {
+        if (existing?.depositAmountStatus) {
+          revenue.depositAmountStatus = existing.depositAmountStatus;
+        }
+        if (existing?.refundedBy) {
+          revenue.refundedBy = existing.refundedBy;
+        }
+        if (existing?.attachmentForDeposit) {
+          revenue.attachmentForDeposit = existing.attachmentForDeposit;
         }
       }
 
-      const payload: Record<string, any> = {
+      const bookingPayload: Record<string, any> = {
         title: b.title ?? b.amenityName ?? "Booking",
         amenityId: b.amenityId,
         buildingId: b.buildingId,
@@ -221,26 +301,46 @@ export default function RevenueActionModal({
         status: b.status ?? "PENDING",
         revenue,
       };
-      if (b.towerId != null) payload.towerId = b.towerId;
+      if (b.towerId != null) bookingPayload.towerId = b.towerId;
       if (b.residentId != null || item.residentId != null) {
-        payload.residentId = b.residentId ?? item.residentId;
+        bookingPayload.residentId = b.residentId ?? item.residentId;
       }
 
-      updateBooking(payload as any, {
-        onSuccess: () => {
-          onSaved();
-          onClose();
-        },
-      });
+      const onSuccess = () => {
+        onSaved();
+        onClose();
+      };
+
+      if (isDepositMode && attachmentFile?.isLocal) {
+        const fd = new FormData();
+        // Spring @RequestPart("booking") expects application/json part
+        fd.append(
+          "booking",
+          new Blob([JSON.stringify(bookingPayload)], {
+            type: "application/json",
+          }) as any,
+        );
+        fd.append("attachmentForDeposit", {
+          uri: attachmentFile.uri,
+          name: attachmentFile.name,
+          type: attachmentFile.mimeType || "application/octet-stream",
+        } as any);
+        updateBooking(fd as any, { onSuccess });
+      } else {
+        updateBooking(bookingPayload as any, { onSuccess });
+      }
       return;
     }
 
-    if (form.isPaid && (!form.paidAmount.trim() || form.paidType === "NONE")) {
-      showToast(
-        "error",
-        "When marked to pay, amount and payment type (other than None) are required.",
-      );
-      return;
+    if (form.isPaid) {
+      const validation = validatePurchaseRevenueWhenPaid({
+        paidAmount: form.paidAmount,
+        paidType: form.paidType,
+      });
+      if (!validation.ok) {
+        showToast("error", validation.message);
+        return;
+      }
     }
 
     const paid = form.isPaid;
@@ -327,12 +427,10 @@ export default function RevenueActionModal({
     }
   };
 
-  if (!item || !mode) return null;
-
   return (
     <Modal
       transparent
-      visible
+      visible={visible}
       animationType="slide"
       statusBarTranslucent
       onRequestClose={onClose}
@@ -341,54 +439,78 @@ export default function RevenueActionModal({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
-        <Pressable
-          onPress={onClose}
-          className="flex-1 bg-black/50 justify-end"
-        >
+        <View className="flex-1 justify-end bg-black/50">
+          {/* Backdrop — separate from sheet to avoid nested Pressable lag */}
           <Pressable
-            onPress={(e) => e.stopPropagation()}
-            className="max-h-[90%] rounded-t-3xl bg-white"
-          >
+            onPress={onClose}
+            className="absolute inset-0"
+            accessibilityLabel="Close"
+          />
+
+          <View className="max-h-[90%] rounded-t-3xl bg-white">
             <View className="px-5 pt-4 pb-2 border-b border-slate-200">
+              <View className="self-center mb-2 h-1 w-10 rounded-full bg-slate-300" />
               <Text className="text-lg font-bold text-textPrimary">{title}</Text>
-              <Text className="text-sm text-textSecondary mt-1">
-                {typeLabel(item.type)} · {getRevenueReference(item)}
-              </Text>
-              <Text className="text-xs text-slate-500 mt-0.5">
-                {[item.buildingName, item.residentUnit, item.residentName]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </Text>
+              {item && (
+                <>
+                  <Text className="text-sm text-textSecondary mt-1">
+                    {typeLabel(item.type)} · {getRevenueReference(item)}
+                  </Text>
+                  <Text className="text-xs text-slate-500 mt-0.5">
+                    {[item.buildingName, item.residentUnit, item.residentName]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </>
+              )}
             </View>
 
             <ScrollView
               className="px-5"
               contentContainerStyle={{ paddingVertical: 16, paddingBottom: 28 }}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
             >
-              {!isDepositMode && !readOnly && (
-                <Pressable
-                  onPress={() => setField("isPaid", !form.isPaid)}
-                  className="mb-4 flex-row items-center justify-between rounded-xl border border-slate-200 px-4 py-3"
-                >
-                  <Text className="text-sm font-semibold text-textPrimary">
-                    Marked to pay
-                  </Text>
-                  <View
-                    className={`rounded-full px-3 py-1 ${
-                      form.isPaid ? "bg-green-100" : "bg-amber-100"
-                    }`}
+              {/* Marked to pay — Pay now only */}
+              {isPayMode && !readOnly && (
+                <View className="mb-4 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 gap-2">
+                  <Pressable
+                    onPress={toggleMarkedToPay}
+                    className="flex-row items-center justify-between"
                   >
-                    <Text
-                      className={`text-xs font-bold ${
-                        form.isPaid ? "text-green-700" : "text-amber-700"
+                    <View className="flex-1 pr-3">
+                      <Text className="text-sm font-semibold text-textPrimary">
+                        Marked to pay
+                      </Text>
+                      <Text className="text-xs text-textSecondary mt-0.5">
+                        {isBooking
+                          ? "Required to update fees, deposit, and save changes."
+                          : "Check to edit payment details and save."}
+                      </Text>
+                    </View>
+                    <View
+                      className={`rounded-full px-3 py-1 ${
+                        form.isPaid ? "bg-green-100" : "bg-slate-200"
                       }`}
                     >
-                      {form.isPaid ? "Yes" : "No"}
+                      <Text
+                        className={`text-xs font-bold ${
+                          form.isPaid ? "text-green-700" : "text-slate-600"
+                        }`}
+                      >
+                        {form.isPaid ? "Pay now" : "Unpaid"}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {!form.isPaid && (
+                    <Text className="text-xs font-medium text-amber-600">
+                      Check Marked to pay to enable the fields below. Unchecked
+                      Save records unpaid and clears payment fields.
                     </Text>
-                  </View>
-                </Pressable>
+                  )}
+                </View>
               )}
 
               {readOnly && (
@@ -400,143 +522,181 @@ export default function RevenueActionModal({
                 </View>
               )}
 
-              {/* Non-refundable fee */}
-              {(isBooking || (!isBooking && (form.isPaid || readOnly || mode === "pay"))) &&
-                !isDepositMode && (
-                  <View className="mb-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 gap-3 border-l-4 border-l-amber-500">
-                    <Text className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
-                      Non-refundable fee
-                    </Text>
-                    {isBooking ? (
-                      <>
-                        <AppInput
-                          label="Fee amount"
-                          value={form.paidFee}
-                          onChangeText={(v) => setField("paidFee", v)}
-                          keyboardType="decimal-pad"
-                          editable={!readOnly && form.isPaid}
+              {/* Non-refundable fee — Pay now / view */}
+              {!isDepositMode && (isBooking || isPayMode || readOnly) && (
+                <View
+                  className={`mb-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 gap-3 border-l-4 border-l-amber-500 ${
+                    !fieldsEnabled ? "opacity-60" : ""
+                  }`}
+                >
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                    Non-refundable fee
+                  </Text>
+                  {isBooking ? (
+                    <>
+                      <AppInput
+                        label="Fee amount"
+                        value={form.paidFee}
+                        onChangeText={(v) => setField("paidFee", v)}
+                        keyboardType="decimal-pad"
+                        editable={fieldsEnabled && !readOnly}
+                        placeholder="0.00"
+                      />
+                      <AppInput
+                        label="Receipt number"
+                        value={form.receiptNumber}
+                        onChangeText={(v) => setField("receiptNumber", v)}
+                        editable={fieldsEnabled && !readOnly}
+                        placeholder="Receipt #"
+                      />
+                      {readOnly || !fieldsEnabled ? (
+                        <InfoLine
+                          label="Payment type"
+                          value={
+                            form.paidType === "NONE" ? "—" : form.paidType
+                          }
                         />
-                        <AppInput
-                          label="Receipt number"
-                          value={form.receiptNumber}
-                          onChangeText={(v) => setField("receiptNumber", v)}
-                          editable={!readOnly && form.isPaid}
+                      ) : (
+                        <SelectField
+                          label="Payment type"
+                          value={form.paidType}
+                          onChange={(v) =>
+                            setField("paidType", v as PaidType)
+                          }
+                          options={PAID_TYPE_OPTIONS}
+                          placeholder="Select payment type"
+                          mode="dropdown"
                         />
-                        {readOnly || !form.isPaid ? (
-                          <InfoLine
-                            label="Payment type"
-                            value={form.paidType === "NONE" ? "—" : form.paidType}
-                          />
-                        ) : (
-                          <SelectField
-                            label="Payment type"
-                            value={form.paidType}
-                            onChange={(v) => setField("paidType", v as PaidType)}
-                            options={PAID_TYPE_OPTIONS}
-                            placeholder="Select payment type"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <AppInput
-                          label="Amount"
-                          value={form.paidAmount}
-                          onChangeText={(v) => setField("paidAmount", v)}
-                          keyboardType="decimal-pad"
-                          editable={!readOnly && form.isPaid}
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <AppInput
+                        label="Amount *"
+                        value={form.paidAmount}
+                        onChangeText={(v) => setField("paidAmount", v)}
+                        keyboardType="decimal-pad"
+                        editable={fieldsEnabled && !readOnly}
+                        placeholder="0.00"
+                      />
+                      <AppInput
+                        label="Receipt"
+                        value={form.receipt || form.receiptNumber}
+                        onChangeText={(v) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            receipt: v,
+                            receiptNumber: v,
+                          }))
+                        }
+                        editable={fieldsEnabled && !readOnly}
+                        placeholder="Receipt #"
+                      />
+                      {readOnly || !fieldsEnabled ? (
+                        <InfoLine
+                          label="Payment type"
+                          value={
+                            form.paidType === "NONE" ? "—" : form.paidType
+                          }
                         />
-                        <AppInput
-                          label="Receipt"
-                          value={form.receipt || form.receiptNumber}
-                          onChangeText={(v) => {
-                            setField("receipt", v);
-                            setField("receiptNumber", v);
-                          }}
-                          editable={!readOnly && form.isPaid}
+                      ) : (
+                        <SelectField
+                          label="Payment type *"
+                          value={form.paidType}
+                          onChange={(v) =>
+                            setField("paidType", v as PaidType)
+                          }
+                          options={PAID_TYPE_NO_NONE}
+                          placeholder="Select payment type"
+                          mode="dropdown"
                         />
-                        {readOnly || !form.isPaid ? (
-                          <InfoLine
-                            label="Payment type"
-                            value={form.paidType === "NONE" ? "—" : form.paidType}
-                          />
-                        ) : (
-                          <SelectField
-                            label="Payment type"
-                            value={form.paidType}
-                            onChange={(v) => setField("paidType", v as PaidType)}
-                            options={PAID_TYPE_OPTIONS.filter(
-                              (o) => o.value !== "NONE",
-                            )}
-                            placeholder="Select payment type"
-                          />
-                        )}
-                        <TextAreaField
-                          label="Payment notes"
-                          value={form.paidNotes}
-                          onChangeText={(v) => setField("paidNotes", v)}
-                          editable={!readOnly && form.isPaid}
-                        />
-                      </>
-                    )}
-                  </View>
-                )}
+                      )}
+                      <TextAreaField
+                        label="Payment notes"
+                        value={form.paidNotes}
+                        onChangeText={(v) => setField("paidNotes", v)}
+                        editable={fieldsEnabled && !readOnly}
+                        placeholder="Optional notes"
+                      />
+                    </>
+                  )}
+                </View>
+              )}
 
               {/* Refundable deposit */}
-              {isBooking && (isDepositMode || mode === "pay" || readOnly) && (
-                <View className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 gap-3 border-l-4 border-l-emerald-500">
+              {isBooking && (isDepositMode || isPayMode || readOnly) && (
+                <View
+                  className={`mb-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 gap-3 border-l-4 border-l-emerald-500 ${
+                    !isDepositMode && !fieldsEnabled ? "opacity-60" : ""
+                  }`}
+                >
                   <Text className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
-                    Refundable — deposit
+                    {isDepositMode
+                      ? "Update deposit & refund"
+                      : "Refundable — deposit"}
                   </Text>
 
-                  {isDepositMode && !readOnly ? (
-                    <SelectField
-                      label="Deposit status"
-                      value={form.depositAmountStatus}
-                      onChange={(v) =>
-                        setField("depositAmountStatus", v as DepositAmountStatus)
-                      }
-                      options={DEPOSIT_STATUS_OPTIONS}
-                      placeholder="Select status"
-                    />
-                  ) : (
-                    <InfoLine
-                      label="Deposit status"
-                      value={
-                        form.depositAmountStatus === "REFUNDED"
-                          ? "Refunded"
-                          : form.depositAmountStatus === "ON_HOLD"
-                            ? "On hold"
-                            : form.depositAmountStatus || "—"
-                      }
-                    />
+                  {(isDepositMode || readOnly) && (
+                    <>
+                      {isDepositMode && !readOnly ? (
+                        <SelectField
+                          label="Deposit status"
+                          value={form.depositAmountStatus}
+                          onChange={(v) =>
+                            setField(
+                              "depositAmountStatus",
+                              v as DepositAmountStatus,
+                            )
+                          }
+                          options={DEPOSIT_STATUS_OPTIONS}
+                          placeholder="Select status"
+                          mode="dropdown"
+                        />
+                      ) : (
+                        <InfoLine
+                          label="Deposit status"
+                          value={
+                            form.depositAmountStatus === "REFUNDED"
+                              ? "Refunded"
+                              : form.depositAmountStatus === "ON_HOLD"
+                                ? "On hold"
+                                : form.depositAmountStatus || "—"
+                          }
+                        />
+                      )}
+                      <AppInput
+                        label="Refunded by"
+                        value={form.refundedBy}
+                        onChangeText={(v) => setField("refundedBy", v)}
+                        editable={!readOnly && isDepositMode}
+                        placeholder="e.g. Concierge name"
+                      />
+                    </>
                   )}
 
-                  <AppInput
-                    label="Refunded by"
-                    value={form.refundedBy}
-                    onChangeText={(v) => setField("refundedBy", v)}
-                    editable={!readOnly && isDepositMode}
-                  />
                   <AppInput
                     label="Deposit amount"
                     value={form.damageDeposit}
                     onChangeText={(v) => setField("damageDeposit", v)}
                     keyboardType="decimal-pad"
                     editable={
-                      !readOnly && (isDepositMode || (mode === "pay" && form.isPaid))
+                      !readOnly &&
+                      (isDepositMode || (isPayMode && form.isPaid))
                     }
+                    placeholder="0.00"
                   />
                   <AppInput
                     label="Deposit receipt number"
                     value={form.depositReceiptNumber}
                     onChangeText={(v) => setField("depositReceiptNumber", v)}
                     editable={
-                      !readOnly && (isDepositMode || (mode === "pay" && form.isPaid))
+                      !readOnly &&
+                      (isDepositMode || (isPayMode && form.isPaid))
                     }
+                    placeholder="Receipt # for deposit"
                   />
                   {readOnly ||
-                  !(isDepositMode || (mode === "pay" && form.isPaid)) ? (
+                  !(isDepositMode || (isPayMode && form.isPaid)) ? (
                     <InfoLine
                       label="Deposit payment type"
                       value={
@@ -554,40 +714,91 @@ export default function RevenueActionModal({
                       }
                       options={PAID_TYPE_OPTIONS}
                       placeholder="Select deposit payment type"
+                      mode="dropdown"
                     />
                   )}
                 </View>
               )}
 
-              {isBooking && (isDepositMode || (mode === "pay" && form.isPaid) || readOnly) && (
-                <View className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 gap-3">
+              {/* Attachment — Deposit update only */}
+              {isBooking && isDepositMode && !readOnly && (
+                <View className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 gap-2">
                   <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
-                    Inspections & notes
+                    Attachment for deposit
+                  </Text>
+                  <FilePicker
+                    accept="files"
+                    compact
+                    label="Deposit attachment"
+                    hint="PDF, image, or document"
+                    value={attachmentPickerValue}
+                    onChange={(file) => {
+                      setAttachmentFile(file);
+                      if (!file) setField("attachmentForDeposit", "");
+                    }}
+                  />
+                </View>
+              )}
+
+              {isBooking && readOnly && form.attachmentForDeposit ? (
+                <View className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <InfoLine
+                    label="Deposit attachment"
+                    value={form.attachmentForDeposit}
+                  />
+                </View>
+              ) : null}
+
+              {/* Inspections */}
+              {isBooking && (isDepositMode || isPayMode || readOnly) && (
+                <View
+                  className={`mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 gap-3 ${
+                    !isDepositMode && !fieldsEnabled ? "opacity-60" : ""
+                  }`}
+                >
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Inspections
                   </Text>
                   <TextAreaField
                     label="Pre-inspection"
                     value={form.preInspection}
                     onChangeText={(v) => setField("preInspection", v)}
-                    editable={!readOnly}
+                    editable={!readOnly && (isDepositMode || form.isPaid)}
+                    placeholder="Notes"
                   />
                   <TextAreaField
                     label="Post-inspection"
                     value={form.postInspection}
                     onChangeText={(v) => setField("postInspection", v)}
-                    editable={!readOnly}
+                    editable={!readOnly && (isDepositMode || form.isPaid)}
+                    placeholder="Notes"
                   />
+                </View>
+              )}
+
+              {/* Notes — always editable in pay/deposit (match web) */}
+              {isBooking && (isDepositMode || isPayMode || readOnly) && (
+                <View className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 gap-3">
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Notes
+                  </Text>
                   <TextAreaField
-                    label="Revenue notes"
+                    label="Revenue description"
                     value={form.description}
                     onChangeText={(v) => setField("description", v)}
                     editable={!readOnly}
+                    placeholder="Additional notes or comments"
                   />
                 </View>
               )}
 
               <View className="flex-row gap-3 mt-2">
                 <View className="flex-1">
-                  <AppButton variant="outline" onPress={onClose} disabled={pending}>
+                  <AppButton
+                    variant="outline"
+                    onPress={onClose}
+                    disabled={pending}
+                  >
                     {readOnly ? "Close" : "Cancel"}
                   </AppButton>
                 </View>
@@ -600,8 +811,8 @@ export default function RevenueActionModal({
                 )}
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );

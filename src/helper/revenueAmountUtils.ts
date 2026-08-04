@@ -5,6 +5,7 @@ export function parseRevenueAmount(value: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Booking / booking revenue (Revenue Details pay now) — same rules as web BookingForm. */
 export function validateBookingRevenueWhenPaid(params: {
   paidFee?: string;
   damageDeposit?: string;
@@ -53,5 +54,35 @@ export function bookingRevenueAmountsForPayload(
   return {
     paidFee: paidFee?.trim() || (bothZero ? "0" : ""),
     damageDeposit: damageDeposit?.trim() || (bothZero ? "0" : ""),
+  };
+}
+
+/** Filter / device / pass / rental — same message as web Purchases & Revenue Details. */
+export const PURCHASE_REVENUE_PAID_VALIDATION_MESSAGE =
+  "When marked to pay, amount and payment type (other than None) are required.";
+
+export function validatePurchaseRevenueWhenPaid(params: {
+  paidAmount?: string | null;
+  paidType?: string | null;
+}): { ok: true } | { ok: false; message: string } {
+  if (
+    !String(params.paidAmount ?? "").trim() ||
+    (params.paidType ?? "NONE") === "NONE"
+  ) {
+    return { ok: false, message: PURCHASE_REVENUE_PAID_VALIDATION_MESSAGE };
+  }
+  return { ok: true };
+}
+
+/** Explicit nulls so API clears prior fee / payment / deposit (same as web). */
+export function unpaidBookingRevenuePayload() {
+  return {
+    isPaid: false as const,
+    paidType: "NONE" as const,
+    damageDepositPaidType: "NONE" as const,
+    paidFee: null,
+    receiptNumber: null,
+    damageDeposit: null,
+    depositReceiptNumber: null,
   };
 }

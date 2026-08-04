@@ -12,6 +12,11 @@ import AppInput from "@/src/components/ui/AppInput";
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
+import {
+  bookingRevenueAmountsForPayload,
+  unpaidBookingRevenuePayload,
+  validateBookingRevenueWhenPaid,
+} from "@/src/helper/revenueAmountUtils";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
@@ -24,11 +29,13 @@ import {
 import { AmenityResponse } from "@/src/types/amenity.types";
 import { TowerResponse } from "@/src/types/tower.types";
 import { extractPaginatedList } from "@/src/utils/listPagination";
+import { showToast } from "@/src/utils/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  Alert,
   Keyboard,
   Text,
   TouchableWithoutFeedback,
@@ -137,18 +144,25 @@ export default function AddEditBooking() {
       });
 
       if (booking.revenue) {
-        setIsPaid(!!booking.revenue.isPaid);
-        setPaidFee(booking.revenue.paidFee ?? "");
-        setReceiptNumber(booking.revenue.receiptNumber ?? "");
-        setDamageDeposit(booking.revenue.damageDeposit ?? "");
-        setDepositReceiptNumber(booking.revenue.depositReceiptNumber ?? "");
-        setPaidType(booking.revenue.paidType ?? "NONE");
-        setDamageDepositPaidType(
-          booking.revenue.damageDepositPaidType ?? "NONE",
+        const rev = booking.revenue;
+        setIsPaid(
+          rev.isPaid ??
+            !!(
+              rev.paidFee ||
+              rev.receiptNumber ||
+              rev.damageDeposit ||
+              (rev.paidType && rev.paidType !== "NONE")
+            ),
         );
-        setPreInspection(booking.revenue.preInspection ?? "");
-        setPostInspection(booking.revenue.postInspection ?? "");
-        setRevenueDescription(booking.revenue.description ?? "");
+        setPaidFee(rev.paidFee ?? "");
+        setReceiptNumber(rev.receiptNumber ?? "");
+        setDamageDeposit(rev.damageDeposit ?? "");
+        setDepositReceiptNumber(rev.depositReceiptNumber ?? "");
+        setPaidType(rev.paidType ?? "NONE");
+        setDamageDepositPaidType(rev.damageDepositPaidType ?? "NONE");
+        setPreInspection(rev.preInspection ?? "");
+        setPostInspection(rev.postInspection ?? "");
+        setRevenueDescription(rev.description ?? "");
       }
       return;
     }
@@ -162,6 +176,51 @@ export default function AddEditBooking() {
       }));
     }
   }, [editMode, data, reset, presetStart, presetEnd]);
+
+  const clearRevenueFieldsForUnpaid = useCallback(() => {
+    setPaidFee("");
+    setReceiptNumber("");
+    setDamageDeposit("");
+    setDepositReceiptNumber("");
+    setDamageDepositPaidType("NONE");
+    setPaidType("NONE");
+    setPreInspection("");
+    setPostInspection("");
+    setRevenueDescription("");
+  }, []);
+
+  const markUnpaid = useCallback(() => {
+    clearRevenueFieldsForUnpaid();
+    setIsPaid(false);
+  }, [clearRevenueFieldsForUnpaid]);
+
+  const onTogglePaid = () => {
+    if (!isPaid) {
+      setIsPaid(true);
+      return;
+    }
+    const hasRevenueDetails = !!(
+      paidFee.trim() ||
+      receiptNumber.trim() ||
+      damageDeposit.trim() ||
+      depositReceiptNumber.trim() ||
+      preInspection.trim() ||
+      postInspection.trim() ||
+      revenueDescription.trim()
+    );
+    if (hasRevenueDetails) {
+      Alert.alert(
+        "Mark as unpaid?",
+        "You have entered revenue details. Marking as unpaid will clear them and send isPaid as false. Do you want to continue?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Mark as unpaid", style: "destructive", onPress: markUnpaid },
+        ],
+      );
+    } else {
+      markUnpaid();
+    }
+  };
 
   const refreshBookingQueries = async () => {
     await queryClient.invalidateQueries({
@@ -179,6 +238,24 @@ export default function AddEditBooking() {
       (a) => String(a.id) === values.amenityId,
     );
 
+    if (isElevator && !values.towerId) {
+      showToast("error", "Tower selection is required for elevator bookings");
+      return;
+    }
+
+    if (isPaid) {
+      const validation = validateBookingRevenueWhenPaid({
+        paidFee,
+        damageDeposit,
+        paidType,
+        damageDepositPaidType,
+      });
+      if (!validation.ok) {
+        showToast("error", validation.message);
+        return;
+      }
+    }
+
     const payload: any = {
       title: amenity?.name ?? "Booking",
       amenityId: Number(values.amenityId),
@@ -189,27 +266,28 @@ export default function AddEditBooking() {
       status: normalizeBookingStatus(values.status),
     };
 
-    if (values.towerId) payload.towerId = Number(values.towerId);
+    if (isElevator && values.towerId) payload.towerId = Number(values.towerId);
     if (values.residentId) payload.residentId = Number(values.residentId);
 
-    payload.revenue = isPaid
-      ? {
-          isPaid: true,
-          paidFee: paidFee || undefined,
-          receiptNumber: receiptNumber || undefined,
-          damageDeposit: damageDeposit || undefined,
-          depositReceiptNumber: depositReceiptNumber || undefined,
-          paidType,
-          damageDepositPaidType,
-          preInspection: preInspection || undefined,
-          postInspection: postInspection || undefined,
-          description: revenueDescription || undefined,
-        }
-      : {
-          isPaid: false,
-          paidType: "NONE",
-          damageDepositPaidType: "NONE",
-        };
+    if (isPaid) {
+      const amounts = bookingRevenueAmountsForPayload(paidFee, damageDeposit);
+      const revenue: Record<string, any> = {
+        isPaid: true,
+        paidType: paidType || "NONE",
+        damageDepositPaidType: damageDepositPaidType || "NONE",
+      };
+      if (amounts.paidFee) revenue.paidFee = amounts.paidFee;
+      if (receiptNumber) revenue.receiptNumber = receiptNumber;
+      if (amounts.damageDeposit) revenue.damageDeposit = amounts.damageDeposit;
+      if (depositReceiptNumber)
+        revenue.depositReceiptNumber = depositReceiptNumber;
+      if (preInspection) revenue.preInspection = preInspection;
+      if (postInspection) revenue.postInspection = postInspection;
+      if (revenueDescription) revenue.description = revenueDescription;
+      payload.revenue = revenue;
+    } else {
+      payload.revenue = unpaidBookingRevenuePayload();
+    }
 
     const onSuccess = async () => {
       await refreshBookingQueries();
@@ -360,16 +438,23 @@ export default function AddEditBooking() {
 
           <View className="mt-5 pt-4 border-t border-slate-200">
             <View className="flex-row items-center justify-between">
-              <Text className="text-base font-semibold text-slate-700">
-                Revenue
-              </Text>
+              <View className="flex-1 pr-3">
+                <Text className="text-base font-semibold text-slate-700">
+                  Revenue
+                </Text>
+                <Text className="text-xs text-slate-500 mt-0.5">
+                  {isPaid
+                    ? "Fee, deposit, and inspection"
+                    : "Optional — add payment details if needed"}
+                </Text>
+              </View>
               <AppButton
                 variant={isPaid ? "outline" : "primary"}
                 size="sm"
                 fullWidth={false}
-                onPress={() => setIsPaid((prev) => !prev)}
+                onPress={onTogglePaid}
               >
-                {isPaid ? "Mark Unpaid" : "Mark Paid"}
+                {isPaid ? "Mark as unpaid" : "Pay Now"}
               </AppButton>
             </View>
 
@@ -381,24 +466,25 @@ export default function AddEditBooking() {
                     Non-refundable fee
                   </Text>
                   <AppInput
-                    label="Fee Amount"
+                    label="Fee amount"
                     value={paidFee}
                     onChangeText={setPaidFee}
                     placeholder="Fee amount"
                     keyboardType="decimal-pad"
                   />
                   <AppInput
-                    label="Receipt Number"
+                    label="Receipt number"
                     value={receiptNumber}
                     onChangeText={setReceiptNumber}
                     placeholder="Receipt #"
                   />
                   <SelectField
-                    label="Payment Type"
+                    label="Payment type"
                     value={paidType}
                     onChange={(v) => setPaidType(v as PaidType)}
                     options={PAID_TYPE_OPTIONS}
-                    placeholder="Select Payment Type"
+                    placeholder="Select type"
+                    mode="dropdown"
                   />
                 </View>
 
@@ -408,24 +494,25 @@ export default function AddEditBooking() {
                     Refundable — deposit
                   </Text>
                   <AppInput
-                    label="Deposit Amount"
+                    label="Deposit amount"
                     value={damageDeposit}
                     onChangeText={setDamageDeposit}
                     placeholder="Deposit amount"
                     keyboardType="decimal-pad"
                   />
                   <AppInput
-                    label="Deposit Receipt Number"
+                    label="Deposit receipt number"
                     value={depositReceiptNumber}
                     onChangeText={setDepositReceiptNumber}
                     placeholder="Receipt # for deposit"
                   />
                   <SelectField
-                    label="Deposit Payment Type"
+                    label="Deposit payment type"
                     value={damageDepositPaidType}
                     onChange={(v) => setDamageDepositPaidType(v as PaidType)}
                     options={PAID_TYPE_OPTIONS}
-                    placeholder="Select Deposit Payment Type"
+                    placeholder="Select type"
+                    mode="dropdown"
                   />
                 </View>
 
@@ -447,7 +534,7 @@ export default function AddEditBooking() {
                     placeholder="Post-inspection notes"
                   />
                   <TextAreaField
-                    label="Revenue Notes"
+                    label="Revenue notes"
                     value={revenueDescription}
                     onChangeText={setRevenueDescription}
                     placeholder="Additional notes"

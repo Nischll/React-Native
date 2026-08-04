@@ -26,7 +26,7 @@ export const useGetRevenueDetails = (
 
 /** Entity updates used by web Revenue Details (not PUT /revenue-detail/:id). */
 export const useUpdateBookingRevenue = (bookingId?: number) =>
-  useApiMutation("put", `/booking/${bookingId}`, {
+  useApiMutation<Record<string, any> | FormData>("put", `/booking/${bookingId}`, {
     successMessage: "Revenue updated",
   });
 
