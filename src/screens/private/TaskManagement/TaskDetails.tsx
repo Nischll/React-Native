@@ -134,6 +134,7 @@ export const TaskDetails = () => {
               {activeTab === "attachments" && task && (
                 <TaskAttachments
                   attachments={task?.attachmentResponsePojoList}
+                  taskId={task.id}
                 />
               )}
             </ScrollView>

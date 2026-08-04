@@ -18,6 +18,7 @@ import {
   TASK_TYPE_OPTIONS,
   TaskType,
 } from "@/src/enums/taskEnums";
+import { safeUploadFileName } from "@/src/helper/safeUploadFileName";
 import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
@@ -214,13 +215,16 @@ export default function TaskAddEdit() {
       formData.append("residentId", values.residentId);
     }
 
-    values.attachments.forEach((file, index) => {
+    let attachmentIndex = 0;
+    values.attachments.forEach((file) => {
       if (file.isLocal) {
-        formData.append(`attachmentRequestPojoList[${index}].file`, {
+        const name = safeUploadFileName(file.name, file.mimeType);
+        formData.append(`attachmentRequestPojoList[${attachmentIndex}].file`, {
           uri: file.uri,
-          name: file.name,
-          type: file.mimeType,
+          name,
+          type: file.mimeType || "application/octet-stream",
         } as any);
+        attachmentIndex += 1;
       }
     });
 
