@@ -40,6 +40,32 @@ export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
     mutationFn: (data) => {
       const cfg = buildConfig();
 
+      // FormData must be sent as-is (do not Object.entries / strip pathVars)
+      const isFormData =
+        typeof FormData !== "undefined" &&
+        data != null &&
+        (data instanceof FormData ||
+          (typeof data === "object" && "_parts" in (data as object)));
+
+      if (isFormData) {
+        const url =
+          typeof endpoint === "function"
+            ? endpoint(undefined)
+            : endpoint;
+        switch (method) {
+          case "post":
+            return apiService.post(url, data, cfg);
+          case "put":
+            return apiService.put(url, data, cfg);
+          case "patch":
+            return apiService.patch(url, data, cfg);
+          case "delete":
+            return apiService.delete(url, cfg);
+          default:
+            throw new Error("Unsupported method");
+        }
+      }
+
       const pathVars =
         data && typeof data === "object" ? (data.pathVars ?? data) : undefined;
 

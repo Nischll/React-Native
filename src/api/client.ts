@@ -60,7 +60,15 @@ apiService.interceptors.request.use(
         "_parts" in config.data);
 
     if (isFormData) {
-      config.headers["Content-Type"] = "multipart/form-data"; // RN runtime adds boundary automatically
+      // Do not set Content-Type manually — RN/axios must add the multipart boundary.
+      // Forcing "multipart/form-data" without a boundary causes 400s on many backends.
+      if (config.headers) {
+        delete (config.headers as any)["Content-Type"];
+        delete (config.headers as any)["content-type"];
+        if (typeof (config.headers as any).delete === "function") {
+          (config.headers as any).delete("Content-Type");
+        }
+      }
     } else {
       config.headers["Content-Type"] = "application/json";
     }

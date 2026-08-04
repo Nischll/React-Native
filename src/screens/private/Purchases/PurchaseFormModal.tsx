@@ -698,83 +698,92 @@ export default function PurchaseFormModal({
               )}
 
               {supportsPayment && (
-                <View className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3 gap-3">
-                  <Pressable
-                    onPress={() => {
-                      setIsPaid((p) => {
-                        if (p) {
-                          setPaidAmount("");
-                          setPaidType("NONE");
-                          setReceipt("");
-                          setPaidNotes("");
-                          return false;
-                        }
-                        return true;
-                      });
-                    }}
-                    className="flex-row items-center justify-between"
-                  >
-                    <View className="flex-1 pr-3">
-                      <Text className="text-sm font-semibold text-textPrimary">
-                        Marked to pay
-                      </Text>
-                      <Text className="text-xs text-textSecondary mt-0.5">
-                        Check to edit payment details and save.
-                      </Text>
-                    </View>
-                    <View
-                      className={`rounded-full px-3 py-1 ${
-                        isPaid ? "bg-green-100" : "bg-slate-200"
-                      }`}
+                <View className="mt-4 gap-3">
+                  <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                    Fees & payment
+                  </Text>
+                  <View className="rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 gap-2">
+                    <Pressable
+                      onPress={() => {
+                        setIsPaid((p) => {
+                          if (p) {
+                            setPaidAmount("");
+                            setPaidType("NONE");
+                            setReceipt("");
+                            setPaidNotes("");
+                            return false;
+                          }
+                          return true;
+                        });
+                      }}
+                      className="flex-row items-center justify-between"
                     >
-                      <Text
-                        className={`text-xs font-bold ${
-                          isPaid ? "text-green-700" : "text-slate-600"
+                      <View className="flex-1 pr-3">
+                        <Text className="text-sm font-semibold text-textPrimary">
+                          Marked to pay
+                        </Text>
+                        <Text className="text-xs text-textSecondary mt-0.5">
+                          Required to update payment details. Check this to edit
+                          and save.
+                        </Text>
+                      </View>
+                      <View
+                        className={`h-6 w-6 rounded-md border-2 items-center justify-center ${
+                          isPaid
+                            ? "bg-primary border-primary"
+                            : "bg-white border-slate-300"
                         }`}
                       >
-                        {isPaid ? "Pay now" : "Unpaid"}
+                        {isPaid ? (
+                          <Text className="text-white text-xs font-bold">✓</Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                    {!isPaid && (
+                      <Text className="text-xs font-medium text-amber-600">
+                        Check Marked to pay to enable the fields below and save
+                        revenue details.
                       </Text>
-                    </View>
-                  </Pressable>
-                  {!isPaid && (
-                    <Text className="text-xs font-medium text-amber-600">
-                      Check Marked to pay to enable payment fields. Unchecked
-                      Save records unpaid and clears payment fields.
-                    </Text>
-                  )}
+                    )}
+                  </View>
 
-                  {isPaid && (
-                    <>
-                      <AppInput
-                        label="Amount *"
-                        value={paidAmount}
-                        onChangeText={setPaidAmount}
-                        keyboardType="decimal-pad"
-                        placeholder="0.00"
-                      />
-                      <SelectField
-                        label="Payment type *"
-                        value={paidType}
-                        onChange={(v) => setPaidType(v as PaidType)}
-                        options={PAID_TYPE_OPTIONS.filter(
-                          (o) => o.value !== "NONE",
-                        )}
-                        mode="dropdown"
-                      />
-                      <AppInput
-                        label="Receipt"
-                        value={receipt}
-                        onChangeText={setReceipt}
-                        placeholder="Receipt #"
-                      />
-                      <TextAreaField
-                        label="Payment notes"
-                        value={paidNotes}
-                        onChangeText={setPaidNotes}
-                        placeholder="Optional notes"
-                      />
-                    </>
-                  )}
+                  <View
+                    className={`rounded-xl border border-amber-200 bg-amber-50/60 p-3 gap-3 border-l-4 border-l-amber-500 ${
+                      !isPaid ? "opacity-60" : ""
+                    }`}
+                    pointerEvents={isPaid ? "auto" : "none"}
+                  >
+                    <Text className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                      Payment
+                    </Text>
+                    <AppInput
+                      label="Amount *"
+                      value={paidAmount}
+                      onChangeText={setPaidAmount}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                    />
+                    <SelectField
+                      label="Payment type *"
+                      value={paidType}
+                      onChange={(v) => setPaidType(v as PaidType)}
+                      options={PAID_TYPE_OPTIONS}
+                      placeholder="Select type"
+                      mode="dropdown"
+                    />
+                    <AppInput
+                      label="Receipt"
+                      value={receipt}
+                      onChangeText={setReceipt}
+                      placeholder="Receipt #"
+                    />
+                    <TextAreaField
+                      label="Payment notes"
+                      value={paidNotes}
+                      onChangeText={setPaidNotes}
+                      placeholder="Optional notes"
+                    />
+                  </View>
                 </View>
               )}
 
