@@ -7,6 +7,13 @@ import {
 } from "../types/parcelManagement.types";
 import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
+function invalidateParcelQueries(qc: ReturnType<typeof useQueryClient>) {
+  // Match web: any query whose key mentions parcels (list + by-id)
+  qc.invalidateQueries({
+    predicate: (q) => String(q.queryKey[0] ?? "").includes("parcels"),
+  });
+}
+
 export const useGetParcels = (
   params: {
     page?: number;
@@ -52,10 +59,7 @@ export const useAddParcel = (buildingId: number) => {
     mutation.mutate(vars, {
       ...opts,
       onSuccess: (...args) => {
-        qc.invalidateQueries({
-          queryKey: ["/parcels"],
-          exact: false,
-        });
+        invalidateParcelQueries(qc);
 
         opts?.onSuccess?.(...args);
       },
@@ -78,7 +82,26 @@ export const useGetParcelById = (parcelId: number) => {
 export const useDeleteParcel = (
   parcelId: number | undefined,
   buildingId: number | undefined,
-) => useApiMutation("delete", `/parcels/${parcelId}/building/${buildingId}`);
+) => {
+  const qc = useQueryClient();
+
+  const mutation = useApiMutation(
+    "delete",
+    `/parcels/${parcelId}/building/${buildingId}`,
+  );
+
+  const mutateWithRefresh: typeof mutation.mutate = (vars, opts) => {
+    mutation.mutate(vars, {
+      ...opts,
+      onSuccess: (...args) => {
+        invalidateParcelQueries(qc);
+        opts?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return { ...mutation, mutate: mutateWithRefresh };
+};
 
 export const useRemindParcel = (
   parcelId: number | undefined,
@@ -92,8 +115,27 @@ export const useRemindParcel = (
 export const useDeliverParcel = (
   parcelId: number | undefined,
   buildingId: number | undefined,
-) =>
-  useApiMutation("post", `/parcels/${parcelId}/building/${buildingId}/deliver`);
+) => {
+  const qc = useQueryClient();
+
+  const mutation = useApiMutation(
+    "post",
+    `/parcels/${parcelId}/building/${buildingId}/deliver`,
+  );
+
+  const mutateWithRefresh: typeof mutation.mutate = (vars, opts) => {
+    mutation.mutate(vars, {
+      ...opts,
+      onSuccess: (...args) => {
+        // Same as web: refresh list + detail after deliver confirm
+        invalidateParcelQueries(qc);
+        opts?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return { ...mutation, mutate: mutateWithRefresh };
+};
 
 export const useUpdateParcel = (
   parcelId: number | undefined,
@@ -110,11 +152,7 @@ export const useUpdateParcel = (
     mutation.mutate(vars, {
       ...opts,
       onSuccess: (...args) => {
-        qc.invalidateQueries({
-          queryKey: ["/parcels"],
-          exact: false,
-        });
-
+        invalidateParcelQueries(qc);
         opts?.onSuccess?.(...args);
       },
     });
