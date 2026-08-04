@@ -1,5 +1,11 @@
 import React from "react";
-import { Text, TextInput, TextInputProps, View } from "react-native";
+import {
+  Platform,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+} from "react-native";
 
 type Props = TextInputProps & {
   label?: string;
@@ -11,6 +17,7 @@ export default function TextAreaField({
   onChangeText,
   placeholder,
   editable = true,
+  style,
   ...rest
 }: Props) {
   return (
@@ -27,15 +34,27 @@ export default function TextAreaField({
         editable={editable}
         multiline
         numberOfLines={4}
+        textAlignVertical="top"
+        placeholderTextColor="#94A3B8"
+        underlineColorAndroid="transparent"
         className={`
           rounded-xl
           border border-slate-300
-          px-4 py-3
-          text-slate-900
-          h-28
+          px-4
+          text-base text-slate-900
           ${editable ? "bg-white" : "bg-slate-100"}
         `}
-        textAlignVertical="top"
+        style={[
+          {
+            minHeight: 112,
+            paddingTop: Platform.OS === "ios" ? 12 : 10,
+            paddingBottom: Platform.OS === "ios" ? 12 : 10,
+            fontSize: 16,
+            lineHeight: Platform.OS === "ios" ? 22 : undefined,
+            color: "#0F172A",
+          },
+          style,
+        ]}
         {...rest}
       />
     </View>
