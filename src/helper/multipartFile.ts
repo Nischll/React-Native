@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 
 import { safeUploadFileName } from "@/src/helper/safeUploadFileName";
 
@@ -19,28 +19,52 @@ export function attachmentTitlePathSegment(title: string): string {
   return encodeURIComponent(decoded);
 }
 
-/** RN FormData file part — matches working uploads elsewhere in this app. */
+function extFromName(name: string): string {
+  const i = name.lastIndexOf(".");
+  if (i < 0) return ".bin";
+  return name.slice(i);
+}
+
+/**
+ * Copy the picked file into app cache with a simple path, then build a FormData
+ * file part. Avoids iOS/Android "Network Error" from inaccessible picker URIs,
+ * spaces/encoding in paths, or stripping file:// incorrectly.
+ */
+export async function prepareMultipartFile(file: {
+  uri: string;
+  name?: string | null;
+  mimeType?: string | null;
+}): Promise<{ uri: string; name: string; type: string }> {
+  const name = safeUploadFileName(file.name, file.mimeType);
+  const type = file.mimeType || "application/octet-stream";
+  const cacheDir = FileSystem.cacheDirectory;
+
+  if (!cacheDir || !file.uri) {
+    return { uri: file.uri, name, type };
+  }
+
+  const dest = `${cacheDir}task-upload-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}${extFromName(name)}`;
+
+  try {
+    await FileSystem.copyAsync({ from: file.uri, to: dest });
+    return { uri: dest, name, type };
+  } catch (e) {
+    // Fallback: use original URI (still better than failing before request)
+    console.warn("prepareMultipartFile copy failed, using original uri", e);
+    return { uri: file.uri, name, type };
+  }
+}
+
+/** @deprecated Prefer prepareMultipartFile — kept for sync call sites. */
 export function toMultipartFile(file: {
   uri: string;
   name?: string | null;
   mimeType?: string | null;
 }): { uri: string; name: string; type: string } {
-  let uri = String(file.uri ?? "");
-
-  if (Platform.OS === "ios") {
-    // Established project pattern: iOS FormData fails or mis-sends with file://
-    uri = uri.replace(/^file:\/\//, "");
-    try {
-      uri = decodeURI(uri);
-    } catch {
-      // keep as-is
-    }
-  } else if (uri.startsWith("/") && !uri.startsWith("file://")) {
-    uri = `file://${uri}`;
-  }
-
   return {
-    uri,
+    uri: file.uri,
     name: safeUploadFileName(file.name, file.mimeType),
     type: file.mimeType || "application/octet-stream",
   };

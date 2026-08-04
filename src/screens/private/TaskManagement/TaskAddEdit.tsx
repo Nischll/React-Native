@@ -18,7 +18,7 @@ import {
   TASK_TYPE_OPTIONS,
   TaskType,
 } from "@/src/enums/taskEnums";
-import { toMultipartFile } from "@/src/helper/multipartFile";
+import { prepareMultipartFile } from "@/src/helper/multipartFile";
 import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
@@ -30,6 +30,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   Text,
   TouchableWithoutFeedback,
@@ -193,7 +194,7 @@ export default function TaskAddEdit() {
   };
 
   // ── Submit ────────────────────────────────────────────────────────────────
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
     const formData = new FormData();
 
     formData.append("area", values.area);
@@ -215,16 +216,24 @@ export default function TaskAddEdit() {
       formData.append("residentId", values.residentId);
     }
 
-    let attachmentIndex = 0;
-    values.attachments.forEach((file) => {
-      if (file.isLocal) {
+    try {
+      let attachmentIndex = 0;
+      for (const file of values.attachments) {
+        if (!file.isLocal) continue;
+        const part = await prepareMultipartFile(file);
         formData.append(
           `attachmentRequestPojoList[${attachmentIndex}].file`,
-          toMultipartFile(file) as any,
+          part as any,
         );
         attachmentIndex += 1;
       }
-    });
+    } catch (e: any) {
+      Alert.alert(
+        "Attachment error",
+        e?.message ?? "Could not prepare the attachment for upload.",
+      );
+      return;
+    }
 
     const onSuccess = async () => {
       await refetchTaskQueries();

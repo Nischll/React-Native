@@ -68,6 +68,10 @@ apiService.interceptors.request.use(
           (config.headers as any).delete("Content-Type");
         }
       }
+      // File uploads often exceed the default 15s timeout → Axios "Network Error"
+      if (config.timeout == null || config.timeout < 120000) {
+        config.timeout = 120000;
+      }
     } else {
       const method = String(config.method ?? "get").toLowerCase();
       const isBinary =

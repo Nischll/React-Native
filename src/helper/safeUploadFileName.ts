@@ -32,6 +32,9 @@ export function safeUploadFileName(
   // Strip path separators / characters that break Spring path downloads
   trimmed = trimmed.replace(/[/\\?*:|"<>#]/g, "_").trim();
 
+  // Replace spaces — multipart Content-Disposition + download paths are more reliable
+  trimmed = trimmed.replace(/\s+/g, "_");
+
   if (trimmed && trimmed.includes(".")) return trimmed;
   if (trimmed) return `${trimmed}${extFromMime(mimeType ?? undefined)}`;
   return `attachment-${Date.now()}${extFromMime(mimeType ?? undefined) || ".bin"}`;
