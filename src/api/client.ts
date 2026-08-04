@@ -60,14 +60,21 @@ apiService.interceptors.request.use(
         "_parts" in config.data);
 
     if (isFormData) {
-      // Do not set Content-Type manually — RN/axios must add the multipart boundary.
-      // Forcing "multipart/form-data" without a boundary causes 400s on many backends.
+      // React Native Android: Axios may force application/x-www-form-urlencoded on
+      // PUT/POST after defaults merge. Setting Content-Type to `false` blocks that so
+      // RN NetworkingModule can build multipart with a boundary (axios#10895).
+      // Symptom otherwise: Network Error even with no file attached.
       if (config.headers) {
-        delete (config.headers as any)["Content-Type"];
-        delete (config.headers as any)["content-type"];
-        if (typeof (config.headers as any).delete === "function") {
-          (config.headers as any).delete("Content-Type");
+        const h = config.headers as any;
+        if (typeof h.set === "function") {
+          h.set("Content-Type", false);
+        } else {
+          h["Content-Type"] = false;
         }
+      }
+      config.transformRequest = [(data) => data];
+      if (config.timeout == null || config.timeout < 120000) {
+        config.timeout = 120000;
       }
     } else {
       config.headers["Content-Type"] = "application/json";

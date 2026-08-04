@@ -52,15 +52,26 @@ export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
           typeof endpoint === "function"
             ? endpoint(undefined)
             : endpoint;
+        const formCfg: AxiosRequestConfig = {
+          ...cfg,
+          transformRequest: [(body) => body],
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+          headers: {
+            ...(cfg.headers as object),
+            // Prevent Axios defaulting to x-www-form-urlencoded on RN Android
+            "Content-Type": false as any,
+          },
+        };
         switch (method) {
           case "post":
-            return apiService.post(url, data, cfg);
+            return apiService.post(url, data, formCfg);
           case "put":
-            return apiService.put(url, data, cfg);
+            return apiService.put(url, data, formCfg);
           case "patch":
-            return apiService.patch(url, data, cfg);
+            return apiService.patch(url, data, formCfg);
           case "delete":
-            return apiService.delete(url, cfg);
+            return apiService.delete(url, formCfg);
           default:
             throw new Error("Unsupported method");
         }

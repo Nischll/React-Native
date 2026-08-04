@@ -29,6 +29,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   Text,
   TouchableWithoutFeedback,
@@ -37,6 +38,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AttachmentManager from "./components/AttachmentManager";
+import { toTaskAttachmentPart } from "./toTaskAttachmentPart";
 
 interface FormValues {
   area: string;
@@ -192,37 +194,63 @@ export default function TaskAddEdit() {
   };
 
   // ── Submit ────────────────────────────────────────────────────────────────
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
+    if (isEditMode && (parsedTaskId == null || !Number.isFinite(parsedTaskId))) {
+      Alert.alert("Error", "Missing task id. Please go back and try again.");
+      return;
+    }
+
+    // Multipart FormData — same shape as web TaskFormDialog (PUT /task/update/{id})
     const formData = new FormData();
 
     formData.append("area", values.area);
     formData.append("type", values.type);
-    if (values.subType) formData.append("subType", values.subType);
-    formData.append("location", values.location);
+    if (
+      (values.type === "EMERGENCY" || values.type === "URGENT") &&
+      values.subType?.trim()
+    ) {
+      formData.append("subType", values.subType.trim());
+    }
+    if (values.location?.trim()) {
+      formData.append("location", values.location.trim());
+    }
     formData.append("reportedBy", values.reportedBy);
     formData.append("modeOfCommunication", values.modeOfCommunication);
-    formData.append("title", values.title);
-    formData.append("description", values.description);
-    formData.append("assignedTo", values.assignedTo);
-    formData.append("taskStatusId", values.taskStatusId);
-    formData.append("buildingId", String(buildingId));
-    formData.append("priority", values.priority);
-    formData.append("deadline", values.deadline);
-    formData.append("actionTaken", values.actionTaken);
-
-    if (values.area === "IN_SUITE" && values.residentId) {
-      formData.append("residentId", values.residentId);
+    formData.append("title", values.title ?? "");
+    formData.append("description", values.description ?? "");
+    formData.append("assignedTo", String(values.assignedTo ?? ""));
+    formData.append("taskStatusId", String(values.taskStatusId ?? ""));
+    formData.append("buildingId", String(buildingId ?? ""));
+    formData.append("priority", values.priority || "MEDIUM");
+    if (values.deadline) {
+      formData.append("deadline", values.deadline);
+    }
+    if (values.actionTaken != null && values.actionTaken !== "") {
+      formData.append("actionTaken", values.actionTaken);
     }
 
-    values.attachments.forEach((file, index) => {
-      if (file.isLocal) {
-        formData.append(`attachmentRequestPojoList[${index}].file`, {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType,
-        } as any);
+    if (values.area === "IN_SUITE" && values.residentId) {
+      formData.append("residentId", String(values.residentId));
+    }
+
+    try {
+      let attachmentIndex = 0;
+      for (const file of values.attachments) {
+        if (!file.isLocal) continue;
+        const part = await toTaskAttachmentPart(file);
+        formData.append(
+          `attachmentRequestPojoList[${attachmentIndex}].file`,
+          part as any,
+        );
+        attachmentIndex += 1;
       }
-    });
+    } catch (e: any) {
+      Alert.alert(
+        "Attachment error",
+        e?.message ?? "Could not prepare the attachment. Please try again.",
+      );
+      return;
+    }
 
     const onSuccess = async () => {
       await refetchTaskQueries();

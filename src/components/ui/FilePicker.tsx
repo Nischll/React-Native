@@ -75,7 +75,7 @@ function MultiFileCompact({
     if (result.canceled || !result.assets?.length) return;
     const newFiles: PickedFile[] = result.assets.map((a) => ({
       uri: a.uri,
-      name: a.name,
+      name: a.name?.trim() || `file-${Date.now()}`,
       mimeType: a.mimeType ?? "application/octet-stream",
       isLocal: true,
     }));
@@ -229,7 +229,7 @@ export function FilePicker({
     const asset = result.assets[0];
     onChange?.({
       uri: asset.uri,
-      name: asset.name,
+      name: asset.name?.trim() || `file-${Date.now()}`,
       mimeType: asset.mimeType ?? "application/octet-stream",
       isLocal: true,
     });

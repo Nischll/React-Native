@@ -89,7 +89,13 @@ export const useGetTaskByStatusId = (
 };
 
 export const useUpdateTaskDetails = (taskId: number | undefined) =>
-  useApiMutation("put", `/task/update/${taskId}`);
+  useApiMutation("put", () => {
+    if (taskId == null || !Number.isFinite(taskId)) {
+      throw new Error("Task id is required for update");
+    }
+    // Same as web: PUT api/task/update/{taskId}
+    return `/task/update/${taskId}`;
+  });
 
 export const useGetTaskById = (
   taskId: number | undefined,
