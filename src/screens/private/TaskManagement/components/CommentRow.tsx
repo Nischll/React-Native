@@ -5,7 +5,6 @@ import {
   CommentResponse,
   TaskResponseData,
 } from "@/src/types/task-management.types";
-import { timeAgo } from "@/src/utils/timeAgo";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -353,17 +352,18 @@ export function CommentRow({
                   </Pressable>
                 </View>
 
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: C.meta,
-                    marginTop: 6,
-                    textAlign: isOwn ? "right" : "left",
-                  }}
-                >
-                  {timeAgo(comment.createdDate ?? "")}
-                  {isOwn ? " · swipe to delete" : ""}
-                </Text>
+                {isOwn && (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: C.meta,
+                      marginTop: 6,
+                      textAlign: "right",
+                    }}
+                  >
+                    swipe to delete
+                  </Text>
+                )}
               </View>
             </Animated.View>
           </View>
