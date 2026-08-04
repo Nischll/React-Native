@@ -2,6 +2,7 @@ import { apiService } from "@/src/api/client";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { getMimeType } from "@/src/helper/getMimeType";
 import { getUTI } from "@/src/helper/getUTI";
+import { attachmentTitlePathSegment } from "@/src/helper/multipartFile";
 import { TaskResponseData } from "@/src/types/task-management.types";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
@@ -141,10 +142,11 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
     if (!resolvedTaskId || !attachment.title?.trim()) {
       throw new Error("Missing task or file name for download.");
     }
-    // Match web: do NOT pre-encode the filename — axios/RN encode once.
-    // encodeURIComponent here caused %2520 double-encoding → 404 for names with spaces.
+    // Encode the filename segment once (RN does not auto-encode like browsers).
+    // Decode first if the stored title is already percent-encoded (common from iOS uploads).
+    const fileSegment = attachmentTitlePathSegment(attachment.title);
     const response = await apiService.get(
-      `/attachment/${resolvedTaskId}/${attachment.title}`,
+      `/attachment/${resolvedTaskId}/${fileSegment}`,
       {
         responseType: "arraybuffer",
         transformResponse: (data) => data,

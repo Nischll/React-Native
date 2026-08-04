@@ -20,7 +20,18 @@ export function safeUploadFileName(
   name?: string | null,
   mimeType?: string | null,
 ): string {
-  const trimmed = String(name ?? "").trim();
+  let trimmed = String(name ?? "").trim();
+  // iOS pickers sometimes yield percent-encoded names; store decoded so download matches.
+  try {
+    if (/%[0-9A-Fa-f]{2}/.test(trimmed)) {
+      trimmed = decodeURIComponent(trimmed);
+    }
+  } catch {
+    // keep trimmed
+  }
+  // Strip path separators / characters that break Spring path downloads
+  trimmed = trimmed.replace(/[/\\?*:|"<>#]/g, "_").trim();
+
   if (trimmed && trimmed.includes(".")) return trimmed;
   if (trimmed) return `${trimmed}${extFromMime(mimeType ?? undefined)}`;
   return `attachment-${Date.now()}${extFromMime(mimeType ?? undefined) || ".bin"}`;

@@ -18,7 +18,7 @@ import {
   TASK_TYPE_OPTIONS,
   TaskType,
 } from "@/src/enums/taskEnums";
-import { safeUploadFileName } from "@/src/helper/safeUploadFileName";
+import { toMultipartFile } from "@/src/helper/multipartFile";
 import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
@@ -218,12 +218,10 @@ export default function TaskAddEdit() {
     let attachmentIndex = 0;
     values.attachments.forEach((file) => {
       if (file.isLocal) {
-        const name = safeUploadFileName(file.name, file.mimeType);
-        formData.append(`attachmentRequestPojoList[${attachmentIndex}].file`, {
-          uri: file.uri,
-          name,
-          type: file.mimeType || "application/octet-stream",
-        } as any);
+        formData.append(
+          `attachmentRequestPojoList[${attachmentIndex}].file`,
+          toMultipartFile(file) as any,
+        );
         attachmentIndex += 1;
       }
     });
