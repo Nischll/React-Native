@@ -13,6 +13,11 @@ export function getMimeType(filename: string) {
     csv: "text/csv",
     zip: "application/zip",
     rar: "application/x-rar-compressed",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
   };
   return mimeMap[ext] ?? "application/octet-stream";
 }

@@ -6,10 +6,12 @@ import {
   useUpdateVisitorPassRevenue,
 } from "@/src/api/revenue.api";
 import AppButton from "@/src/components/ui/AppButton";
+import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
+import { downloadDepositAttachment } from "@/src/helper/downloadDepositAttachment";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import {
   bookingRevenueAmountsForPayload,
@@ -35,6 +37,8 @@ import { showToast } from "@/src/utils/toast";
 import * as FileSystem from "expo-file-system/legacy";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -143,6 +147,7 @@ export default function RevenueActionModal({
   const visible = !!item && !!mode;
   const [form, setForm] = useState<FormState>(emptyForm());
   const [attachmentFile, setAttachmentFile] = useState<PickedFile | null>(null);
+  const [downloadingAttachment, setDownloadingAttachment] = useState(false);
 
   const readOnly = mode === "view";
   const isDepositMode = mode === "deposit";
@@ -262,6 +267,30 @@ export default function RevenueActionModal({
         paidNotes: "",
       };
     });
+  };
+
+  const handleDownloadDepositAttachment = async () => {
+    if (!item || item.type !== "BOOKING" || item.sourceId == null) return;
+    const ref = form.attachmentForDeposit?.trim();
+    if (!ref && !attachmentFile) {
+      showToast("error", "No deposit attachment to download.");
+      return;
+    }
+    setDownloadingAttachment(true);
+    try {
+      await downloadDepositAttachment({
+        bookingId: item.sourceId,
+        attachmentRef: ref,
+      });
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Failed to download deposit attachment.";
+      Alert.alert("Download failed", String(msg));
+    } finally {
+      setDownloadingAttachment(false);
+    }
   };
 
   const title =
@@ -717,7 +746,12 @@ export default function RevenueActionModal({
 
               {/* ── View details (read-only, match web) ── */}
               {readOnly && item && (
-                <RevenueViewDetails item={item} form={form} />
+                <RevenueViewDetails
+                  item={item}
+                  form={form}
+                  downloading={downloadingAttachment}
+                  onDownloadAttachment={handleDownloadDepositAttachment}
+                />
               )}
 
               {/* Deposit update mode */}
@@ -788,6 +822,29 @@ export default function RevenueActionModal({
                         if (!file) setField("attachmentForDeposit", "");
                       }}
                     />
+                    {!!form.attachmentForDeposit?.trim() &&
+                      !attachmentFile?.isLocal && (
+                        <Pressable
+                          onPress={handleDownloadDepositAttachment}
+                          disabled={downloadingAttachment}
+                          className="mt-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 py-2.5"
+                        >
+                          {downloadingAttachment ? (
+                            <ActivityIndicator size="small" color="#7C3AED" />
+                          ) : (
+                            <AppIcon
+                              name="download-outline"
+                              size={18}
+                              color="#7C3AED"
+                            />
+                          )}
+                          <Text className="text-sm font-semibold text-primary">
+                            {downloadingAttachment
+                              ? "Downloading…"
+                              : "Download current attachment"}
+                          </Text>
+                        </Pressable>
+                      )}
                   </View>
 
                   <View className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 gap-3">
@@ -892,9 +949,13 @@ function DetailCell({
 function RevenueViewDetails({
   item,
   form,
+  downloading,
+  onDownloadAttachment,
 }: {
   item: RevenueDetailItem;
   form: FormState;
+  downloading?: boolean;
+  onDownloadAttachment?: () => void;
 }) {
   const resident =
     [item.residentUnit, item.residentName].filter(Boolean).join(" · ") || "—";
@@ -903,6 +964,7 @@ function RevenueViewDetails({
   const device = item.accessDeviceDetail;
   const pass = item.visitorPassDetail;
   const rental = item.rentalDetail;
+  const hasAttachment = !!form.attachmentForDeposit?.trim();
 
   const description =
     item.type === "BOOKING"
@@ -1081,10 +1143,26 @@ function RevenueViewDetails({
             <DetailCell label="Refunded by" value={form.refundedBy} />
             <DetailCell
               label="Attachment for deposit"
-              value={form.attachmentForDeposit}
+              value={form.attachmentForDeposit || "—"}
               full
             />
           </DetailGrid>
+          {hasAttachment && onDownloadAttachment ? (
+            <Pressable
+              onPress={onDownloadAttachment}
+              disabled={downloading}
+              className="mt-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 py-2.5"
+            >
+              {downloading ? (
+                <ActivityIndicator size="small" color="#7C3AED" />
+              ) : (
+                <AppIcon name="download-outline" size={18} color="#7C3AED" />
+              )}
+              <Text className="text-sm font-semibold text-primary">
+                {downloading ? "Downloading…" : "Download attachment"}
+              </Text>
+            </Pressable>
+          ) : null}
         </SectionCard>
       )}
 
