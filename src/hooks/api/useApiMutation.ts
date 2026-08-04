@@ -52,22 +52,15 @@ export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
           typeof endpoint === "function"
             ? endpoint(undefined)
             : endpoint;
-        const formCfg: AxiosRequestConfig = {
-          ...cfg,
-          // Prevent axios from transforming RN FormData (can cause Android Network Error)
-          transformRequest: [(body) => body],
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
-        };
         switch (method) {
           case "post":
-            return apiService.post(url, data, formCfg);
+            return apiService.post(url, data, cfg);
           case "put":
-            return apiService.put(url, data, formCfg);
+            return apiService.put(url, data, cfg);
           case "patch":
-            return apiService.patch(url, data, formCfg);
+            return apiService.patch(url, data, cfg);
           case "delete":
-            return apiService.delete(url, formCfg);
+            return apiService.delete(url, cfg);
           default:
             throw new Error("Unsupported method");
         }

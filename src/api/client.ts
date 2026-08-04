@@ -61,6 +61,7 @@ apiService.interceptors.request.use(
 
     if (isFormData) {
       // Do not set Content-Type manually — RN/axios must add the multipart boundary.
+      // Forcing "multipart/form-data" without a boundary causes 400s on many backends.
       if (config.headers) {
         delete (config.headers as any)["Content-Type"];
         delete (config.headers as any)["content-type"];
@@ -68,27 +69,8 @@ apiService.interceptors.request.use(
           (config.headers as any).delete("Content-Type");
         }
       }
-      // File uploads often exceed the default 15s timeout → Axios "Network Error"
-      if (config.timeout == null || config.timeout < 120000) {
-        config.timeout = 120000;
-      }
     } else {
-      const method = String(config.method ?? "get").toLowerCase();
-      const isBinary =
-        config.responseType === "arraybuffer" ||
-        config.responseType === "blob";
-      // GET/HEAD and binary downloads should not force JSON Content-Type
-      if (method === "get" || method === "head" || isBinary) {
-        if (config.headers) {
-          delete (config.headers as any)["Content-Type"];
-          delete (config.headers as any)["content-type"];
-          if (typeof (config.headers as any).delete === "function") {
-            (config.headers as any).delete("Content-Type");
-          }
-        }
-      } else {
-        config.headers["Content-Type"] = "application/json";
-      }
+      config.headers["Content-Type"] = "application/json";
     }
 
     if (ENABLE_DEBUG_LOGS) {

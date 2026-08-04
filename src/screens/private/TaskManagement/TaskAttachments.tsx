@@ -2,7 +2,6 @@ import { apiService } from "@/src/api/client";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { getMimeType } from "@/src/helper/getMimeType";
 import { getUTI } from "@/src/helper/getUTI";
-import { attachmentTitlePathSegment } from "@/src/helper/multipartFile";
 import { TaskResponseData } from "@/src/types/task-management.types";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
@@ -22,20 +21,12 @@ import {
 
 interface Props {
   attachments: TaskResponseData["attachmentResponsePojoList"];
-  /** Fallback when an attachment row is missing taskId */
-  taskId?: number;
 }
 
 interface AttachmentItem {
   id: number;
   taskId: number;
   title: string;
-}
-
-/** Local FS-safe name (do not URI-encode the whole filename). */
-function localSafeFileName(title: string) {
-  const base = title.trim() || "attachment";
-  return base.replace(/[/\\?%*:|"<>]/g, "_");
 }
 
 function getFileExtension(filename: string) {
@@ -120,7 +111,7 @@ const FILE_COLORS = {
   },
 } as const;
 
-export default function TaskAttachments({ attachments, taskId }: Props) {
+export default function TaskAttachments({ attachments }: Props) {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("");
@@ -134,26 +125,16 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
     );
   }
 
-  const resolveTaskId = (attachment: AttachmentItem) =>
-    attachment.taskId || taskId;
-
   const fetchBinary = async (attachment: AttachmentItem) => {
-    const resolvedTaskId = resolveTaskId(attachment);
-    if (!resolvedTaskId || !attachment.title?.trim()) {
-      throw new Error("Missing task or file name for download.");
-    }
-    // Encode the filename segment once (RN does not auto-encode like browsers).
-    // Decode first if the stored title is already percent-encoded (common from iOS uploads).
-    const fileSegment = attachmentTitlePathSegment(attachment.title);
     const response = await apiService.get(
-      `/attachment/${resolvedTaskId}/${fileSegment}`,
+      `/attachment/${attachment.taskId}/${encodeURIComponent(attachment.title)}`,
       {
         responseType: "arraybuffer",
         transformResponse: (data) => data,
         headers: {
           Accept: "*/*",
+          "Content-Type": undefined,
         },
-        timeout: 60000,
       },
     );
     return response.data as ArrayBuffer;
@@ -164,7 +145,6 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
     try {
       const buffer = await fetchBinary(attachment);
       const base64 = Buffer.from(buffer).toString("base64");
-      const saveName = localSafeFileName(attachment.title);
 
       if (Platform.OS === "android") {
         const permissions =
@@ -180,7 +160,7 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
 
         const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
           permissions.directoryUri,
-          saveName,
+          attachment.title,
           getMimeType(attachment.title),
         );
 
@@ -190,7 +170,7 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
 
         Alert.alert("Downloaded", `${attachment.title} saved successfully.`);
       } else {
-        const fileUri = `${FileSystem.documentDirectory}${saveName}`;
+        const fileUri = `${FileSystem.documentDirectory}${encodeURIComponent(attachment.title)}`;
 
         await FileSystem.writeAsStringAsync(fileUri, base64, {
           encoding: FileSystem.EncodingType.Base64,
@@ -202,7 +182,7 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
           UTI: getUTI(attachment.title),
         });
       }
-    } catch (e: any) {
+    } catch (e) {
       console.log("Download error:", e);
       if (Platform.OS === "android" && String(e).includes("isn't writable")) {
         Alert.alert(
@@ -210,13 +190,7 @@ export default function TaskAttachments({ attachments, taskId }: Props) {
           "Please choose a different folder (e.g. Documents or Pictures). The Downloads folder cannot be used directly.",
         );
       } else {
-        const status = e?.response?.status;
-        Alert.alert(
-          "Error",
-          status === 404
-            ? "File not found on server. Try re-uploading the attachment."
-            : "Failed to download file.",
-        );
+        Alert.alert("Error", "Failed to download file.");
       }
     } finally {
       setLoadingId(null);

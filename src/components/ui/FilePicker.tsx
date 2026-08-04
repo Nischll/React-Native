@@ -1,4 +1,3 @@
-import { safeUploadFileName } from "@/src/helper/safeUploadFileName";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { Image, Pressable, Text, TouchableOpacity, View } from "react-native";
@@ -74,15 +73,12 @@ function MultiFileCompact({
       multiple: true,
     });
     if (result.canceled || !result.assets?.length) return;
-    const newFiles: PickedFile[] = result.assets.map((a) => {
-      const mimeType = a.mimeType ?? "application/octet-stream";
-      return {
-        uri: a.uri,
-        name: safeUploadFileName(a.name, mimeType),
-        mimeType,
-        isLocal: true,
-      };
-    });
+    const newFiles: PickedFile[] = result.assets.map((a) => ({
+      uri: a.uri,
+      name: a.name,
+      mimeType: a.mimeType ?? "application/octet-stream",
+      isLocal: true,
+    }));
     onChangeMultiple([...values, ...newFiles]);
   }
 
@@ -231,11 +227,10 @@ export function FilePicker({
     });
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
-    const mimeType = asset.mimeType ?? "application/octet-stream";
     onChange?.({
       uri: asset.uri,
-      name: safeUploadFileName(asset.name, mimeType),
-      mimeType,
+      name: asset.name,
+      mimeType: asset.mimeType ?? "application/octet-stream",
       isLocal: true,
     });
   }
