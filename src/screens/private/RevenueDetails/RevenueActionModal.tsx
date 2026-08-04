@@ -311,11 +311,17 @@ export default function RevenueActionModal({
     if (!item || readOnly) return;
 
     if (isBooking) {
-      if (form.isPaid && isPayMode) {
+      const existing = getRevenueSubDetail(item);
+      // Same as web handleSaveRevenue: when marked paid, validate fee + deposit
+      // (applies to both Pay Now and Deposit update).
+      if (form.isPaid) {
         const validation = validateBookingRevenueWhenPaid({
-          paidFee: form.paidFee,
+          paidFee: form.paidFee || String(existing?.paidFee ?? ""),
           damageDeposit: form.damageDeposit,
-          paidType: form.paidType,
+          paidType:
+            form.paidType && form.paidType !== "NONE"
+              ? form.paidType
+              : ((existing?.paidType as string) || form.paidType),
           damageDepositPaidType: form.damageDepositPaidType,
         });
         if (!validation.ok) {
@@ -329,32 +335,45 @@ export default function RevenueActionModal({
         form.paidFee,
         form.damageDeposit,
       );
-      const existing = getRevenueSubDetail(item);
+      // Pay Now uses checkbox; Deposit update keeps existing paid flag (web overlay pattern)
       const paid = isDepositMode ? !!existing?.isPaid : form.isPaid;
 
       const revenue: Record<string, any> = paid
         ? {
             isPaid: true,
-            paidType: form.paidType,
+            paidType: (form.paidType ?? "NONE") as PaidType,
             paidFee: amounts.paidFee,
-            receiptNumber: form.receiptNumber || "",
+            receiptNumber: form.receiptNumber ?? "",
             damageDeposit: amounts.damageDeposit,
-            depositReceiptNumber: form.depositReceiptNumber || "",
-            damageDepositPaidType: form.damageDepositPaidType,
+            depositReceiptNumber: form.depositReceiptNumber ?? "",
+            damageDepositPaidType: (form.damageDepositPaidType ??
+              "NONE") as PaidType,
           }
         : { ...unpaidBookingRevenuePayload() };
 
-      revenue.preInspection = form.preInspection || null;
-      revenue.postInspection = form.postInspection || null;
-      revenue.description = form.description || null;
+      if (form.preInspection !== undefined) {
+        revenue.preInspection = form.preInspection || null;
+      }
+      if (form.postInspection !== undefined) {
+        revenue.postInspection = form.postInspection || null;
+      }
+      if (form.description !== undefined) {
+        revenue.description = form.description || null;
+      }
 
       if (isDepositMode) {
-        revenue.depositAmountStatus = form.depositAmountStatus || null;
-        revenue.refundedBy = form.refundedBy || null;
+        // Deposit update: overlay status / deposit fields (same as web refundable tab)
+        if (form.depositAmountStatus !== undefined) {
+          revenue.depositAmountStatus = form.depositAmountStatus || null;
+        }
+        if (form.refundedBy !== undefined) {
+          revenue.refundedBy = form.refundedBy || null;
+        }
         revenue.damageDeposit =
-          form.damageDeposit || amounts.damageDeposit || null;
+          form.damageDeposit?.trim() || amounts.damageDeposit || null;
         revenue.depositReceiptNumber = form.depositReceiptNumber || null;
-        revenue.damageDepositPaidType = form.damageDepositPaidType;
+        revenue.damageDepositPaidType =
+          (form.damageDepositPaidType ?? "NONE") as PaidType;
         revenue.isPaid = !!existing?.isPaid;
         revenue.paidFee = existing?.paidFee ?? amounts.paidFee;
         revenue.receiptNumber = existing?.receiptNumber ?? "";
@@ -362,15 +381,18 @@ export default function RevenueActionModal({
         if (!attachmentFile && form.attachmentForDeposit) {
           revenue.attachmentForDeposit = form.attachmentForDeposit;
         }
-      } else if (paid) {
-        if (existing?.depositAmountStatus) {
-          revenue.depositAmountStatus = existing.depositAmountStatus;
-        }
-        if (existing?.refundedBy) {
-          revenue.refundedBy = existing.refundedBy;
-        }
-        if (existing?.attachmentForDeposit) {
-          revenue.attachmentForDeposit = existing.attachmentForDeposit;
+      } else {
+        // Pay Now: preserve existing deposit status / attachment when paid (web)
+        if (paid) {
+          if (existing?.depositAmountStatus) {
+            revenue.depositAmountStatus = existing.depositAmountStatus;
+          }
+          if (existing?.refundedBy) {
+            revenue.refundedBy = existing.refundedBy;
+          }
+          if (existing?.attachmentForDeposit) {
+            revenue.attachmentForDeposit = existing.attachmentForDeposit;
+          }
         }
       }
 
@@ -413,6 +435,7 @@ export default function RevenueActionModal({
       return;
     }
 
+    // FILTER / ACCESS_DEVICE / VISITOR_PASS / RENTAL — same as web
     if (form.isPaid) {
       const validation = validatePurchaseRevenueWhenPaid({
         paidAmount: form.paidAmount,
@@ -436,7 +459,7 @@ export default function RevenueActionModal({
       : {
           paidAmount: null,
           receipt: null,
-          paidType: "NONE",
+          paidType: item.type === "FILTER" ? "CASH" : "NONE",
           paidNotes: null,
           isPaid: false,
         };
@@ -873,23 +896,31 @@ export default function RevenueActionModal({
                 </>
               )}
 
-              <View className="flex-row gap-3 mt-2">
-                <View className="flex-1">
-                  <AppButton
-                    variant="outline"
-                    onPress={onClose}
-                    disabled={pending}
-                  >
-                    {readOnly ? "Close" : "Cancel"}
-                  </AppButton>
-                </View>
-                {!readOnly && (
+              <View className="mt-2 gap-2">
+                {isPayMode && !form.isPaid ? (
+                  <Text className="text-xs text-textSecondary">
+                    Check Marked to pay to enter payment details. If unchecked,
+                    Save records unpaid and clears payment fields.
+                  </Text>
+                ) : null}
+                <View className="flex-row gap-3">
                   <View className="flex-1">
-                    <AppButton onPress={handleSave} loading={pending}>
-                      Save
+                    <AppButton
+                      variant="outline"
+                      onPress={onClose}
+                      disabled={pending}
+                    >
+                      {readOnly ? "Close" : "Cancel"}
                     </AppButton>
                   </View>
-                )}
+                  {!readOnly && (
+                    <View className="flex-1">
+                      <AppButton onPress={handleSave} loading={pending}>
+                        Save
+                      </AppButton>
+                    </View>
+                  )}
+                </View>
               </View>
             </ScrollView>
           </View>

@@ -4,7 +4,9 @@ import EmptyState from "@/src/components/feedback/EmptyState";
 import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
+import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
+import { downloadDepositAttachment } from "@/src/helper/downloadDepositAttachment";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import {
@@ -17,8 +19,15 @@ import {
 import { TowerResponse } from "@/src/types/tower.types";
 import { extractPaginatedList } from "@/src/utils/listPagination";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 function hasRevenueInfo(revenue?: BookingRevenueResponse | null): boolean {
   if (!revenue || typeof revenue !== "object") return false;
@@ -125,6 +134,7 @@ function resolveBookingDisplay(
 export default function BookingDetailsScreen() {
   const { bookingId } = useLocalSearchParams();
   const id = Number(bookingId);
+  const [downloadingAttachment, setDownloadingAttachment] = useState(false);
 
   const { data, isLoading } = useGetBookingById(id);
   const booking = data?.data as
@@ -142,6 +152,29 @@ export default function BookingDetailsScreen() {
     if (!booking) return null;
     return resolveBookingDisplay(booking, towers, residences);
   }, [booking, towers, residences]);
+
+  const handleDownloadDepositAttachment = async () => {
+    const ref = booking?.revenue?.attachmentForDeposit?.trim();
+    if (!booking?.id || !ref) {
+      Alert.alert("No attachment", "No deposit attachment is available.");
+      return;
+    }
+    setDownloadingAttachment(true);
+    try {
+      await downloadDepositAttachment({
+        bookingId: booking.id,
+        attachmentRef: ref,
+      });
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Failed to download deposit attachment.";
+      Alert.alert("Download failed", String(msg));
+    } finally {
+      setDownloadingAttachment(false);
+    }
+  };
 
   if (isLoading) return <LoadingState message="Booking details loading." />;
   if (!booking || !display)
@@ -295,12 +328,28 @@ export default function BookingDetailsScreen() {
               <InfoField label="Revenue notes" value={revenue.description} />
             </InfoRow>
             {revenue.attachmentForDeposit ? (
-              <InfoRow>
+              <View className="mt-1">
                 <InfoField
                   label="Deposit attachment"
-                  value={revenue.attachmentForDeposit}
+                  value={String(revenue.attachmentForDeposit).split("/").pop()}
                 />
-              </InfoRow>
+                <Pressable
+                  onPress={handleDownloadDepositAttachment}
+                  disabled={downloadingAttachment}
+                  className="mt-2 flex-row items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 py-2.5 active:opacity-80"
+                >
+                  {downloadingAttachment ? (
+                    <ActivityIndicator size="small" color="#7C3AED" />
+                  ) : (
+                    <AppIcon name="download-outline" size={18} color="#7C3AED" />
+                  )}
+                  <Text className="text-sm font-semibold text-primary">
+                    {downloadingAttachment
+                      ? "Downloading…"
+                      : "Download attachment"}
+                  </Text>
+                </Pressable>
+              </View>
             ) : null}
           </Card>
         ) : null}
