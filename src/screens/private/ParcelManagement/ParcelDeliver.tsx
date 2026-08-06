@@ -1,7 +1,6 @@
 import { useDeliverParcel } from "@/src/api/parcelManagement.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
-import DatePickerField from "@/src/components/ui/DatePickerField";
 import SignaturePad from "@/src/components/ui/SignaturePad";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,9 +19,6 @@ export default function ParcelDeliver() {
   const { width } = useWindowDimensions();
 
   const [signature, setSignature] = useState("");
-  const [pickupTimestamp, setPickupTimestamp] = useState(
-    new Date().toISOString().slice(0, 16),
-  );
 
   const { mutate, isPending } = useDeliverParcel(
     Number(parcelId),
@@ -37,7 +33,8 @@ export default function ParcelDeliver() {
 
     mutate(
       {
-        pickupTimestamp,
+        // System-generated pickup time (same as web)
+        pickupTimestamp: new Date().toISOString(),
         recipientSignature: signature,
       },
       {
@@ -49,6 +46,7 @@ export default function ParcelDeliver() {
       },
     );
   };
+
   return (
     <View className="flex-1 bg-white">
       <PageHeader
@@ -60,24 +58,18 @@ export default function ParcelDeliver() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!isPending}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       >
-        <DatePickerField
-          value={pickupTimestamp}
-          onChange={setPickupTimestamp}
+        <Text className="mb-3 font-semibold text-gray-700">
+          Recipient Signature
+        </Text>
+
+        <SignaturePad
+          width={width - 32}
+          height={220}
+          onChange={setSignature}
+          pointerEvents={isPending ? "none" : "auto"}
         />
-
-        <View className="mt-6">
-          <Text className="mb-3 font-semibold text-gray-700">
-            Recipient Signature
-          </Text>
-
-          <SignaturePad
-            width={width - 32}
-            height={220}
-            onChange={setSignature}
-            pointerEvents={isPending ? "none" : "auto"}
-          />
-        </View>
 
         <View className="mt-8">
           <AppButton loading={isPending} onPress={handleSubmit}>
