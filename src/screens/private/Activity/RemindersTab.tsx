@@ -1,5 +1,4 @@
 import { useGetReminders } from "@/src/api/activity.api";
-import { useGetParcels } from "@/src/api/parcelManagement.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import ListPager from "@/src/components/layout/ListPager";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -7,13 +6,12 @@ import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   DashboardBookingReminder,
-  DashboardParcelReminder,
+  DashboardPreventiveMaintenanceReminder,
   DashboardReminderPeriod,
   DashboardRemindersResponse,
   DashboardTaskReminder,
   DashboardTradeVisitReminder,
 } from "@/src/types/activity.types";
-import { ParcelResponse } from "@/src/types/parcelManagement.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -26,14 +24,18 @@ import {
   View,
 } from "react-native";
 
-/** Category tabs matching web reminder groups (parcels instead of maintenance). */
-type ReminderCategory = "task" | "booking" | "trade" | "parcel";
+/** Same categories as web dashboard reminders (no parcels — API has none). */
+type ReminderCategory = "task" | "booking" | "trade" | "maintenance";
 
 type FlatReminderItem =
   | { kind: "task"; id: string; data: DashboardTaskReminder }
   | { kind: "booking"; id: string; data: DashboardBookingReminder }
   | { kind: "trade"; id: string; data: DashboardTradeVisitReminder }
-  | { kind: "parcel"; id: string; data: DashboardParcelReminder };
+  | {
+      kind: "maintenance";
+      id: string;
+      data: DashboardPreventiveMaintenanceReminder;
+    };
 
 const CATEGORY_TABS: {
   key: ReminderCategory;
@@ -43,8 +45,23 @@ const CATEGORY_TABS: {
   { key: "task", label: "Tasks", icon: "checkbox-outline" },
   { key: "booking", label: "Bookings", icon: "calendar-outline" },
   { key: "trade", label: "Trade visits", icon: "construct-outline" },
-  { key: "parcel", label: "Parcels", icon: "cube-outline" },
+  { key: "maintenance", label: "Maintenance", icon: "build-outline" },
 ];
+
+const MONTH_CODE_LABELS: Record<string, string> = {
+  JAN: "January",
+  FEB: "February",
+  MAR: "March",
+  APR: "April",
+  MAY: "May",
+  JUN: "June",
+  JUL: "July",
+  AUG: "August",
+  SEP: "September",
+  OCT: "October",
+  NOV: "November",
+  DEC: "December",
+};
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   CONFIRM: { bg: "#E7F3EA", text: "#1E7C3A" },
@@ -54,8 +71,6 @@ const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   CANCELLED: { bg: "#FCEBEB", text: "#A32D2D" },
   COMPLETED: { bg: "#E7F3EA", text: "#1E7C3A" },
   BOOKED: { bg: "#E7F3EA", text: "#1E7C3A" },
-  RECEIVED: { bg: "#FAEEDA", text: "#854F0B" },
-  DELIVERED: { bg: "#E7F3EA", text: "#1E7C3A" },
 };
 
 const PRIORITY_STYLE: Record<
@@ -66,6 +81,11 @@ const PRIORITY_STYLE: Record<
   MEDIUM: { bg: "#FAEEDA", text: "#854F0B", label: "Medium" },
   LOW: { bg: "#EAF3DE", text: "#3B6D11", label: "Low" },
 };
+
+function formatReminderMonth(code?: string | null): string {
+  if (!code) return "—";
+  return MONTH_CODE_LABELS[code.toUpperCase()] ?? code;
+}
 
 function StatusBadge({ status }: { status?: string | null }) {
   if (status == null || typeof status !== "string" || !status.trim()) {
@@ -91,47 +111,8 @@ function asList<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : [];
 }
 
-function toIsoDate(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function getPeriodRange(period: DashboardReminderPeriod): {
-  fromDate: string;
-  toDate: string;
-} {
-  const today = new Date();
-  if (period === "today") {
-    const s = toIsoDate(today);
-    return { fromDate: s, toDate: s };
-  }
-  const day = today.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + mondayOffset);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { fromDate: toIsoDate(monday), toDate: toIsoDate(sunday) };
-}
-
-function mapParcelToReminder(p: ParcelResponse): DashboardParcelReminder {
-  return {
-    id: p.id,
-    trackingId: p.trackingId,
-    residentName: p.residentName,
-    unit: p.unit,
-    courier: p.courier,
-    status: p.status,
-    receivedTime: p.receivedTime ?? p.createdDate,
-    location: p.location,
-  };
-}
-
 function buildCategoryItems(
   reminders: DashboardRemindersResponse | null | undefined,
-  parcels: DashboardParcelReminder[],
 ): Record<ReminderCategory, FlatReminderItem[]> {
   return {
     task: asList(reminders?.tasks).map((data) => ({
@@ -149,9 +130,9 @@ function buildCategoryItems(
       id: `trade-${data.id}`,
       data,
     })),
-    parcel: parcels.map((data) => ({
-      kind: "parcel" as const,
-      id: `parcel-${data.id}`,
+    maintenance: asList(reminders?.preventiveMaintenance).map((data) => ({
+      kind: "maintenance" as const,
+      id: `pm-${data.id}-${data.reminderMonth ?? ""}`,
       data,
     })),
   };
@@ -162,8 +143,6 @@ export function RemindersTab() {
   const [period, setPeriod] = useState<DashboardReminderPeriod>("today");
   const [category, setCategory] = useState<ReminderCategory>("task");
   const [page, setPage] = useState(1);
-
-  const range = useMemo(() => getPeriodRange(period), [period]);
 
   const todayQuery = useGetReminders(buildingId ?? undefined, "today");
   const weeklyQuery = useGetReminders(buildingId ?? undefined, "weekly");
@@ -179,37 +158,12 @@ export function RemindersTab() {
   } = activeQuery;
 
   const reminders = data?.data;
-  const fromDate = reminders?.fromDate || range.fromDate;
-  const toDate = reminders?.toDate || range.toDate;
-
-  const {
-    data: parcelsData,
-    isLoading: parcelsLoading,
-    isFetching: parcelsFetching,
-    isError: parcelsError,
-    refetch: refetchParcels,
-    isRefetching: parcelsRefetching,
-  } = useGetParcels(
-    {
-      page: 1,
-      limit: 100,
-      buildingId: buildingId ?? undefined,
-      fromDate,
-      toDate,
-    },
-    buildingId != null,
-  );
-
-  const parcelReminders = useMemo(() => {
-    const rows = parcelsData?.data?.data ?? [];
-    return rows
-      .filter((p) => (p.status ?? "RECEIVED") !== "DELIVERED")
-      .map(mapParcelToReminder);
-  }, [parcelsData]);
+  const fromDate = reminders?.fromDate;
+  const toDate = reminders?.toDate;
 
   const byCategory = useMemo(
-    () => buildCategoryItems(reminders, parcelReminders),
-    [reminders, parcelReminders],
+    () => buildCategoryItems(reminders),
+    [reminders],
   );
 
   const totalCount = useMemo(
@@ -218,17 +172,16 @@ export function RemindersTab() {
     [byCategory],
   );
 
-  // Prefer first non-empty category when period/data changes (same as web)
   useEffect(() => {
     const firstWithItems =
       CATEGORY_TABS.find((t) => byCategory[t.key].length > 0)?.key ?? "task";
     setCategory((prev) =>
-      byCategory[prev].length > 0 ? prev : firstWithItems,
+      byCategory[prev]?.length > 0 ? prev : firstWithItems,
     );
     setPage(1);
   }, [period, buildingId, byCategory]);
 
-  const categoryItems = byCategory[category];
+  const categoryItems = byCategory[category] ?? [];
   const total = categoryItems.length;
 
   useEffect(() => {
@@ -246,21 +199,13 @@ export function RemindersTab() {
   }, [categoryItems, page]);
 
   const showLoading =
-    buildingId != null &&
-    ((isLoading || (isFetching && !reminders)) ||
-      (parcelsLoading && !parcelsData));
-
-  const handleRefresh = () => {
-    refetch();
-    refetchParcels();
-  };
+    buildingId != null && (isLoading || (isFetching && !reminders));
 
   const activeTabLabel =
     CATEGORY_TABS.find((t) => t.key === category)?.label ?? "Reminders";
 
   return (
     <View className="flex-1">
-      {/* Today / This week */}
       <View className="flex-row mx-4 my-3 bg-white border border-gray-200 rounded-xl p-1 gap-1">
         {(["today", "weekly"] as DashboardReminderPeriod[]).map((p) => (
           <Pressable
@@ -288,7 +233,6 @@ export function RemindersTab() {
         ))}
       </View>
 
-      {/* Category tabs — Tasks / Bookings / Trade visits / Parcels */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -365,7 +309,7 @@ export function RemindersTab() {
             {period === "today" ? "today" : "this week"}.
           </Text>
           <Pressable
-            onPress={handleRefresh}
+            onPress={() => refetch()}
             className="rounded-xl bg-primary/10 px-4 py-2"
           >
             <Text className="text-sm font-semibold text-primary">Try again</Text>
@@ -377,11 +321,6 @@ export function RemindersTab() {
           <Text className="text-sm text-slate-400">
             {period === "today" ? "Nothing due today" : "Nothing due this week"}
           </Text>
-          {parcelsError ? (
-            <Text className="text-[11px] text-slate-400 px-6 text-center">
-              Parcel reminders could not be loaded.
-            </Text>
-          ) : null}
         </View>
       ) : total === 0 ? (
         <View className="flex-1 items-center justify-center gap-2 px-6">
@@ -399,16 +338,15 @@ export function RemindersTab() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}
           refreshControl={
-            <RefreshControl
-              refreshing={isRefetching || parcelsRefetching || parcelsFetching}
-              onRefresh={handleRefresh}
-            />
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
           ListHeaderComponent={
             <View className="mb-3">
-              <Text className="text-[11px] text-slate-400 mb-1">
-                {fromDate === toDate ? fromDate : `${fromDate} – ${toDate}`}
-              </Text>
+              {fromDate && toDate ? (
+                <Text className="text-[11px] text-slate-400 mb-1">
+                  {fromDate === toDate ? fromDate : `${fromDate} – ${toDate}`}
+                </Text>
+              ) : null}
               <Text className="text-[11px] text-slate-500">
                 {activeTabLabel} · Showing {(page - 1) * PAGE_SIZE + 1}–
                 {Math.min(page * PAGE_SIZE, total)} of {total}
@@ -560,33 +498,31 @@ function ReminderRow({ item }: { item: FlatReminderItem }) {
     );
   }
 
-  const parcel = item.data;
+  const pm = item.data;
   return (
     <Pressable
-      onPress={() => router.push("/(private)/parcel-management")}
+      onPress={() => router.push("/(private)/preventative-maintenance")}
       className="bg-white rounded-xl border border-blue-100 p-3 flex-row items-center gap-3 mb-2"
     >
-      <AppIcon name="cube-outline" size={18} color="#185FA5" />
+      <AppIcon name="build-outline" size={18} color="#185FA5" />
       <View className="flex-1 min-w-0">
         <Text
           className="text-sm font-medium text-textPrimary"
           numberOfLines={2}
         >
-          {parcel.trackingId || `Parcel #${parcel.id}`}
+          {pm.maintenanceItem || `Item #${pm.id}`}
         </Text>
         <Text className="text-[11px] text-blue-600 mt-0.5" numberOfLines={2}>
           {[
-            parcel.residentName,
-            parcel.unit ? `Unit ${parcel.unit}` : null,
-            parcel.courier,
-            parcel.location,
-            parcel.receivedTime ? formatDateTime(parcel.receivedTime) : null,
+            `Scheduled for ${formatReminderMonth(pm.reminderMonth)}`,
+            pm.frequency,
+            pm.trade,
           ]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </View>
-      <StatusBadge status={parcel.status} />
+      <StatusBadge status={pm.statusForReminderMonth} />
     </Pressable>
   );
 }

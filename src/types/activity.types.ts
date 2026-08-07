@@ -50,18 +50,6 @@ export interface DashboardTradeVisitReminder {
   residentUnit?: string | null;
 }
 
-/** Client-merged parcel reminders (not returned by /dashboard/reminders yet). */
-export interface DashboardParcelReminder {
-  id: number;
-  trackingId?: string | null;
-  residentName?: string | null;
-  unit?: string | null;
-  courier?: string | null;
-  status?: string | null;
-  receivedTime?: string | null;
-  location?: string | null;
-}
-
 export interface DashboardRemindersResponse {
   buildingId: number;
   period: DashboardReminderPeriodResponse;
@@ -71,6 +59,4 @@ export interface DashboardRemindersResponse {
   bookings: DashboardBookingReminder[];
   preventiveMaintenance: DashboardPreventiveMaintenanceReminder[];
   tradeVisits: DashboardTradeVisitReminder[];
-  /** Present only if backend adds it later */
-  parcels?: DashboardParcelReminder[];
 }

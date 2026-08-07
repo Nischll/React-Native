@@ -7,23 +7,30 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
+  LayoutChangeEvent,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ParcelDeliver() {
   const { parcelId } = useLocalSearchParams();
   const { buildingId } = useAuth();
-  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [signature, setSignature] = useState("");
+  const [padWidth, setPadWidth] = useState(0);
 
   const { mutate, isPending } = useDeliverParcel(
     Number(parcelId),
     buildingId ?? undefined,
   );
+
+  const onPadAreaLayout = (e: LayoutChangeEvent) => {
+    const w = Math.floor(e.nativeEvent.layout.width);
+    if (w > 0 && w !== padWidth) setPadWidth(w);
+  };
 
   const handleSubmit = () => {
     if (!signature) {
@@ -33,7 +40,6 @@ export default function ParcelDeliver() {
 
     mutate(
       {
-        // System-generated pickup time (same as web)
         pickupTimestamp: new Date().toISOString(),
         recipientSignature: signature,
       },
@@ -56,22 +62,40 @@ export default function ParcelDeliver() {
         subtitle="Capture recipient signature"
       />
       <ScrollView
+        className="flex-1"
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!isPending}
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: Math.max(insets.bottom, 16) + 16,
+          flexGrow: 1,
+        }}
       >
-        <Text className="mb-3 font-semibold text-gray-700">
-          Recipient Signature
-        </Text>
+        <View className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+          <Text className="text-sm font-semibold text-slate-800">
+            Recipient signature
+          </Text>
+          <Text className="text-xs text-slate-500 mt-1 mb-3">
+            Sign in the box below with your finger
+          </Text>
 
-        <SignaturePad
-          width={width - 32}
-          height={220}
-          onChange={setSignature}
-          pointerEvents={isPending ? "none" : "auto"}
-        />
+          <View onLayout={onPadAreaLayout} className="w-full overflow-hidden">
+            {padWidth > 0 ? (
+              <View pointerEvents={isPending ? "none" : "auto"}>
+                <SignaturePad
+                  width={padWidth}
+                  height={Math.min(220, Math.round(padWidth * 0.55))}
+                  onChange={setSignature}
+                />
+              </View>
+            ) : (
+              <View className="h-[180px] rounded-xl border border-dashed border-slate-300 bg-white" />
+            )}
+          </View>
+        </View>
 
-        <View className="mt-8">
+        <View className="mt-6">
           <AppButton loading={isPending} onPress={handleSubmit}>
             Confirm Delivery
           </AppButton>
