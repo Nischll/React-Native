@@ -105,20 +105,25 @@ export default function Home() {
               </View>
             </View>
 
-            <View className="mt-3 flex-row flex-wrap items-center gap-3">
+            <View className="mt-3 flex-row items-center gap-2">
               <AnimatedPressable
                 onPress={openBuildingSelectDialog}
-                className="rounded-xl bg-white/15 border border-white/20 px-4 py-2"
+                className="flex-1 rounded-xl bg-white/15 border border-white/20 px-3 py-2 items-center justify-center"
               >
-                <Text className="text-sm font-semibold text-white">
+                <Text
+                  className="text-sm font-semibold text-white text-center"
+                  numberOfLines={1}
+                >
                   Change Building
                 </Text>
               </AnimatedPressable>
 
-              <MonthYearPicker
-                value={selectedMonth}
-                onChange={(val) => setSelectedMonth(val)}
-              />
+              <View className="flex-1">
+                <MonthYearPicker
+                  value={selectedMonth}
+                  onChange={(val) => setSelectedMonth(val)}
+                />
+              </View>
             </View>
           </View>
 

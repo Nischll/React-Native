@@ -72,16 +72,16 @@ export default function MonthYearPicker({
   const selectedYear = value ? parseInt(value.split("-")[0], 10) : null;
 
   return (
-    <View>
+    <View className="w-full">
       <Pressable
         onPress={() => {
           setYear(getYearFromValue());
           setOpen(true);
         }}
-        className={`flex-row items-center justify-between rounded-xl px-4 py-2.5 gap-2 border ${
+        className={`w-full flex-row items-center justify-between rounded-xl px-3 py-2 gap-2 border ${
           isLight
             ? "bg-white border-slate-200"
-            : "bg-white/15 border-white/20 mt-3"
+            : "bg-white/15 border-white/20"
         }`}
       >
         <Text
