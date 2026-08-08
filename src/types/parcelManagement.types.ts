@@ -1,4 +1,14 @@
-export type CourierType = "DHL" | "AMAZON" | "CANADA_POST" | "ALIBABA";
+export type CourierType =
+  | "DHL"
+  | "AMAZON"
+  | "CANADA_POST"
+  | "ALIBABA"
+  | "PUROLATOR"
+  | "RUSH"
+  | "DRAGONFLY"
+  | "FEDEX"
+  | "INTELCOM";
+
 export type PackageType = "BOX" | "ENVELOPE" | "SHEET";
 export type PackageSize = "SMALL" | "MEDIUM" | "LARGE" | "OVERSIZED";
 export type ParcelCondition = "DAMAGED" | "NEW";
@@ -9,7 +19,20 @@ export const COURIER_OPTIONS: { value: CourierType; label: string }[] = [
   { value: "AMAZON", label: "Amazon" },
   { value: "CANADA_POST", label: "Canada Post" },
   { value: "ALIBABA", label: "Alibaba" },
+  { value: "PUROLATOR", label: "Purolator" },
+  { value: "RUSH", label: "Rush" },
+  { value: "DRAGONFLY", label: "Dragonfly" },
+  { value: "FEDEX", label: "FedEx" },
+  { value: "INTELCOM", label: "Intelcom" },
 ];
+
+export function courierLabel(courier?: string | null): string {
+  if (!courier) return "—";
+  return (
+    COURIER_OPTIONS.find((o) => o.value === courier)?.label ??
+    courier.replace(/_/g, " ")
+  );
+}
 
 export const PACKAGE_TYPE_OPTIONS: { value: PackageType; label: string }[] = [
   { value: "BOX", label: "Box" },

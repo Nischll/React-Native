@@ -5,6 +5,7 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import Card from "@/src/components/ui/Card";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { renderSignature } from "@/src/helper/renderSignature";
+import { courierLabel } from "@/src/types/parcelManagement.types";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import Svg from "react-native-svg";
@@ -72,7 +73,7 @@ export default function ParcelDetailsScreen() {
         <Card className="p-4 mb-4">
           <SectionLabel label="Package Info" />
           <InfoRow>
-            <InfoField label="Courier" value={parcel.courier} />
+            <InfoField label="Courier" value={courierLabel(parcel.courier)} />
             <InfoField label="Type" value={parcel.packageType} />
           </InfoRow>
           <InfoRow>

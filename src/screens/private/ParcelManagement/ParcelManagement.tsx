@@ -16,7 +16,7 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { ParcelResponse } from "@/src/types/parcelManagement.types";
+import { ParcelResponse, courierLabel } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
@@ -129,6 +129,11 @@ export default function ParcelManagement() {
     {
       key: "courier",
       label: "Courier",
+      render: (value) => (
+        <Text className="text-sm text-textPrimary">
+          {courierLabel(value as string)}
+        </Text>
+      ),
     },
     {
       key: "packageType",
