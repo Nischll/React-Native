@@ -40,17 +40,34 @@ export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
     mutationFn: (data) => {
       const cfg = buildConfig();
 
-      // FormData must be sent as-is (do not Object.entries / strip pathVars)
+      // FormData must be sent as-is (do not Object.entries / strip pathVars).
+      // Wrapper `{ formData, pathVars }` lets multipart use function endpoints (e.g. access-device).
+      const isWrappedFormData =
+        data != null &&
+        typeof data === "object" &&
+        !(data instanceof FormData) &&
+        "formData" in (data as object) &&
+        ((data as any).formData instanceof FormData ||
+          (typeof (data as any).formData === "object" &&
+            "_parts" in (data as any).formData));
+
       const isFormData =
+        !isWrappedFormData &&
         typeof FormData !== "undefined" &&
         data != null &&
         (data instanceof FormData ||
           (typeof data === "object" && "_parts" in (data as object)));
 
-      if (isFormData) {
+      if (isFormData || isWrappedFormData) {
+        const formBody = isWrappedFormData
+          ? (data as any).formData
+          : data;
+        const pathVars = isWrappedFormData
+          ? (data as any).pathVars
+          : undefined;
         const url =
           typeof endpoint === "function"
-            ? endpoint(undefined)
+            ? endpoint(pathVars as TPathVars | undefined)
             : endpoint;
         const formCfg: AxiosRequestConfig = {
           ...cfg,
@@ -59,17 +76,16 @@ export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
           maxContentLength: Infinity,
           headers: {
             ...(cfg.headers as object),
-            // Prevent Axios defaulting to x-www-form-urlencoded on RN Android
             "Content-Type": false as any,
           },
         };
         switch (method) {
           case "post":
-            return apiService.post(url, data, formCfg);
+            return apiService.post(url, formBody, formCfg);
           case "put":
-            return apiService.put(url, data, formCfg);
+            return apiService.put(url, formBody, formCfg);
           case "patch":
-            return apiService.patch(url, data, formCfg);
+            return apiService.patch(url, formBody, formCfg);
           case "delete":
             return apiService.delete(url, formCfg);
           default:

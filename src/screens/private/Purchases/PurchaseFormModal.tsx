@@ -1,24 +1,26 @@
 import {
   PurchaseType,
+  useAddAccessDevicePurchase,
   useAddEnterphonePurchase,
   useAddFilterPurchase,
   useAddRentalPurchase,
   useAddVisitorPassPurchase,
+  useUpdateAccessDevicePurchase,
   useUpdateEnterphonePurchase,
   useUpdateFilterPurchase,
   useUpdateRentalPurchase,
   useUpdateVisitorPassPurchase,
 } from "@/src/api/purchases.api";
-import {
-  useAddAccessDevice,
-  useUpdateAccessDevice,
-} from "@/src/api/accessDevice.api";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
+import {
+  accessDeviceRequiresOwnerApproval,
+  buildAccessDeviceFormData,
+} from "@/src/helper/accessDeviceFormData";
 import { formatDateOnly } from "@/src/helper/formatDateTime";
 import { validatePurchaseRevenueWhenPaid } from "@/src/helper/revenueAmountUtils";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
@@ -169,12 +171,10 @@ export default function PurchaseFormModal({
     useAddEnterphonePurchase();
   const { mutate: updateEnterphone, isPending: updateEnterphonePending } =
     useUpdateEnterphonePurchase();
-  const residentIdNum = residentId ? Number(residentId) : undefined;
-  const sourceIdNum = item?.sourceId;
   const { mutate: addDevice, isPending: addDevicePending } =
-    useAddAccessDevice(residentIdNum);
+    useAddAccessDevicePurchase();
   const { mutate: updateDevice, isPending: updateDevicePending } =
-    useUpdateAccessDevice(residentIdNum, sourceIdNum);
+    useUpdateAccessDevicePurchase();
   const { mutate: addPass, isPending: addPassPending } =
     useAddVisitorPassPurchase();
   const { mutate: updatePass, isPending: updatePassPending } =
@@ -397,7 +397,11 @@ export default function PurchaseFormModal({
         showToast("error", "Card number is required.");
         return;
       }
-      if (assignedTo === "TENANT" && !isEdit && !ownerApproval) {
+      if (
+        accessDeviceRequiresOwnerApproval(assignedTo) &&
+        !isEdit &&
+        !ownerApproval?.isLocal
+      ) {
         showToast(
           "error",
           "Owner approval document is required when assigned to a tenant.",
@@ -405,30 +409,37 @@ export default function PurchaseFormModal({
         return;
       }
 
-      const base = {
-        type: deviceType,
-        cardNumber: cardNumber.trim(),
-        accessLevel: accessLevel.trim(),
-        assignedTo,
-        status: deviceStatus,
-        ...paymentFields(),
-      };
+      // Always multipart FormData (same as web) — JSON create fails on backend
+      const fd = buildAccessDeviceFormData(
+        {
+          type: deviceType,
+          cardNumber: cardNumber.trim(),
+          accessLevel: accessLevel.trim(),
+          assignedTo,
+          status: deviceStatus,
+          isFree: false,
+          ...paymentFields(),
+        },
+        ownerApproval,
+      );
 
-      if (ownerApproval?.isLocal) {
-        const fd = new FormData();
-        Object.entries(base).forEach(([k, v]) => {
-          if (v != null) fd.append(k, String(v));
-        });
-        fd.append("ownerApproval", {
-          uri: ownerApproval.uri,
-          name: ownerApproval.name,
-          type: ownerApproval.mimeType,
-        } as any);
-        if (isEdit) updateDevice(fd as any, finish);
-        else addDevice(fd as any, finish);
+      if (isEdit) {
+        if (sourceId == null) {
+          showToast("error", "Missing device id for update.");
+          return;
+        }
+        updateDevice(
+          {
+            formData: fd,
+            pathVars: { id: sourceId, residentId: rid },
+          } as any,
+          finish,
+        );
       } else {
-        if (isEdit) updateDevice(base as any, finish);
-        else addDevice(base as any, finish);
+        addDevice(
+          { formData: fd, pathVars: { residentId: rid } } as any,
+          finish,
+        );
       }
       return;
     }
