@@ -169,8 +169,8 @@ export default function TaskAddEdit() {
         assignedTo: String(existingTask.assignedTo ?? ""),
         taskStatusId: String(existingTask.taskStatusId ?? ""),
         priority: existingTask.priority ?? "",
-        deadline: existingTask.deadline ?? "",
-        completedDate: existingTask.completedDate ?? "",
+        deadline: toFollowUpDateInput(existingTask.deadline),
+        completedDate: toFollowUpDateInput(existingTask.completedDate),
         actionTaken: existingTask.actionTaken ?? "",
         attachments: [],
         followUpRequestPojoList: mapFollowUpsFromResponse(
@@ -240,10 +240,13 @@ export default function TaskAddEdit() {
     formData.append("buildingId", String(buildingId ?? ""));
     formData.append("priority", values.priority || "MEDIUM");
     if (values.deadline) {
-      formData.append("deadline", values.deadline);
+      formData.append("deadline", toFollowUpDateInput(values.deadline));
     }
     if (values.completedDate) {
-      formData.append("completedDate", values.completedDate);
+      formData.append(
+        "completedDate",
+        toFollowUpDateInput(values.completedDate),
+      );
     }
     if (values.actionTaken != null && values.actionTaken !== "") {
       formData.append("actionTaken", values.actionTaken);

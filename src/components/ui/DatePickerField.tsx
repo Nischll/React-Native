@@ -10,29 +10,55 @@ type DatePickerFieldProps = {
   value?: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  showTime?: boolean; // ✅ NEW PROP
+  showTime?: boolean;
   /** When true and a value is set, shows a clear control (optional dates). */
   clearable?: boolean;
 };
+
+function toYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseDateValue(value?: string): Date {
+  if (!value) return new Date();
+  // Prefer local calendar date for yyyy-MM-dd (avoid UTC day shift)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function formatDisplay(value: string, showTime: boolean): string {
+  const date = parseDateValue(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return showTime
+    ? date.toLocaleString()
+    : date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+}
 
 export default function DatePickerField({
   value,
   onChange,
   placeholder = "Select Date",
-  showTime = false, // ✅ default safe
+  showTime = false,
   clearable = false,
 }: DatePickerFieldProps) {
   const [showIOS, setShowIOS] = useState(false);
 
-  const parsedDate = useMemo(() => {
-    if (!value) return new Date();
-    const date = new Date(value);
-    return isNaN(date.getTime()) ? new Date() : date;
-  }, [value]);
+  const parsedDate = useMemo(() => parseDateValue(value), [value]);
 
-  const formatForBackend = (date: Date) => date.toISOString();
+  const formatForBackend = (date: Date) =>
+    showTime ? date.toISOString() : toYmd(date);
 
-  // ✅ ANDROID HANDLER
   const handleAndroidOpen = () => {
     DateTimePickerAndroid.open({
       value: parsedDate,
@@ -40,13 +66,11 @@ export default function DatePickerField({
       onChange: (event, selectedDate) => {
         if (event.type !== "set" || !selectedDate) return;
 
-        // 👉 If no time needed → return immediately
         if (!showTime) {
           onChange(formatForBackend(selectedDate));
           return;
         }
 
-        // 👉 If time needed → open time picker
         DateTimePickerAndroid.open({
           value: selectedDate,
           mode: "time",
@@ -66,7 +90,6 @@ export default function DatePickerField({
     });
   };
 
-  // ✅ IOS HANDLER
   const handleIOSChange = (
     _event: DateTimePickerEvent,
     selectedDate?: Date,
@@ -89,7 +112,7 @@ export default function DatePickerField({
           className="mr-2 flex-1 flex-row items-center justify-between"
         >
           <Text className="flex-1 text-slate-900" numberOfLines={1}>
-            {value ? new Date(value).toLocaleString() : placeholder}
+            {value ? formatDisplay(value, showTime) : placeholder}
           </Text>
           <Ionicons name="calendar-outline" size={20} color="#64748b" />
         </Pressable>
@@ -109,12 +132,11 @@ export default function DatePickerField({
         )}
       </View>
 
-      {/* ✅ IOS */}
       {Platform.OS === "ios" && showIOS && (
         <View className="mt-3 rounded-xl border border-slate-200 bg-white p-2">
           <DateTimePicker
             value={parsedDate}
-            mode={showTime ? "datetime" : "date"} // ✅ dynamic
+            mode={showTime ? "datetime" : "date"}
             display="spinner"
             onChange={handleIOSChange}
           />

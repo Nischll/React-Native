@@ -14,16 +14,19 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import SelectField from "@/src/components/ui/SelectField";
 import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
+import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ParcelResponse, courierLabel } from "@/src/types/parcelManagement.types";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 
 export default function ParcelManagement() {
   const { user, buildingId } = useAuth();
+  const { residences } = useResidencesForActiveBuilding();
 
   const [page, setPage] = useState(1);
   const [trackingId, setTrackingId] = useState("");
@@ -42,7 +45,7 @@ export default function ParcelManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [fromDate, toDate, residentId]);
+  }, [fromDate, toDate, residentId, trackingId]);
 
   const { data, isLoading, refetch, isRefetching } = useGetParcels(
     {
@@ -205,48 +208,38 @@ export default function ParcelManagement() {
           </AppButton>
         </View> */}
 
-        <View className="flex-1">
+        <View className="flex-1 px-1">
+          <View className="mb-2 flex-row items-start gap-2">
+            <View className="flex-1">
+              <SelectField
+                value={residentId != null ? String(residentId) : ""}
+                onChange={(v) =>
+                  setResidentId(v ? Number(v) : undefined)
+                }
+                options={[
+                  { label: "All units", value: "" },
+                  ...residences,
+                ]}
+                placeholder="Select unit"
+              />
+            </View>
+            <TouchableOpacity
+              onPress={() => setFilterVisible(true)}
+              className="mt-0.5 h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-white"
+            >
+              <AppIcon name="options-outline" size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
           <MobileDataList<ParcelResponse>
             data={parcels}
             columns={columns}
             loading={isLoading}
             refreshing={isRefetching}
-            searchable
             backendMode
             keyExtractor={(item) => item.id.toString()}
             emptyMessage="No parcels found"
             onRefresh={refetch}
-            onSearch={(value) => {
-              setPage(1);
-              const q = value.trim().toLowerCase();
-
-              if (!q) {
-                setResidentId(undefined);
-                return;
-              }
-
-              // 1) If user types a number, treat it as residentId.
-              if (/^\d+$/.test(q)) {
-                const parsed = Number(q);
-                if (Number.isFinite(parsed) && parsed > 0) {
-                  setResidentId(parsed);
-                }
-                return;
-              }
-
-              // 2) Otherwise, try to resolve residentId from currently loaded rows (resident search priority).
-              const match =
-                parcels.find((p) => {
-                  const unit = String(p.unit ?? "").toLowerCase();
-                  const name = String(p.residentName ?? "").toLowerCase();
-                  return unit.includes(q) || name.includes(q);
-                }) ?? null;
-
-              if (match?.residentId != null) {
-                setResidentId(match.residentId);
-              }
-            }}
-            onFilterPress={() => setFilterVisible(true)}
             pagination={{
               page,
               pageSize: 10,
@@ -315,8 +308,7 @@ export default function ParcelManagement() {
         <TaskFilterModal
           visible={filterVisible}
           onClose={() => setFilterVisible(false)}
-          residentId={residentId}
-          setResidentId={setResidentId}
+          showResident={false}
           trackingId={trackingId}
           setTrackingId={setTrackingId}
           dateType={dateType}
