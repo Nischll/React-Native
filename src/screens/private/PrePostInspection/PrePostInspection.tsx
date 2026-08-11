@@ -13,6 +13,7 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   depositReturnedLabel,
@@ -23,6 +24,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 
 const PAGE_SIZE = 10;
 
@@ -85,12 +87,27 @@ export default function PrePostInspection() {
       : undefined;
 
   const [page, setPage] = useState(1);
+  const [residentId, setResidentId] = useState<number>();
+  const [filterVisible, setFilterVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] =
     useState<PrePostInspectionResponse | null>(null);
+  const {
+    dateType,
+    fromDate,
+    toDate,
+    applyPreset,
+    setFromDate,
+    setToDate,
+  } = useDateRangeFilter("month");
 
   useEffect(() => {
     setPage(1);
-  }, [buildingId, bookingId]);
+  }, [buildingId, bookingId, fromDate, toDate, residentId]);
+
+  useEffect(() => {
+    setResidentId(undefined);
+    setPage(1);
+  }, [buildingId]);
 
   const { data, isLoading, refetch, isRefetching } = useGetPrePostInspections(
     {
@@ -98,6 +115,9 @@ export default function PrePostInspection() {
       limit: PAGE_SIZE,
       buildingId: buildingId ?? undefined,
       bookingId,
+      residentId,
+      fromDate,
+      toDate,
     },
     !!user?.userId,
   );
@@ -268,11 +288,11 @@ export default function PrePostInspection() {
             columns={columns}
             loading={isLoading}
             refreshing={isRefetching}
-            searchable
             backendMode
             keyExtractor={(item) => item.id.toString()}
             emptyMessage="No inspections yet. Create one to get started."
             onRefresh={refetch}
+            onFilterPress={() => setFilterVisible(true)}
             pagination={{
               page,
               pageSize: PAGE_SIZE,
@@ -314,6 +334,20 @@ export default function PrePostInspection() {
           />
         )}
       </View>
+
+      <TaskFilterModal
+        visible={filterVisible}
+        onClose={() => setFilterVisible(false)}
+        residentId={residentId}
+        setResidentId={setResidentId}
+        dateType={dateType}
+        fromDate={fromDate}
+        toDate={toDate}
+        setFromDate={setFromDate}
+        setToDate={setToDate}
+        applyPreset={applyPreset}
+        showResident
+      />
 
       <ConfirmModal
         visible={!!deleteTarget}

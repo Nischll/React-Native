@@ -7,6 +7,9 @@ import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 export type PrePostInspectionListParams = {
   buildingId?: number;
   bookingId?: number;
+  residentId?: number;
+  fromDate?: string;
+  toDate?: string;
   page?: number;
   limit?: number;
 };
@@ -22,9 +25,12 @@ export const useGetPrePostInspections = (
   params: PrePostInspectionListParams = {},
   enabled = true,
 ) => {
-  const queryParams: Record<string, number> = {};
+  const queryParams: Record<string, string | number> = {};
   if (params.buildingId != null) queryParams.buildingId = params.buildingId;
   if (params.bookingId != null) queryParams.bookingId = params.bookingId;
+  if (params.residentId != null) queryParams.residentId = params.residentId;
+  if (params.fromDate) queryParams.fromDate = params.fromDate;
+  if (params.toDate) queryParams.toDate = params.toDate;
   if (params.page != null) queryParams.page = params.page;
   if (params.limit != null) queryParams.limit = params.limit;
 
