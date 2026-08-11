@@ -112,6 +112,10 @@ export const useUpdateTaskStatus = (taskId: number | undefined) =>
 export const useDeleteAtachment = (attachmentId: number | undefined) =>
   useApiMutation("delete", `/attachment/delete/${attachmentId}`);
 
+/** Soft-delete a single follow-up (TM update). Prefer sync-omit on task save when possible. */
+export const useDeleteTaskFollowUp = (followUpId: number | undefined) =>
+  useApiMutation("delete", `/task-follow-up/delete/${followUpId}`);
+
 export const useGetAttachmentById = (
   attachmentId: number | undefined,
   attachmentTitle: string | undefined,

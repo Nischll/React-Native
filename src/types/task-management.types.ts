@@ -1,14 +1,35 @@
 import {
+  FollowUpMethod,
   TaskArea,
   TaskCommunicationMode,
   TaskReportedBy,
   TaskType,
 } from "../enums/taskEnums";
 
+export type { FollowUpMethod };
+
 export interface AttachmentResponse {
   id: number;
   taskId: number;
   title: string;
+}
+
+export interface FollowUpResponse {
+  id: number;
+  taskId: number;
+  followUpDate: string;
+  description: string;
+  followUpMethod: FollowUpMethod;
+  trade: string | null;
+}
+
+/** Form / request row for follow-up (id only on existing rows). */
+export interface FollowUpRequestRow {
+  id?: number;
+  followUpDate: string;
+  description?: string;
+  followUpMethod: FollowUpMethod | "";
+  trade?: string;
 }
 
 export interface ReactionRequest {
@@ -100,10 +121,14 @@ export interface TaskResponseData {
   buildingName: string | null;
   statusName: string | null;
   deadline?: string | null;
+  completedDate?: string | null;
   actionTaken?: string | null;
   attachmentResponsePojoList: AttachmentResponse[];
   commentResponsePojoList: CommentResponse[];
+  followUpResponsePojoList?: FollowUpResponse[];
 }
+
+export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
 
 export interface Comment {
   id?: number;

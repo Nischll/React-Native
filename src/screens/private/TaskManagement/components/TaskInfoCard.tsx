@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
+import FollowUpReadOnlyTable from "./FollowUpReadOnlyTable";
 
 interface Props {
   task: TaskResponseData;
@@ -410,6 +411,11 @@ export default function TaskInformationCard({ task }: Props) {
           value={formatDate(task.deadline)}
           valueColor={deadlinePast ? "#A32D2D" : undefined}
         />
+        <InfoItem
+          icon="checkmark-circle-outline"
+          label="Completed Date"
+          value={formatDate(task.completedDate)}
+        />
         {task.residentName && (
           <InfoItem
             icon="home-outline"
@@ -438,6 +444,23 @@ export default function TaskInformationCard({ task }: Props) {
       {(task.description || task.actionTaken) && <Divider />}
       <ProseSection title="Description" body={task.description} />
       <ProseSection title="Action taken" body={task.actionTaken} />
+
+      <Divider />
+      <View style={{ marginTop: 4 }}>
+        <Text
+          style={{
+            fontSize: 13,
+            fontWeight: "600",
+            color: "#64748B",
+            marginBottom: 8,
+          }}
+        >
+          Follow-ups
+        </Text>
+        <FollowUpReadOnlyTable
+          followUps={task.followUpResponsePojoList ?? []}
+        />
+      </View>
     </View>
   );
 }

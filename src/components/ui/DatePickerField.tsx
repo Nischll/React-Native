@@ -11,6 +11,8 @@ type DatePickerFieldProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   showTime?: boolean; // ✅ NEW PROP
+  /** When true and a value is set, shows a clear control (optional dates). */
+  clearable?: boolean;
 };
 
 export default function DatePickerField({
@@ -18,6 +20,7 @@ export default function DatePickerField({
   onChange,
   placeholder = "Select Date",
   showTime = false, // ✅ default safe
+  clearable = false,
 }: DatePickerFieldProps) {
   const [showIOS, setShowIOS] = useState(false);
 
@@ -74,22 +77,37 @@ export default function DatePickerField({
 
   return (
     <View>
-      <Pressable
-        onPress={() => {
-          if (Platform.OS === "android") {
-            handleAndroidOpen();
-          } else {
-            setShowIOS(true);
-          }
-        }}
-        className="flex-row items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3"
-      >
-        <Text className="text-slate-900">
-          {value ? new Date(value).toLocaleString() : placeholder}
-        </Text>
+      <View className="flex-row items-center rounded-xl border border-slate-300 bg-white px-4 py-3">
+        <Pressable
+          onPress={() => {
+            if (Platform.OS === "android") {
+              handleAndroidOpen();
+            } else {
+              setShowIOS(true);
+            }
+          }}
+          className="mr-2 flex-1 flex-row items-center justify-between"
+        >
+          <Text className="flex-1 text-slate-900" numberOfLines={1}>
+            {value ? new Date(value).toLocaleString() : placeholder}
+          </Text>
+          <Ionicons name="calendar-outline" size={20} color="#64748b" />
+        </Pressable>
 
-        <Ionicons name="calendar-outline" size={20} color="#64748b" />
-      </Pressable>
+        {clearable && !!value && (
+          <Pressable
+            onPress={() => {
+              setShowIOS(false);
+              onChange("");
+            }}
+            hitSlop={8}
+            className="ml-2"
+            accessibilityLabel="Clear date"
+          >
+            <Ionicons name="close-circle" size={20} color="#94a3b8" />
+          </Pressable>
+        )}
+      </View>
 
       {/* ✅ IOS */}
       {Platform.OS === "ios" && showIOS && (

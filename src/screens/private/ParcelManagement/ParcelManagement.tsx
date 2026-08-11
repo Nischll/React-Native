@@ -112,12 +112,13 @@ export default function ParcelManagement() {
     {
       key: "trackingId",
       label: "Tracking ID",
-      primary: true,
+      primary: false,
       searchable: true,
     },
     {
       key: "residentName",
       label: "Unit",
+      primary: true,
       searchable: true,
     },
     {
@@ -217,7 +218,33 @@ export default function ParcelManagement() {
             onRefresh={refetch}
             onSearch={(value) => {
               setPage(1);
-              setTrackingId(value);
+              const q = value.trim().toLowerCase();
+
+              if (!q) {
+                setResidentId(undefined);
+                return;
+              }
+
+              // 1) If user types a number, treat it as residentId.
+              if (/^\d+$/.test(q)) {
+                const parsed = Number(q);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                  setResidentId(parsed);
+                }
+                return;
+              }
+
+              // 2) Otherwise, try to resolve residentId from currently loaded rows (resident search priority).
+              const match =
+                parcels.find((p) => {
+                  const unit = String(p.unit ?? "").toLowerCase();
+                  const name = String(p.residentName ?? "").toLowerCase();
+                  return unit.includes(q) || name.includes(q);
+                }) ?? null;
+
+              if (match?.residentId != null) {
+                setResidentId(match.residentId);
+              }
             }}
             onFilterPress={() => setFilterVisible(true)}
             pagination={{
@@ -290,6 +317,8 @@ export default function ParcelManagement() {
           onClose={() => setFilterVisible(false)}
           residentId={residentId}
           setResidentId={setResidentId}
+          trackingId={trackingId}
+          setTrackingId={setTrackingId}
           dateType={dateType}
           fromDate={fromDate}
           toDate={toDate}

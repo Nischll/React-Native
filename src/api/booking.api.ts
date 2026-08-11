@@ -1,6 +1,7 @@
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { BookingRequestPojo, BookingResponse } from "../types/booking.types";
+import { BookingAmenityByResidentDateItem } from "../types/prePostInspection.types";
 import { ApiListResponse, ApiPaginatedData } from "./auth.api";
 
 export type BookingListParams = {
@@ -78,3 +79,30 @@ export const useUpdateBooking = (id: number | undefined) =>
 
 export const useDeleteBooking = () =>
   useApiMutation<{ id: number }>("delete", "/booking");
+
+/** Amenities booked for a resident on a given date (PPI amenity picker). */
+export const useGetBookingAmenityByResidentDate = (
+  residentId: number | undefined,
+  date: string | undefined,
+  buildingId?: number,
+  enabled = true,
+) => {
+  const queryParams: Record<string, string | number> = {};
+  if (residentId != null) queryParams.residentId = residentId;
+  if (date?.trim()) queryParams.date = date.trim();
+  if (buildingId != null) queryParams.buildingId = buildingId;
+
+  return useApiQuery<
+    | ApiListResponse<BookingAmenityByResidentDateItem[]>
+    | ApiListResponse<ApiPaginatedData<BookingAmenityByResidentDateItem>>
+  >("/booking/amenity-by-resident-date", {
+    enabled:
+      enabled &&
+      residentId != null &&
+      residentId > 0 &&
+      !!date?.trim(),
+    retry: 0,
+    queryParams:
+      Object.keys(queryParams).length > 0 ? queryParams : undefined,
+  });
+};

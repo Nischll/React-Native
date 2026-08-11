@@ -1,4 +1,5 @@
 import DatePickerField from "@/src/components/ui/DatePickerField";
+import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
@@ -9,6 +10,9 @@ interface TaskFilterModalProps {
 
   residentId?: number;
   setResidentId?: (value?: number) => void;
+
+  trackingId?: string;
+  setTrackingId?: (value: string) => void;
 
   dateType: "today" | "week" | "month" | "custom";
   fromDate?: string;
@@ -29,6 +33,8 @@ export const TaskFilterModal = ({
   onClose,
   residentId,
   setResidentId,
+  trackingId,
+  setTrackingId,
   dateType,
   fromDate,
   toDate,
@@ -79,6 +85,18 @@ export const TaskFilterModal = ({
                 ]}
                 placeholder="All units"
               />
+            )}
+
+            {!!setTrackingId && (
+              <>
+                <View style={{ height: 12 }} />
+                <AppInput
+                  label="Tracking ID"
+                  value={trackingId ?? ""}
+                  onChangeText={(t) => setTrackingId?.(t)}
+                  placeholder="Search tracking ID"
+                />
+              </>
             )}
 
             {showDateRange && (
@@ -137,6 +155,7 @@ export const TaskFilterModal = ({
                 className="flex-1 border border-gray-300 rounded-xl py-3"
                 onPress={() => {
                   setResidentId?.(undefined);
+                  setTrackingId?.("");
                   if (showDateRange) applyPreset("month");
                 }}
               >

@@ -365,6 +365,31 @@ export default function BookingDetailsScreen() {
         >
           Edit Booking
         </AppButton>
+
+        <View className="mt-3">
+          <AppButton
+            variant="outline"
+            onPress={() => {
+              const params: Record<string, string> = {
+                bookingId: String(booking.id),
+              };
+              const rid =
+                booking.residentId ??
+                (booking as any).resident?.id ??
+                undefined;
+              const aid = booking.amenityId ?? undefined;
+              if (rid != null) params.residentId = String(rid);
+              if (aid != null) params.amenityId = String(aid);
+              router.push({
+                pathname: "/(private)/pre-post-inspection/inspection-add-edit",
+                params,
+              });
+            }}
+            leftIcon="clipboard-outline"
+          >
+            Start inspection
+          </AppButton>
+        </View>
       </ScrollView>
     </View>
   );

@@ -22,7 +22,10 @@ import { useEmployeeByBuildingOptions } from "@/src/hooks/useEmployeeByBuilding"
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { AttachmentResponse } from "@/src/types/task-management.types";
+import {
+  AttachmentResponse,
+  FollowUpRequestRow,
+} from "@/src/types/task-management.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +41,12 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AttachmentManager from "./components/AttachmentManager";
+import FollowUpTable from "./components/FollowUpTable";
+import {
+  appendFollowUpsToFormData,
+  mapFollowUpsFromResponse,
+  prepareFollowUpsForSubmit,
+} from "./followUpFormData";
 import { toTaskAttachmentPart } from "./toTaskAttachmentPart";
 
 interface FormValues {
@@ -54,8 +63,10 @@ interface FormValues {
   taskStatusId: string;
   priority: string;
   deadline: string;
+  completedDate: string;
   actionTaken: string;
   attachments: PickedFile[];
+  followUpRequestPojoList: FollowUpRequestRow[];
 }
 
 const PRIORITY_OPTIONS = [
@@ -135,8 +146,10 @@ export default function TaskAddEdit() {
         taskStatusId: "",
         priority: "",
         deadline: "",
+        completedDate: "",
         actionTaken: "",
         attachments: [],
+        followUpRequestPojoList: [],
       },
     },
   );
@@ -157,8 +170,12 @@ export default function TaskAddEdit() {
         taskStatusId: String(existingTask.taskStatusId ?? ""),
         priority: existingTask.priority ?? "",
         deadline: existingTask.deadline ?? "",
+        completedDate: existingTask.completedDate ?? "",
         actionTaken: existingTask.actionTaken ?? "",
         attachments: [],
+        followUpRequestPojoList: mapFollowUpsFromResponse(
+          existingTask.followUpResponsePojoList,
+        ),
       });
       if (existingTask.attachmentResponsePojoList?.length) {
         setExistingAttachments(existingTask.attachmentResponsePojoList);
@@ -225,6 +242,9 @@ export default function TaskAddEdit() {
     if (values.deadline) {
       formData.append("deadline", values.deadline);
     }
+    if (values.completedDate) {
+      formData.append("completedDate", values.completedDate);
+    }
     if (values.actionTaken != null && values.actionTaken !== "") {
       formData.append("actionTaken", values.actionTaken);
     }
@@ -232,6 +252,15 @@ export default function TaskAddEdit() {
     if (values.area === "IN_SUITE" && values.residentId) {
       formData.append("residentId", String(values.residentId));
     }
+
+    const { rows: followUpRows, error: followUpError } =
+      prepareFollowUpsForSubmit(values.followUpRequestPojoList);
+    if (followUpError) {
+      Alert.alert("Follow-up", followUpError);
+      return;
+    }
+    // Always append so create/update syncs the list (empty → clear all on edit).
+    appendFollowUpsToFormData(formData, followUpRows);
 
     try {
       let attachmentIndex = 0;
@@ -510,7 +539,20 @@ export default function TaskAddEdit() {
               control={control}
               name="deadline"
               render={({ field: { value, onChange } }) => (
-                <DatePickerField value={value} onChange={onChange} />
+                <DatePickerField value={value} onChange={onChange} clearable />
+              )}
+            />
+          </View>
+
+          <View className="mt-3">
+            <Text className="mb-2 text-base font-semibold text-slate-700">
+              Completed Date
+            </Text>
+            <Controller
+              control={control}
+              name="completedDate"
+              render={({ field: { value, onChange } }) => (
+                <DatePickerField value={value} onChange={onChange} clearable />
               )}
             />
           </View>
@@ -563,6 +605,8 @@ export default function TaskAddEdit() {
               )}
             />
           </View>
+
+          <FollowUpTable control={control} />
         </KeyboardAwareScrollView>
       </TouchableWithoutFeedback>
 

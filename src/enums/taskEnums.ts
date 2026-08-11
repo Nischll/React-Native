@@ -66,6 +66,10 @@ export const TASK_REPORTED_BY = [
 ] as const;
 export type TaskReportedBy = (typeof TASK_REPORTED_BY)[number];
 
+/** Follow-up method values accepted by task follow-up API (do not send IN_PERSON). */
+export const FOLLOW_UP_METHODS = ["PHONE_CALL", "EMAIL", "TEXT"] as const;
+export type FollowUpMethod = (typeof FOLLOW_UP_METHODS)[number];
+
 const fmt = (s: string) =>
   s
     .split("_")
@@ -92,6 +96,15 @@ export const TASK_MODE_OPTIONS: { value: TaskCommunicationMode; label: string }[
 
 export const TASK_REPORTED_BY_OPTIONS: { value: TaskReportedBy; label: string }[] =
   TASK_REPORTED_BY.map((value) => ({ value, label: fmt(value) }));
+
+export const FOLLOW_UP_METHOD_OPTIONS: {
+  value: FollowUpMethod;
+  label: string;
+}[] = [
+  { value: "PHONE_CALL", label: "Phonecall" },
+  { value: "EMAIL", label: "Email" },
+  { value: "TEXT", label: "Text" },
+];
 
 export const SUB_TYPE_LABELS: Record<string, string> = {};
 [...EMERGENCY_SUB_TYPES, ...URGENT_SUB_TYPES].forEach((st) => {
