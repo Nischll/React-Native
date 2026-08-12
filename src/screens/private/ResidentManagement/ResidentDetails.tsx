@@ -22,6 +22,13 @@ import {
   labelEnterphoneStatus,
   labelFobStatus,
 } from "@/src/types/resident.types";
+import { hasAccessDeviceOwnerApproval } from "@/src/helper/accessDeviceFormData";
+import { hasTenantFormK } from "@/src/helper/tenantFormData";
+import {
+  viewAccessDeviceOwnerApproval,
+  viewTenantFormK,
+} from "@/src/helper/viewResidentAttachment";
+import { showToast } from "@/src/utils/toast";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -80,6 +87,25 @@ function DetailRow({
 
 function Divider() {
   return <View className="h-px bg-gray-200 my-2" />;
+}
+
+function FileLink({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      className="mt-1 flex-row items-center gap-2 rounded-xl bg-primary/10 px-3 py-2"
+    >
+      <AppIcon name="document-text-outline" size={16} color="#453956" />
+      <Text className="flex-1 text-sm font-semibold text-primary">{label}</Text>
+      <AppIcon name="open-outline" size={14} color="#453956" />
+    </AnimatedPressable>
+  );
 }
 
 function ExpandableSection({
@@ -361,8 +387,30 @@ export default function ResidentDetails() {
               />
               <DetailRow
                 label="Form K submitted"
-                value={tenant.formKSubmitted}
+                value={
+                  tenant.formKSubmitted === "UPLOADED" ||
+                  tenant.formKSubmitted === "UPLOAD"
+                    ? "Upload"
+                    : tenant.formKSubmitted
+                }
               />
+              {hasTenantFormK(tenant) && tenant.id != null ? (
+                <FileLink
+                  label="View Form K file"
+                  onPress={() =>
+                    void viewTenantFormK({
+                      tenantId: tenant.id!,
+                      formKFilePath: tenant.formKFilePath,
+                      formKFileUrl: tenant.formKFileUrl,
+                    }).catch((error: any) =>
+                      showToast(
+                        "error",
+                        error?.message || "Could not open Form K file.",
+                      ),
+                    )
+                  }
+                />
+              ) : null}
               <DetailRow
                 label="Needs emergency assistance"
                 value={tenant.needsEmergencyAssistance}
@@ -433,6 +481,27 @@ export default function ResidentDetails() {
                   label="Paid amount"
                   value={formatMoney(device.paidAmount)}
                 />
+                {hasAccessDeviceOwnerApproval(device) && device.id != null ? (
+                  <FileLink
+                    label="View owner approval"
+                    onPress={() =>
+                      void viewAccessDeviceOwnerApproval({
+                        deviceId: device.id!,
+                        ownerApproval:
+                          typeof device.ownerApproval === "string"
+                            ? device.ownerApproval
+                            : null,
+                        ownerApprovalUrl: device.ownerApprovalUrl,
+                      }).catch((error: any) =>
+                        showToast(
+                          "error",
+                          error?.message ||
+                            "Could not open owner approval file.",
+                        ),
+                      )
+                    }
+                  />
+                ) : null}
               </View>
             ),
           )}

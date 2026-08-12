@@ -2,6 +2,10 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
 import {
+  hasAccessDeviceOwnerApproval,
+} from "@/src/helper/accessDeviceFormData";
+import { hasTenantFormK } from "@/src/helper/tenantFormData";
+import {
   AccessDeviceRequestPojo,
   EmergencyContactRequestPojo,
   OwnerRequestPojo,
@@ -120,6 +124,10 @@ const RECORDS: RecordConfig[] = [
             label="Email"
             value={tenant.emailAddress || tenant.email}
           />
+          <DetailLine
+            label="Form K file"
+            value={hasTenantFormK(tenant) ? "Attached" : "None"}
+          />
         </ItemBlock>
       )),
   },
@@ -225,6 +233,12 @@ const RECORDS: RecordConfig[] = [
             />
             <DetailLine label="Card #" value={device.cardNumber} />
             <DetailLine label="Status" value={labelFobStatus(device.status)} />
+            <DetailLine
+              label="Owner approval"
+              value={
+                hasAccessDeviceOwnerApproval(device) ? "Attached" : "None"
+              }
+            />
           </ItemBlock>
         ),
       ),

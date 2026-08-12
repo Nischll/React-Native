@@ -25,8 +25,12 @@ import SwitchField from "@/src/components/ui/SwitchField";
 import { toDateInput } from "@/src/helper/formatDateTime";
 import {
   buildTenantFormData,
+  formKUiFromApi,
+  hasTenantFormK,
+  remoteFormKFile,
   tenantEmail,
 } from "@/src/helper/tenantFormData";
+import { viewTenantFormK } from "@/src/helper/viewResidentAttachment";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { TenantResponse } from "@/src/types/resident.types";
@@ -115,21 +119,12 @@ export default function TenantManagement() {
 
   const openEdit = (item: TenantResponse) => {
     setEditing(item);
-    setFormKFile(
-      item.formKFileUrl
-        ? {
-            uri: item.formKFileUrl,
-            name: item.formKFilePath?.split("/").pop() || "Form K",
-            mimeType: "application/octet-stream",
-            isLocal: false,
-          }
-        : null,
-    );
+    setFormKFile(remoteFormKFile(item));
     reset({
       fullName: item.fullName ?? "",
       phoneNumber: item.phoneNumber ?? "",
       email: tenantEmail(item),
-      formKSubmitted: item.formKSubmitted ?? "",
+      formKSubmitted: formKUiFromApi(item.formKSubmitted),
       needsEmergencyAssistance: !!item.needsEmergencyAssistance,
       isActive: item.isActive ?? true,
       activeFromDate: toDateInput(item.activeFromDate),
@@ -138,23 +133,53 @@ export default function TenantManagement() {
     setModalVisible(true);
   };
 
+  const openFormK = async (item: TenantResponse) => {
+    if (!hasTenantFormK(item)) {
+      showToast("error", "No Form K file on file for this tenant.");
+      return;
+    }
+    try {
+      await viewTenantFormK({
+        tenantId: item.id,
+        formKFilePath: item.formKFilePath,
+        formKFileUrl: item.formKFileUrl,
+      });
+    } catch (error: any) {
+      showToast(
+        "error",
+        error?.message || "Could not open the Form K file.",
+      );
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
-    if (values.formKSubmitted === "UPLOAD" && !editing && !formKFile?.isLocal) {
+    const needsFile = values.formKSubmitted === "UPLOAD";
+    const hasLocal = !!formKFile?.isLocal;
+    const hasExisting = hasTenantFormK(editing) && !!formKFile && !formKFile.isLocal;
+    if (needsFile && !hasLocal && !hasExisting) {
       showToast("error", "Please upload the Form K file.");
       return;
     }
 
-    const fd = await buildTenantFormData(values, formKFile);
-    const onSuccess = () => {
-      setModalVisible(false);
-      if (afterSaveReturn()) return;
-      refetch();
-    };
+    try {
+      const fd = await buildTenantFormData(values, formKFile);
+      const onSuccess = () => {
+        setModalVisible(false);
+        if (afterSaveReturn()) return;
+        refetch();
+      };
 
-    if (editing) {
-      updateTenant(fd, { onSuccess });
-    } else {
-      addTenant(fd, { onSuccess });
+      if (editing) {
+        updateTenant(fd, { onSuccess });
+      } else {
+        addTenant(fd, { onSuccess });
+      }
+    } catch (error: any) {
+      showToast(
+        "error",
+        error?.message ||
+          "Could not prepare the tenant upload. Try another file.",
+      );
     }
   };
 
@@ -177,7 +202,26 @@ export default function TenantManagement() {
       label: "Email",
       render: (_value, row) => <Text>{tenantEmail(row) || "—"}</Text>,
     },
-    { key: "formKSubmitted", label: "Form K" },
+    {
+      key: "formKSubmitted",
+      label: "Form K",
+      render: (value, row) => (
+        <View>
+          <Text>
+            {value === "UPLOADED" || value === "UPLOAD"
+              ? "Upload"
+              : value
+                ? String(value)
+                : "—"}
+          </Text>
+          {hasTenantFormK(row) ? (
+            <Text className="mt-0.5 text-xs font-semibold text-primary">
+              File attached
+            </Text>
+          ) : null}
+        </View>
+      ),
+    },
     {
       key: "isActive",
       label: "Active",
@@ -253,6 +297,15 @@ export default function TenantManagement() {
                   icon: "pencil",
                   onPress: () => openEdit(row),
                 },
+                ...(hasTenantFormK(row)
+                  ? [
+                      {
+                        label: "View Form K",
+                        icon: "document-text-outline" as const,
+                        onPress: () => void openFormK(row),
+                      },
+                    ]
+                  : []),
                 {
                   label: "Delete",
                   icon: "trash",
@@ -343,6 +396,11 @@ export default function TenantManagement() {
               hint="Upload Form K document"
               value={formKFile}
               onChange={setFormKFile}
+              onViewExisting={
+                editing && hasTenantFormK(editing) && formKFile && !formKFile.isLocal
+                  ? () => void openFormK(editing)
+                  : undefined
+              }
               accept="all"
               compact
             />

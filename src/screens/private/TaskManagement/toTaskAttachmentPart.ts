@@ -42,7 +42,7 @@ export async function toTaskAttachmentPart(file: UploadFileInput): Promise<{
   const type = file.mimeType?.trim() || "application/octet-stream";
 
   if (Platform.OS !== "android") {
-    return { uri: file.uri, name, type };
+    return { uri: ensureFileScheme(file.uri), name, type };
   }
 
   const cacheDir = FileSystem.cacheDirectory;

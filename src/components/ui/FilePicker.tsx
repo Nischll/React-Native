@@ -21,6 +21,8 @@ interface FilePickerProps {
   // ── single mode (legacy) ──
   value?: PickedFile | null;
   onChange?: (file: PickedFile | null) => void;
+  /** View/download an existing remote file (shown when value is not local). */
+  onViewExisting?: () => void;
   // ── multi mode ──
   multiple?: boolean;
   values?: PickedFile[];
@@ -195,6 +197,7 @@ export function FilePicker({
   hint,
   value,
   onChange,
+  onViewExisting,
   multiple = false,
   values = [],
   onChangeMultiple,
@@ -317,6 +320,11 @@ export function FilePicker({
 
           {value ? (
             <View style={{ flexDirection: "row", gap: 8 }}>
+              {!value.isLocal && onViewExisting ? (
+                <TouchableOpacity onPress={onViewExisting}>
+                  <Ionicons name="eye-outline" size={18} color={accentColor} />
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity onPress={handlePick}>
                 <Ionicons
                   name="swap-horizontal-outline"

@@ -38,11 +38,13 @@ export interface OwnerRequestPojo {
 }
 
 export interface TenantRequestPojo {
+  id?: number;
   fullName: string;
   phoneNumber: string;
   email?: string;
   emailAddress?: string;
-  formKSubmitted: "YES" | "NO" | "UPLOAD";
+  /** UI may use UPLOAD; API enum is UPLOADED */
+  formKSubmitted: "YES" | "NO" | "UPLOAD" | "UPLOADED";
   formKFile?: File | string;
   formKFilePath?: string;
   formKFileUrl?: string;
@@ -63,6 +65,7 @@ export interface PropertyAgentRequestPojo {
 }
 
 export interface AccessDeviceRequestPojo {
+  id?: number;
   type: FobType;
   cardNumber: string;
   accessLevel: string;
@@ -74,6 +77,7 @@ export interface AccessDeviceRequestPojo {
   paidNotes?: string;
   isFree?: boolean;
   isPaid?: boolean;
+  /** Storage path from API (not a File on responses). */
   ownerApproval?: File | string;
   ownerApprovalUrl?: string;
 }

@@ -344,7 +344,7 @@ export default function PurchaseFormModal({
     },
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!residentId) {
       showToast("error", "Please select a unit / resident.");
       return;
@@ -410,7 +410,7 @@ export default function PurchaseFormModal({
       }
 
       // Always multipart FormData (same as web) — JSON create fails on backend
-      const fd = buildAccessDeviceFormData(
+      const fd = await buildAccessDeviceFormData(
         {
           type: deviceType,
           cardNumber: cardNumber.trim(),

@@ -24,7 +24,10 @@ import SwitchField from "@/src/components/ui/SwitchField";
 import {
   accessDeviceRequiresOwnerApproval,
   buildAccessDeviceFormData,
+  hasAccessDeviceOwnerApproval,
+  remoteOwnerApprovalFile,
 } from "@/src/helper/accessDeviceFormData";
+import { viewAccessDeviceOwnerApproval } from "@/src/helper/viewResidentAttachment";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import {
@@ -136,16 +139,7 @@ export default function AccessDeviceManagement() {
 
   const openEdit = (item: AccessDeviceResponse) => {
     setEditing(item);
-    setOwnerApproval(
-      item.ownerApprovalUrl
-        ? {
-            uri: item.ownerApprovalUrl,
-            name: "Owner approval",
-            mimeType: "application/octet-stream",
-            isLocal: false,
-          }
-        : null,
-    );
+    setOwnerApproval(remoteOwnerApprovalFile(item));
     reset({
       type: item.type ?? "",
       cardNumber: item.cardNumber ?? "",
@@ -161,12 +155,37 @@ export default function AccessDeviceManagement() {
     setModalVisible(true);
   };
 
-  const onSubmit = (values: FormValues) => {
-    if (
-      accessDeviceRequiresOwnerApproval(values.assignedTo) &&
-      !editing &&
-      !ownerApproval?.isLocal
-    ) {
+  const openOwnerApproval = async (item: AccessDeviceResponse) => {
+    if (!hasAccessDeviceOwnerApproval(item)) {
+      showToast("error", "No owner approval file on file for this device.");
+      return;
+    }
+    try {
+      await viewAccessDeviceOwnerApproval({
+        deviceId: item.id,
+        ownerApproval:
+          typeof item.ownerApproval === "string" ? item.ownerApproval : null,
+        ownerApprovalUrl: item.ownerApprovalUrl,
+      });
+    } catch (error: any) {
+      showToast(
+        "error",
+        error?.message || "Could not open the owner approval file.",
+      );
+    }
+  };
+
+  const onSubmit = async (values: FormValues) => {
+    const requiresApproval = accessDeviceRequiresOwnerApproval(
+      values.assignedTo,
+    );
+    const hasLocal = !!ownerApproval?.isLocal;
+    const hasExisting =
+      hasAccessDeviceOwnerApproval(editing) &&
+      !!ownerApproval &&
+      !ownerApproval.isLocal;
+
+    if (requiresApproval && !hasLocal && !hasExisting) {
       showToast(
         "error",
         "Owner approval document is required when assigned to a tenant.",
@@ -174,32 +193,40 @@ export default function AccessDeviceManagement() {
       return;
     }
 
-    const fd = buildAccessDeviceFormData(
-      {
-        type: values.type,
-        cardNumber: values.cardNumber,
-        accessLevel: values.accessLevel,
-        assignedTo: values.assignedTo,
-        status: values.status,
-        paidAmount: values.paidAmount || undefined,
-        paidType: values.paidType || undefined,
-        paidNotes: values.paidNotes || undefined,
-        isFree: values.isFree,
-        isPaid: values.isPaid,
-      },
-      ownerApproval,
-    );
+    try {
+      const fd = await buildAccessDeviceFormData(
+        {
+          type: values.type,
+          cardNumber: values.cardNumber,
+          accessLevel: values.accessLevel,
+          assignedTo: values.assignedTo,
+          status: values.status,
+          paidAmount: values.paidAmount || undefined,
+          paidType: values.paidType || undefined,
+          paidNotes: values.paidNotes || undefined,
+          isFree: values.isFree,
+          isPaid: values.isPaid,
+        },
+        ownerApproval,
+      );
 
-    const onSuccess = () => {
-      setModalVisible(false);
-      if (afterSaveReturn()) return;
-      refetch();
-    };
+      const onSuccess = () => {
+        setModalVisible(false);
+        if (afterSaveReturn()) return;
+        refetch();
+      };
 
-    if (editing) {
-      updateDevice(fd, { onSuccess });
-    } else {
-      addDevice(fd, { onSuccess });
+      if (editing) {
+        updateDevice(fd, { onSuccess });
+      } else {
+        addDevice(fd, { onSuccess });
+      }
+    } catch (error: any) {
+      showToast(
+        "error",
+        error?.message ||
+          "Could not prepare the access device upload. Try another file.",
+      );
     }
   };
 
@@ -222,6 +249,21 @@ export default function AccessDeviceManagement() {
       key: "status",
       label: "Status",
       render: (value) => <Text>{labelFobStatus(String(value))}</Text>,
+    },
+    {
+      key: "ownerApproval",
+      label: "Approval",
+      render: (_value, row) => (
+        <Text
+          className={
+            hasAccessDeviceOwnerApproval(row)
+              ? "font-semibold text-primary"
+              : "text-textSecondary"
+          }
+        >
+          {hasAccessDeviceOwnerApproval(row) ? "File attached" : "—"}
+        </Text>
+      ),
     },
   ];
 
@@ -289,6 +331,15 @@ export default function AccessDeviceManagement() {
                   icon: "pencil",
                   onPress: () => openEdit(row),
                 },
+                ...(hasAccessDeviceOwnerApproval(row)
+                  ? [
+                      {
+                        label: "View approval",
+                        icon: "document-text-outline" as const,
+                        onPress: () => void openOwnerApproval(row),
+                      },
+                    ]
+                  : []),
                 {
                   label: "Delete",
                   icon: "trash",
@@ -378,6 +429,14 @@ export default function AccessDeviceManagement() {
               hint="Required when assigned to a tenant"
               value={ownerApproval}
               onChange={setOwnerApproval}
+              onViewExisting={
+                editing &&
+                hasAccessDeviceOwnerApproval(editing) &&
+                ownerApproval &&
+                !ownerApproval.isLocal
+                  ? () => void openOwnerApproval(editing)
+                  : undefined
+              }
               accept="all"
               compact
             />
