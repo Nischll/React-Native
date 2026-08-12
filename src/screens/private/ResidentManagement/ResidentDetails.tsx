@@ -24,7 +24,7 @@ import {
 } from "@/src/types/resident.types";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 
@@ -224,7 +224,7 @@ export default function ResidentDetails() {
       <PageHeader
         icon="person"
         title="Resident Details"
-        subtitle="View-only. Use Edit Resident from the list to make changes."
+        subtitle="Review current records, or edit to make changes."
         showBackButton
       />
 
@@ -272,6 +272,19 @@ export default function ResidentDetails() {
             ) : null}
           </View>
         )}
+
+        <AnimatedPressable
+          onPress={() =>
+            router.push({
+              pathname: "/(private)/resident-management/resident-add-edit",
+              params: { residentId: String(resident.id) },
+            })
+          }
+          className="mt-4 flex-row items-center justify-center gap-2 rounded-xl bg-white/15 py-2.5"
+        >
+          <AppIcon name="create-outline" size={16} color="#FFFFFF" />
+          <Text className="text-sm font-semibold text-white">Edit Resident</Text>
+        </AnimatedPressable>
       </View>
 
       <Text className="mb-2 mt-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
