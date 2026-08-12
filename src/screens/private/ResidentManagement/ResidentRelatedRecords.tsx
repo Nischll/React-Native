@@ -1,136 +1,362 @@
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
-import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
+import Card from "@/src/components/ui/Card";
+import {
+  AccessDeviceRequestPojo,
+  EmergencyContactRequestPojo,
+  OwnerRequestPojo,
+  PropertyAgentRequestPojo,
+  ResidentResponse,
+  TenantRequestPojo,
+  VehicleRequestPojo,
+  VisitorPassRequestPojo,
+  labelFobStatus,
+} from "@/src/types/resident.types";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-type RelatedItem = {
-  key: string;
+type RecordKey =
+  | "owners"
+  | "tenants"
+  | "agents"
+  | "vehicles"
+  | "passes"
+  | "devices"
+  | "emergency";
+
+type RecordConfig = {
+  key: RecordKey;
   label: string;
-  hint: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   pathname: Href;
   accent: string;
+  getItems: (resident: ResidentResponse) => unknown[];
+  preview: (resident: ResidentResponse) => string;
+  renderItems: (resident: ResidentResponse) => React.ReactNode;
 };
 
-const RELATED: RelatedItem[] = [
+function joinPreview(parts: (string | null | undefined)[], empty: string) {
+  const cleaned = parts.map((p) => p?.trim()).filter(Boolean) as string[];
+  if (!cleaned.length) return empty;
+  if (cleaned.length <= 2) return cleaned.join(" · ");
+  return `${cleaned.slice(0, 2).join(" · ")} +${cleaned.length - 2}`;
+}
+
+function DetailLine({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null | boolean;
+}) {
+  if (value === undefined || value === null || value === "") return null;
+  const display = typeof value === "boolean" ? (value ? "Yes" : "No") : value;
+  return (
+    <View className="flex-row items-start justify-between py-1">
+      <Text className="pr-3 text-xs text-textSecondary">{label}</Text>
+      <Text className="flex-1 text-right text-xs font-semibold text-textPrimary">
+        {display}
+      </Text>
+    </View>
+  );
+}
+
+function ItemBlock({
+  children,
+  isFirst,
+}: {
+  children: React.ReactNode;
+  isFirst: boolean;
+}) {
+  return (
+    <View className={isFirst ? "" : "mt-2 border-t border-slate-100 pt-2"}>
+      {children}
+    </View>
+  );
+}
+
+const RECORDS: RecordConfig[] = [
   {
     key: "owners",
     label: "Owners",
-    hint: "Owner names, phones, and activity dates",
     icon: "person-outline",
     pathname: "/(private)/owner-management",
     accent: "#453956",
+    getItems: (r) => r.owners ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.owners ?? []).map((o: OwnerRequestPojo) => o.fullName),
+        "No owners yet",
+      ),
+    renderItems: (r) =>
+      (r.owners ?? []).map((owner: OwnerRequestPojo, i: number) => (
+        <ItemBlock key={i} isFirst={i === 0}>
+          <DetailLine label="Name" value={owner.fullName} />
+          <DetailLine label="Phone" value={owner.phoneNumber} />
+          <DetailLine label="Email" value={owner.email} />
+        </ItemBlock>
+      )),
   },
   {
     key: "tenants",
     label: "Tenants",
-    hint: "Tenant contacts and Form K",
     icon: "people-outline",
     pathname: "/(private)/tenant-management",
     accent: "#2563EB",
+    getItems: (r) => r.tenants ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.tenants ?? []).map((t: TenantRequestPojo) => t.fullName),
+        "No tenants yet",
+      ),
+    renderItems: (r) =>
+      (r.tenants ?? []).map((tenant: TenantRequestPojo, i: number) => (
+        <ItemBlock key={i} isFirst={i === 0}>
+          <DetailLine label="Name" value={tenant.fullName} />
+          <DetailLine label="Phone" value={tenant.phoneNumber} />
+          <DetailLine
+            label="Email"
+            value={tenant.emailAddress || tenant.email}
+          />
+        </ItemBlock>
+      )),
   },
   {
     key: "agents",
     label: "Property agents",
-    hint: "Company and property manager details",
     icon: "briefcase-outline",
     pathname: "/(private)/property-agent-management",
-    accent: "#D97706",
+    accent: "#B45309",
+    getItems: (r) => r.propertyAgents ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.propertyAgents ?? []).map(
+          (a: PropertyAgentRequestPojo) =>
+            a.companyName || a.propertyManagerName,
+        ),
+        "No property agents yet",
+      ),
+    renderItems: (r) =>
+      (r.propertyAgents ?? []).map(
+        (agent: PropertyAgentRequestPojo, i: number) => (
+          <ItemBlock key={i} isFirst={i === 0}>
+            <DetailLine label="Company" value={agent.companyName} />
+            <DetailLine label="Manager" value={agent.propertyManagerName} />
+            <DetailLine label="Phone" value={agent.phoneNumber} />
+          </ItemBlock>
+        ),
+      ),
   },
   {
     key: "vehicles",
     label: "Vehicles",
-    hint: "License plate, make, and color",
     icon: "car-outline",
     pathname: "/(private)/vehicle-management",
     accent: "#0F766E",
+    getItems: (r) => r.vehicles ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.vehicles ?? []).map(
+          (v: VehicleRequestPojo) =>
+            v.licensePlateNumber || v.makeAndModel,
+        ),
+        "No vehicles yet",
+      ),
+    renderItems: (r) =>
+      (r.vehicles ?? []).map((vehicle: VehicleRequestPojo, i: number) => (
+        <ItemBlock key={i} isFirst={i === 0}>
+          <DetailLine label="Plate" value={vehicle.licensePlateNumber} />
+          <DetailLine label="Make / model" value={vehicle.makeAndModel} />
+          <DetailLine label="Color" value={vehicle.color} />
+        </ItemBlock>
+      )),
   },
   {
     key: "passes",
     label: "Visitor passes",
-    hint: "Pass numbers and issue dates",
     icon: "ticket-outline",
     pathname: "/(private)/visitor-pass-management",
-    accent: "#7C3AED",
+    accent: "#6D28D9",
+    getItems: (r) => r.visitorPasses ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.visitorPasses ?? []).map(
+          (p: VisitorPassRequestPojo) => p.visitorPassNumber,
+        ),
+        "No visitor passes yet",
+      ),
+    renderItems: (r) =>
+      (r.visitorPasses ?? []).map(
+        (pass: VisitorPassRequestPojo, i: number) => (
+          <ItemBlock key={i} isFirst={i === 0}>
+            <DetailLine label="Pass #" value={pass.visitorPassNumber} />
+            <DetailLine
+              label="Status"
+              value={pass.status === "ACTIVE" ? "Active" : "Lost"}
+            />
+          </ItemBlock>
+        ),
+      ),
   },
   {
     key: "devices",
     label: "Access devices",
-    hint: "Fobs, remotes, and key tags",
     icon: "key-outline",
     pathname: "/(private)/access-device-management",
     accent: "#BE185D",
+    getItems: (r) => r.accessDevices ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.accessDevices ?? []).map((d: AccessDeviceRequestPojo) => {
+          const type = d.type === "KEY_TAG" ? "Key tag" : "Remote";
+          return d.cardNumber ? `${type} ${d.cardNumber}` : type;
+        }),
+        "No access devices yet",
+      ),
+    renderItems: (r) =>
+      (r.accessDevices ?? []).map(
+        (device: AccessDeviceRequestPojo, i: number) => (
+          <ItemBlock key={i} isFirst={i === 0}>
+            <DetailLine
+              label="Type"
+              value={device.type === "KEY_TAG" ? "Key tag" : "Remote"}
+            />
+            <DetailLine label="Card #" value={device.cardNumber} />
+            <DetailLine label="Status" value={labelFobStatus(device.status)} />
+          </ItemBlock>
+        ),
+      ),
   },
   {
     key: "emergency",
     label: "Emergency contacts",
-    hint: "Emergency names and phone numbers",
     icon: "medkit-outline",
     pathname: "/(private)/emergency-contact-management",
     accent: "#DC2626",
+    getItems: (r) => r.emergencyContacts ?? [],
+    preview: (r) =>
+      joinPreview(
+        (r.emergencyContacts ?? []).map(
+          (c: EmergencyContactRequestPojo) => c.name,
+        ),
+        "No emergency contacts yet",
+      ),
+    renderItems: (r) =>
+      (r.emergencyContacts ?? []).map(
+        (contact: EmergencyContactRequestPojo, i: number) => (
+          <ItemBlock key={i} isFirst={i === 0}>
+            <DetailLine label="Name" value={contact.name} />
+            <DetailLine label="Phone" value={contact.phoneNumber} />
+            <DetailLine label="Relationship" value={contact.relationship} />
+          </ItemBlock>
+        ),
+      ),
   },
 ];
 
 type Props = {
   residentId: number;
-  /** When true, open the first few sections by default */
-  defaultOpen?: boolean;
+  resident: ResidentResponse;
 };
 
 export default function ResidentRelatedRecords({
   residentId,
-  defaultOpen = false,
+  resident,
 }: Props) {
-  const [openKey, setOpenKey] = useState<string | null>(
-    defaultOpen ? RELATED[0].key : null,
-  );
+  const [openKey, setOpenKey] = useState<RecordKey | null>(null);
 
   const openManage = (pathname: Href) => {
     router.push({
       pathname: pathname as any,
       params: {
         residentId: String(residentId),
-        returnTo: "details",
+        returnTo: "edit",
       },
     });
   };
 
   return (
-    <View className="mb-2">
-      <Text className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-        Related records
+    <View className="mb-2 mt-1">
+      <Text className="mb-1 px-1 text-base font-bold text-textPrimary">
+        Current records
       </Text>
-      <Text className="mb-3 px-1 text-xs text-textSecondary">
-        Expand a section, then tap Manage to create or update. After saving you
-        return to resident details.
+      <Text className="mb-3 px-1 text-xs leading-5 text-textSecondary">
+        Expand a section to review, or tap Manage to add and update.
       </Text>
 
-      {RELATED.map((item) => {
+      {RECORDS.map((item) => {
+        const count = item.getItems(resident).length;
         const expanded = openKey === item.key;
+        const preview = item.preview(resident);
+
         return (
-          <CollapsibleCard
-            key={item.key}
-            icon={item.icon}
-            title={item.label}
-            subtitle={item.hint}
-            expanded={expanded}
-            onToggle={() => setOpenKey(expanded ? null : item.key)}
-            accentColor={item.accent}
-          >
-            <Text className="mb-3 text-sm text-textSecondary">{item.hint}</Text>
-            <AnimatedPressable
-              onPress={() => openManage(item.pathname)}
-              className="flex-row items-center justify-center gap-2 rounded-xl bg-primary py-3"
-            >
-              <AppIcon name="create-outline" size={16} color="#FFFFFF" />
-              <Text className="text-sm font-semibold text-white">
-                Manage {item.label.toLowerCase()}
-              </Text>
-            </AnimatedPressable>
-          </CollapsibleCard>
+          <Card key={item.key} className="mb-3 overflow-hidden px-0 py-0">
+            <View className="flex-row items-center gap-2 px-3 py-3">
+              <Pressable
+                onPress={() => setOpenKey(expanded ? null : item.key)}
+                className="min-w-0 flex-1 flex-row items-center gap-3"
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    backgroundColor: `${item.accent}14`,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AppIcon name={item.icon} size={18} color={item.accent} />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-sm font-semibold text-textPrimary">
+                      {item.label}
+                    </Text>
+                    <View className="rounded-full bg-slate-100 px-2 py-0.5">
+                      <Text className="text-[11px] font-semibold text-slate-600">
+                        {count}
+                      </Text>
+                    </View>
+                  </View>
+                  {!expanded ? (
+                    <Text
+                      className="mt-0.5 text-xs text-textSecondary"
+                      numberOfLines={1}
+                    >
+                      {preview}
+                    </Text>
+                  ) : null}
+                </View>
+                <AppIcon
+                  name={expanded ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="#94A3B8"
+                />
+              </Pressable>
+
+              <AnimatedPressable
+                onPress={() => openManage(item.pathname)}
+                className="rounded-xl bg-primary/10 px-3 py-2"
+              >
+                <Text className="text-xs font-bold text-primary">Manage</Text>
+              </AnimatedPressable>
+            </View>
+
+            {expanded ? (
+              <View className="border-t border-slate-100 px-4 pb-3 pt-2">
+                {count > 0 ? (
+                  item.renderItems(resident)
+                ) : (
+                  <Text className="py-2 text-xs text-textSecondary">
+                    Nothing on file yet. Tap Manage to add.
+                  </Text>
+                )}
+              </View>
+            ) : null}
+          </Card>
         );
       })}
     </View>

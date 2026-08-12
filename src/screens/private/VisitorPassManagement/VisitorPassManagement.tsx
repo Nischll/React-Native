@@ -22,7 +22,6 @@ import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
 import { toDateInput } from "@/src/helper/formatDateTime";
-import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import {
@@ -72,7 +71,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function VisitorPassManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId, returnToDetails } =
+  const { residentId, setResidentId, goBackToResident, afterSaveReturn } =
     useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
@@ -143,7 +142,7 @@ export default function VisitorPassManagement() {
 
     const onSuccess = () => {
       setModalVisible(false);
-      if (returnToDetails && returnToResidentDetails(residentId)) return;
+      if (afterSaveReturn()) return;
       refetch();
     };
 
@@ -192,6 +191,7 @@ export default function VisitorPassManagement() {
     <View className="flex-1">
       <PageHeader
         showBackButton
+        onBack={goBackToResident}
         icon="ticket-outline"
         title="Visitor Pass Management"
         subtitle="Manage visitor passes issued to residents."

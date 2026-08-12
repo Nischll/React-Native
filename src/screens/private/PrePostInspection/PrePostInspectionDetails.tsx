@@ -335,37 +335,64 @@ export default function PrePostInspectionDetails() {
         visible={viewer != null}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setViewer(null)}
       >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/80 px-4"
-          onPress={() => setViewer(null)}
-        >
-          <View className="w-full max-w-lg overflow-hidden rounded-2xl bg-white">
-            {viewer?.imageId != null ? (
-              <InspectionImage
-                imageId={viewer.imageId}
-                style={{ width: "100%", height: 320 }}
-                resizeMode="contain"
-              />
-            ) : null}
-            <View className="px-4 py-3">
-              <Text className="font-semibold text-slate-900">
-                {viewer?.title}
-              </Text>
-              {viewer?.area ? (
-                <Text className="mt-1 text-sm text-slate-700">
-                  Area: {viewer.area}
+        <View className="flex-1 bg-black/80 justify-center px-4">
+          <Pressable
+            className="absolute inset-0"
+            onPress={() => setViewer(null)}
+          />
+          <View className="w-full overflow-hidden rounded-2xl bg-white">
+            <View className="flex-row items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+              <View className="flex-1 pr-2">
+                <Text
+                  className="text-base font-semibold text-slate-900"
+                  numberOfLines={2}
+                >
+                  {viewer?.title?.trim() || "Image preview"}
                 </Text>
-              ) : null}
-              {viewer?.description ? (
-                <Text className="mt-1 text-sm text-slate-500">
-                  {viewer.description}
+                {viewer?.area?.trim() ? (
+                  <Text className="mt-1 text-sm text-slate-700">
+                    <Text className="font-medium text-slate-900">Area: </Text>
+                    {viewer.area.trim()}
+                  </Text>
+                ) : null}
+                {viewer?.description?.trim() ? (
+                  <Text className="mt-0.5 text-sm text-slate-500">
+                    {viewer.description.trim()}
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={() => setViewer(null)}
+                hitSlop={10}
+                className="h-8 w-8 items-center justify-center rounded-full bg-slate-100"
+              >
+                <Text className="text-base font-bold text-slate-600">×</Text>
+              </Pressable>
+            </View>
+
+            <View className="items-center justify-center bg-slate-50 px-3 py-3">
+              {viewer?.imageId != null ? (
+                <InspectionImage
+                  imageId={viewer.imageId}
+                  style={{
+                    width: "100%",
+                    height: 340,
+                    borderRadius: 12,
+                    backgroundColor: "#e2e8f0",
+                  }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text className="py-10 text-sm text-slate-400">
+                  No image to display.
                 </Text>
-              ) : null}
+              )}
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </View>
   );

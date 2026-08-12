@@ -14,8 +14,8 @@ type Props = {
   imageId?: number | null;
   /** Local file:// or data: URI (skips network) */
   localUri?: string | null;
-  style?: StyleProp<ImageStyle>;
-  containerStyle?: StyleProp<ViewStyle>;
+  /** Applied to the outer container (width/height/radius live here) */
+  style?: StyleProp<ViewStyle>;
   resizeMode?: "cover" | "contain" | "stretch" | "center";
 };
 
@@ -27,7 +27,6 @@ export default function InspectionImage({
   imageId,
   localUri,
   style,
-  containerStyle,
   resizeMode = "cover",
 }: Props) {
   const [uri, setUri] = useState<string | null>(
@@ -85,8 +84,7 @@ export default function InspectionImage({
           backgroundColor: "#f1f5f9",
           overflow: "hidden",
         },
-        containerStyle,
-        style as ViewStyle,
+        style,
       ]}
     >
       {loading ? (
@@ -94,11 +92,13 @@ export default function InspectionImage({
       ) : uri && !failed ? (
         <Image
           source={{ uri }}
-          style={[{ width: "100%", height: "100%" }, style]}
+          style={{ width: "100%", height: "100%" } as ImageStyle}
           resizeMode={resizeMode}
         />
       ) : (
-        <View style={{ width: "100%", height: "100%", backgroundColor: "#e2e8f0" }} />
+        <View
+          style={{ width: "100%", height: "100%", backgroundColor: "#e2e8f0" }}
+        />
       )}
     </View>
   );

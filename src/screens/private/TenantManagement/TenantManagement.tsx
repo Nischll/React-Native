@@ -27,7 +27,6 @@ import {
   buildTenantFormData,
   tenantEmail,
 } from "@/src/helper/tenantFormData";
-import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { TenantResponse } from "@/src/types/resident.types";
@@ -67,7 +66,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function TenantManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId, returnToDetails } =
+  const { residentId, setResidentId, goBackToResident, afterSaveReturn } =
     useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
@@ -148,7 +147,7 @@ export default function TenantManagement() {
     const fd = await buildTenantFormData(values, formKFile);
     const onSuccess = () => {
       setModalVisible(false);
-      if (returnToDetails && returnToResidentDetails(residentId)) return;
+      if (afterSaveReturn()) return;
       refetch();
     };
 
@@ -194,6 +193,7 @@ export default function TenantManagement() {
     <View className="flex-1">
       <PageHeader
         showBackButton
+        onBack={goBackToResident}
         icon="people-outline"
         title="Tenant Management"
         subtitle="Manage tenant records linked to residents."

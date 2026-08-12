@@ -5,7 +5,7 @@ import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
-import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
+import Card from "@/src/components/ui/Card";
 import {
   AccessDeviceRequestPojo,
   EmergencyContactRequestPojo,
@@ -24,10 +24,9 @@ import {
 } from "@/src/types/resident.types";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { Linking, Text, View } from "react-native";
-import ResidentRelatedRecords from "./ResidentRelatedRecords";
+import { Linking, Pressable, Text, View } from "react-native";
 
 const STATUS_META: Record<
   ResidentStatus,
@@ -109,16 +108,43 @@ function ExpandableSection({
       : undefined;
 
   return (
-    <CollapsibleCard
-      icon={icon}
-      title={title}
-      subtitle={subtitle}
-      expanded={expanded}
-      onToggle={() => setOpenKey(expanded ? null : sectionKey)}
-      accentColor={accentColor}
-    >
-      {children}
-    </CollapsibleCard>
+    <Card className="mb-3 overflow-hidden px-0 py-0">
+      <Pressable
+        onPress={() => setOpenKey(expanded ? null : sectionKey)}
+        className="flex-row items-center gap-3 px-4 py-3.5"
+      >
+        <View
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 8,
+            backgroundColor: `${accentColor}18`,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <AppIcon name={icon} size={16} color={accentColor} />
+        </View>
+        <View className="flex-1 min-w-0">
+          <Text className="text-sm font-bold text-textPrimary">{title}</Text>
+          {subtitle ? (
+            <Text className="mt-0.5 text-[11px] text-textSecondary">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        <AppIcon
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={16}
+          color="#6B7280"
+        />
+      </Pressable>
+      {expanded ? (
+        <View className="border-t border-slate-100 px-4 pb-4 pt-3">
+          {children}
+        </View>
+      ) : null}
+    </Card>
   );
 }
 
@@ -198,7 +224,7 @@ export default function ResidentDetails() {
       <PageHeader
         icon="person"
         title="Resident Details"
-        subtitle="Expand a section to review or manage related records."
+        subtitle="View-only. Use Edit Resident from the list to make changes."
         showBackButton
       />
 
@@ -246,30 +272,28 @@ export default function ResidentDetails() {
             ) : null}
           </View>
         )}
-
-        <AnimatedPressable
-          onPress={() =>
-            router.push({
-              pathname: "/(private)/resident-management/resident-add-edit",
-              params: { residentId: String(resident.id) },
-            })
-          }
-          className="mt-4 flex-row items-center justify-center gap-2 rounded-xl bg-white/15 py-2.5"
-        >
-          <AppIcon name="create-outline" size={16} color="#FFFFFF" />
-          <Text className="text-sm font-semibold text-white">
-            Edit unit & related records
-          </Text>
-        </AnimatedPressable>
       </View>
-
-      {parsedResidentId ? (
-        <ResidentRelatedRecords residentId={parsedResidentId} />
-      ) : null}
 
       <Text className="mb-2 mt-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
         Current records
       </Text>
+
+      {!resident.owners?.length &&
+      !resident.tenants?.length &&
+      !resident.propertyAgents?.length &&
+      !resident.accessDevices?.length &&
+      !resident.vehicles?.length &&
+      !resident.visitorPasses?.length &&
+      !resident.emergencyContacts?.length &&
+      !resident.filters?.length &&
+      !resident.rentals?.length &&
+      !resident.enterphones?.length &&
+      !resident.documents?.length ? (
+        <EmptyState
+          title="No current records"
+          message="Nothing is on file for this unit yet. Use Edit Resident to add them."
+        />
+      ) : null}
 
       {!!resident.owners?.length && (
         <ExpandableSection

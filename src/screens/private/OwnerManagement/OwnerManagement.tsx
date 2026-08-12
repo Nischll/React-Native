@@ -22,7 +22,6 @@ import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
 import { dateInputToIsoOrNull, toDateInput } from "@/src/helper/formatDateTime";
-import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { OwnerResponse } from "@/src/types/resident.types";
@@ -53,7 +52,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function OwnerManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId, returnToDetails } =
+  const { residentId, setResidentId, goBackToResident, afterSaveReturn } =
     useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
@@ -122,7 +121,7 @@ export default function OwnerManagement() {
 
     const onSuccess = () => {
       setModalVisible(false);
-      if (returnToDetails && returnToResidentDetails(residentId)) return;
+      if (afterSaveReturn()) return;
       refetch();
     };
 
@@ -168,6 +167,7 @@ export default function OwnerManagement() {
     <View className="flex-1">
       <PageHeader
         showBackButton
+        onBack={goBackToResident}
         icon="person-outline"
         title="Owner Management"
         subtitle="Manage owner records linked to residents."

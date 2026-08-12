@@ -1,6 +1,6 @@
 import LoadingState from "@/src/components/feedback/LoadingState";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { Redirect, Slot } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 
 export default function PrivateLayout() {
   const { isAuthenticated, loading } = useAuth();
@@ -13,5 +13,17 @@ export default function PrivateLayout() {
     return <Redirect href="/(public)/login" />;
   }
 
-  return <Slot />;
+  // Stack (not Slot) so navigating to sibling modules (e.g. tenant from
+  // resident edit) keeps the previous screen in history for Back.
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "fade_from_bottom",
+        freezeOnBlur: true,
+        gestureEnabled: true,
+        animationDuration: 220,
+      }}
+    />
+  );
 }

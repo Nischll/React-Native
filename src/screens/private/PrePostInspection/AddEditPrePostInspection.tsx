@@ -499,7 +499,9 @@ export default function AddEditPrePostInspection() {
   const [pendingImageDeleteId, setPendingImageDeleteId] = useState<
     number | null
   >(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [saveAction, setSaveAction] = useState<"save" | "complete" | null>(
+    null,
+  );
   const hydratedRef = useRef(false);
 
   useEffect(() => {
@@ -735,7 +737,7 @@ export default function AddEditPrePostInspection() {
   const handleSave = async (markCompleted = false) => {
     const payload = buildPayload(markCompleted ? "COMPLETED" : undefined);
     if (!payload) return;
-    setSubmitting(true);
+    setSaveAction(markCompleted ? "complete" : "save");
     try {
       const fd = await buildPrePostInspectionFormData(payload);
       if (isEdit && editId != null) {
@@ -746,7 +748,7 @@ export default function AddEditPrePostInspection() {
               params: { inspectionId: String(editId) },
             });
           },
-          onSettled: () => setSubmitting(false),
+          onSettled: () => setSaveAction(null),
         });
       } else {
         createMut.mutate(fd, {
@@ -767,11 +769,11 @@ export default function AddEditPrePostInspection() {
               router.replace("/(private)/pre-post-inspection");
             }
           },
-          onSettled: () => setSubmitting(false),
+          onSettled: () => setSaveAction(null),
         });
       }
     } catch {
-      setSubmitting(false);
+      setSaveAction(null);
     }
   };
 
@@ -800,7 +802,9 @@ export default function AddEditPrePostInspection() {
   }
 
   const isBusy =
-    submitting || createMut.isPending || updateMut.isPending;
+    saveAction != null || createMut.isPending || updateMut.isPending;
+  const savingOnly = saveAction === "save";
+  const completingOnly = saveAction === "complete";
 
   return (
     <View className="flex-1">
@@ -1069,7 +1073,7 @@ export default function AddEditPrePostInspection() {
         <View className="mt-6 gap-3">
           <AppButton
             onPress={() => void handleSave(false)}
-            loading={isBusy}
+            loading={savingOnly}
             disabled={isBusy || !buildingId}
           >
             {isEdit ? "Save changes" : "Save"}
@@ -1077,7 +1081,7 @@ export default function AddEditPrePostInspection() {
           <AppButton
             variant="outline"
             onPress={() => void handleSave(true)}
-            loading={isBusy}
+            loading={completingOnly}
             disabled={isBusy || !buildingId}
             leftIcon="checkmark-circle-outline"
           >
