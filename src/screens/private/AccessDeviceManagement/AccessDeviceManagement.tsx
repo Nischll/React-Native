@@ -25,6 +25,7 @@ import {
   accessDeviceRequiresOwnerApproval,
   buildAccessDeviceFormData,
 } from "@/src/helper/accessDeviceFormData";
+import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import {
@@ -89,7 +90,8 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function AccessDeviceManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId } = useResidentIdFromRoute();
+  const { residentId, setResidentId, returnToDetails } =
+    useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -191,6 +193,7 @@ export default function AccessDeviceManagement() {
 
     const onSuccess = () => {
       setModalVisible(false);
+      if (returnToDetails && returnToResidentDetails(residentId)) return;
       refetch();
     };
 

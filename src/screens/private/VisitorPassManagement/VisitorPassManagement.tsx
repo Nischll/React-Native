@@ -22,6 +22,7 @@ import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
 import { toDateInput } from "@/src/helper/formatDateTime";
+import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import {
@@ -71,7 +72,8 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function VisitorPassManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId } = useResidentIdFromRoute();
+  const { residentId, setResidentId, returnToDetails } =
+    useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -141,6 +143,7 @@ export default function VisitorPassManagement() {
 
     const onSuccess = () => {
       setModalVisible(false);
+      if (returnToDetails && returnToResidentDetails(residentId)) return;
       refetch();
     };
 

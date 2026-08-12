@@ -42,14 +42,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Image,
   Platform,
   Pressable,
   Text,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { resolveInspectionImageUrl } from "./imageHelpers";
+import InspectionImage from "./InspectionImage";
 import { buildPrePostInspectionFormData } from "./prePostInspectionFormData";
 
 type AmenityOption = {
@@ -111,14 +110,6 @@ function mapServerImage(img: PrePostInspectionImageResponse): ImageFormItem {
     description: img.description ?? "",
     fileUrl: img.fileUrl,
     originalFileName: img.originalFileName,
-    file: img.fileUrl
-      ? {
-          uri: resolveInspectionImageUrl(img),
-          name: img.originalFileName ?? `image-${img.id}.jpg`,
-          mimeType: "image/jpeg",
-          isLocal: false,
-        }
-      : undefined,
   };
 }
 
@@ -372,20 +363,26 @@ function AmenityPhotosBlock({
           className="mb-2 rounded-xl border border-slate-200 bg-white p-3"
         >
           <View className="mb-2 flex-row items-center gap-3">
-            {img.file?.uri || img.fileUrl ? (
-              <Image
-                source={{
-                  uri:
-                    img.file?.uri ??
-                    resolveInspectionImageUrl({
-                      id: img.id!,
-                      imageSide: "PRE",
-                      fileUrl: img.fileUrl,
-                    }),
-                }}
+            {img.file?.isLocal && img.file.uri ? (
+              <InspectionImage
+                localUri={img.file.uri}
                 style={{ width: 56, height: 56, borderRadius: 8 }}
               />
-            ) : null}
+            ) : img.id != null ? (
+              <InspectionImage
+                imageId={img.id}
+                style={{ width: 56, height: 56, borderRadius: 8 }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 8,
+                  backgroundColor: "#e2e8f0",
+                }}
+              />
+            )}
             <Text className="flex-1 text-xs text-slate-600" numberOfLines={2}>
               {img.originalFileName || img.file?.name || `Image #${img.id}`}
             </Text>
@@ -990,28 +987,20 @@ export default function AddEditPrePostInspection() {
                 Amenity signatures
               </Text>
               <Text className="mb-1 text-sm text-slate-700">Resident</Text>
-              {row.residentSignature?.trim() ? (
-                <Text className="mb-1 text-xs text-emerald-600">
-                  Signature on file — draw again to replace
-                </Text>
-              ) : null}
               <View className="w-full overflow-hidden">
                 <SignaturePad
                   height={140}
+                  value={row.residentSignature}
                   onChange={(v: string) =>
                     updateAmenity(row.key, { residentSignature: v })
                   }
                 />
               </View>
               <Text className="mb-1 mt-3 text-sm text-slate-700">Caretaker</Text>
-              {row.caretakerSignature?.trim() ? (
-                <Text className="mb-1 text-xs text-emerald-600">
-                  Signature on file — draw again to replace
-                </Text>
-              ) : null}
               <View className="w-full overflow-hidden">
                 <SignaturePad
                   height={140}
+                  value={row.caretakerSignature}
                   onChange={(v: string) =>
                     updateAmenity(row.key, { caretakerSignature: v })
                   }
@@ -1061,26 +1050,18 @@ export default function AddEditPrePostInspection() {
           Final signatures
         </Text>
         <Text className="mb-1 text-sm text-slate-700">Final resident</Text>
-        {finalResidentSignature?.trim() ? (
-          <Text className="mb-1 text-xs text-emerald-600">
-            Signature on file — draw again to replace
-          </Text>
-        ) : null}
         <View className="w-full overflow-hidden">
           <SignaturePad
             height={140}
+            value={finalResidentSignature}
             onChange={setFinalResidentSignature}
           />
         </View>
         <Text className="mb-1 mt-3 text-sm text-slate-700">Final caretaker</Text>
-        {finalCaretakerSignature?.trim() ? (
-          <Text className="mb-1 text-xs text-emerald-600">
-            Signature on file — draw again to replace
-          </Text>
-        ) : null}
         <View className="w-full overflow-hidden">
           <SignaturePad
             height={140}
+            value={finalCaretakerSignature}
             onChange={setFinalCaretakerSignature}
           />
         </View>

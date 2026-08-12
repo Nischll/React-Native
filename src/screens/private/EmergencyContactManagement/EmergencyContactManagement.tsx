@@ -20,6 +20,7 @@ import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
+import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { EmergencyContactResponse } from "@/src/types/resident.types";
@@ -44,7 +45,8 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function EmergencyContactManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId } = useResidentIdFromRoute();
+  const { residentId, setResidentId, returnToDetails } =
+    useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -100,6 +102,7 @@ export default function EmergencyContactManagement() {
   const onSubmit = (values: FormValues) => {
     const onSuccess = () => {
       setModalVisible(false);
+      if (returnToDetails && returnToResidentDetails(residentId)) return;
       refetch();
     };
 

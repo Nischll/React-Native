@@ -7,6 +7,7 @@ import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
+import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
 import SelectField from "@/src/components/ui/SelectField";
 import { extractCreatedEntityId } from "@/src/helper/extractCreatedEntityId";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -15,7 +16,7 @@ import {
   ResidentStatus,
 } from "@/src/types/resident.types";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -34,6 +35,7 @@ export default function ResidentAddEditScreen() {
   const editMode = !!id;
 
   const { buildingId } = useAuth();
+  const [unitOpen, setUnitOpen] = useState(true);
 
   const { data, isLoading } = useGetResidentByBuildingResidenceOnly(
     id,
@@ -74,7 +76,14 @@ export default function ResidentAddEditScreen() {
     };
 
     if (editMode) {
-      updateResident(payload);
+      updateResident(payload, {
+        onSuccess: () => {
+          router.replace({
+            pathname: "/(private)/resident-management/resident-details",
+            params: { residentId: String(id) },
+          });
+        },
+      });
     } else {
       addResident(payload, {
         onSuccess: (response) => {
@@ -104,8 +113,8 @@ export default function ResidentAddEditScreen() {
         title={editMode ? "Edit Resident" : "Add Resident"}
         subtitle={
           editMode
-            ? "Update unit details, then manage owners, tenants, and other records."
-            : "Create a new resident record for this building."
+            ? "Expand a section to edit unit details or manage related records."
+            : "Create the unit first, then add related records."
         }
       />
 
@@ -121,91 +130,97 @@ export default function ResidentAddEditScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
       >
-        <Controller
-          control={control}
-          name="unit"
-          render={({ field: { onChange, value } }) => (
-            <AppInput
-              label="Unit"
-              value={value}
-              onChangeText={onChange}
-              placeholder="e.g. 302"
-              size="md"
-            />
-          )}
-        />
-
-        <View className="mt-3">
-          <Controller
-            control={control}
-            name="status"
-            render={({ field: { onChange, value } }) => (
-              <SelectField
-                label="Status"
-                value={value}
-                onChange={onChange}
-                options={RESIDENT_STATUS_OPTIONS}
-                placeholder="Select status"
-                mode="dropdown"
-              />
-            )}
-          />
-        </View>
-
-        <View className="mt-3">
-          <Controller
-            control={control}
-            name="parkingStall"
-            render={({ field: { onChange, value } }) => (
-              <AppInput
-                label="Parking Stall"
-                value={value}
-                onChangeText={onChange}
-                placeholder="e.g. P-12"
-                size="md"
-              />
-            )}
-          />
-        </View>
-
-        <View className="my-3">
-          <Controller
-            control={control}
-            name="storageLocker"
-            render={({ field: { onChange, value } }) => (
-              <AppInput
-                label="Storage Locker"
-                value={value}
-                onChangeText={onChange}
-                placeholder="e.g. S-04"
-                size="md"
-              />
-            )}
-          />
-        </View>
-
-        <AppButton
-          loading={editMode ? updatePending : addPending}
-          onPress={handleSubmit(onSubmit)}
+        <CollapsibleCard
+          icon="home-outline"
+          title="Unit details"
+          subtitle="Unit, status, parking, storage"
+          expanded={unitOpen}
+          onToggle={() => setUnitOpen((v) => !v)}
+          accentColor="#453956"
         >
-          {editMode ? "Update Resident" : "Create Resident"}
-        </AppButton>
+          <Controller
+            control={control}
+            name="unit"
+            render={({ field: { onChange, value } }) => (
+              <AppInput
+                label="Unit"
+                value={value}
+                onChangeText={onChange}
+                placeholder="e.g. 302"
+                size="md"
+              />
+            )}
+          />
+
+          <View className="mt-3">
+            <Controller
+              control={control}
+              name="status"
+              render={({ field: { onChange, value } }) => (
+                <SelectField
+                  label="Status"
+                  value={value}
+                  onChange={onChange}
+                  options={RESIDENT_STATUS_OPTIONS}
+                  placeholder="Select status"
+                  mode="dropdown"
+                />
+              )}
+            />
+          </View>
+
+          <View className="mt-3">
+            <Controller
+              control={control}
+              name="parkingStall"
+              render={({ field: { onChange, value } }) => (
+                <AppInput
+                  label="Parking Stall"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="e.g. P-12"
+                  size="md"
+                />
+              )}
+            />
+          </View>
+
+          <View className="mt-3 mb-4">
+            <Controller
+              control={control}
+              name="storageLocker"
+              render={({ field: { onChange, value } }) => (
+                <AppInput
+                  label="Storage Locker"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="e.g. S-04"
+                  size="md"
+                />
+              )}
+            />
+          </View>
+
+          <AppButton
+            loading={editMode ? updatePending : addPending}
+            onPress={handleSubmit(onSubmit)}
+          >
+            {editMode ? "Save & view details" : "Create Resident"}
+          </AppButton>
+        </CollapsibleCard>
 
         {editMode && id ? (
-          <View className="mt-5 mb-2">
-            <ResidentRelatedRecords residentId={id} />
-          </View>
+          <ResidentRelatedRecords residentId={id} defaultOpen />
         ) : (
-          <View className="mt-4 mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <View className="mt-1 mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
             <Text className="text-sm font-semibold text-amber-900">
               Next: related records
             </Text>
             <Text className="mt-1 text-xs text-amber-800">
-              After you create this unit, you can add owners, tenants, property
-              agents, vehicles, visitor passes, access devices, and emergency
-              contacts — the same as the web resident form.
+              After you create this unit, expandable sections appear for owners,
+              tenants, property agents, vehicles, visitor passes, access
+              devices, and emergency contacts.
             </Text>
           </View>
         )}

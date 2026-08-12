@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { LayoutChangeEvent, PanResponder, Pressable, Text, View } from "react-native";
+import {
+  LayoutChangeEvent,
+  PanResponder,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 type Point = { x: number; y: number };
@@ -8,12 +14,26 @@ type SignaturePadProps = {
   /** Fixed width. If omitted, pad fills parent width via onLayout. */
   width?: number;
   height?: number;
+  /** Existing signature payload (`SIGNATURE_JSON:...`) to hydrate on edit */
+  value?: string;
   onChange?: (value: string) => void;
 };
+
+function parseStrokes(value?: string): Point[][] {
+  if (!value?.trim() || !value.startsWith("SIGNATURE_JSON:")) return [];
+  try {
+    const cleaned = value.replace("SIGNATURE_JSON:", "");
+    const parsed = JSON.parse(cleaned);
+    return Array.isArray(parsed?.strokes) ? parsed.strokes : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function SignaturePad({
   width: widthProp,
   height = 160,
+  value,
   onChange,
 }: SignaturePadProps) {
   const [, forceRender] = useState(0);
@@ -24,6 +44,7 @@ export default function SignaturePad({
   const widthRef = useRef(width);
   const heightRef = useRef(height);
   const onChangeRef = useRef(onChange);
+  const lastHydratedValue = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     widthRef.current = width;
@@ -39,6 +60,16 @@ export default function SignaturePad({
   const currentStroke = useRef<Point[]>([]);
   const lastRenderTime = useRef(0);
 
+  // Hydrate from parent value (edit mode) without emitting onChange
+  useEffect(() => {
+    const next = value ?? "";
+    if (next === lastHydratedValue.current) return;
+    lastHydratedValue.current = next;
+    strokesRef.current = parseStrokes(next);
+    currentStroke.current = [];
+    forceRender((v) => v + 1);
+  }, [value]);
+
   const normalize = (x: number, y: number) => {
     const w = widthRef.current || 1;
     const h = heightRef.current || 1;
@@ -50,6 +81,7 @@ export default function SignaturePad({
       data.length === 0
         ? ""
         : `SIGNATURE_JSON:${JSON.stringify({ strokes: data })}`;
+    lastHydratedValue.current = payload;
     onChangeRef.current?.(payload);
   };
 

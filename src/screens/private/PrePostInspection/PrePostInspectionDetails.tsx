@@ -21,7 +21,7 @@ import {
   View,
 } from "react-native";
 import Svg from "react-native-svg";
-import { resolveInspectionImageUrl } from "./imageHelpers";
+import InspectionImage from "./InspectionImage";
 import type { PrePostInspectionImageResponse } from "@/src/types/prePostInspection.types";
 
 function inspectionDateDisplay(iso: string | undefined): string {
@@ -101,14 +101,9 @@ function ImageThumb({
 }) {
   return (
     <Pressable onPress={onPress} className="mr-2 mb-2">
-      <Image
-        source={{ uri: resolveInspectionImageUrl(img) }}
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: 8,
-          backgroundColor: "#f1f5f9",
-        }}
+      <InspectionImage
+        imageId={img.id}
+        style={{ width: 80, height: 80, borderRadius: 8 }}
         resizeMode="cover"
       />
       {(img.area?.trim() || img.description?.trim()) && (
@@ -139,7 +134,7 @@ export default function PrePostInspectionDetails() {
   const row = data?.data;
 
   const [viewer, setViewer] = useState<{
-    uri: string;
+    imageId: number;
     title: string;
     area?: string;
     description?: string;
@@ -263,7 +258,7 @@ export default function PrePostInspectionDetails() {
                         img={img}
                         onPress={() =>
                           setViewer({
-                            uri: resolveInspectionImageUrl(img),
+                            imageId: img.id,
                             title: img.originalFileName ?? "Pre",
                             area: img.area ?? undefined,
                             description: img.description ?? undefined,
@@ -287,7 +282,7 @@ export default function PrePostInspectionDetails() {
                         img={img}
                         onPress={() =>
                           setViewer({
-                            uri: resolveInspectionImageUrl(img),
+                            imageId: img.id,
                             title: img.originalFileName ?? "Post",
                             area: img.area ?? undefined,
                             description: img.description ?? undefined,
@@ -347,9 +342,9 @@ export default function PrePostInspectionDetails() {
           onPress={() => setViewer(null)}
         >
           <View className="w-full max-w-lg overflow-hidden rounded-2xl bg-white">
-            {viewer?.uri ? (
-              <Image
-                source={{ uri: viewer.uri }}
+            {viewer?.imageId != null ? (
+              <InspectionImage
+                imageId={viewer.imageId}
                 style={{ width: "100%", height: 320 }}
                 resizeMode="contain"
               />

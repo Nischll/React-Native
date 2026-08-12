@@ -21,11 +21,12 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
+import { dateInputToIsoOrNull, toDateInput } from "@/src/helper/formatDateTime";
+import { returnToResidentDetails } from "@/src/helper/returnToResidentDetails";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { OwnerResponse } from "@/src/types/resident.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
-import { dateInputToIsoOrNull, toDateInput } from "@/src/helper/formatDateTime";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
@@ -52,7 +53,8 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function OwnerManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const { residentId, setResidentId } = useResidentIdFromRoute();
+  const { residentId, setResidentId, returnToDetails } =
+    useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -120,6 +122,7 @@ export default function OwnerManagement() {
 
     const onSuccess = () => {
       setModalVisible(false);
+      if (returnToDetails && returnToResidentDetails(residentId)) return;
       refetch();
     };
 

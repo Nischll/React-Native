@@ -5,7 +5,7 @@ import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
-import Card from "@/src/components/ui/Card";
+import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
 import {
   AccessDeviceRequestPojo,
   EmergencyContactRequestPojo,
@@ -23,13 +23,11 @@ import {
   labelFobStatus,
 } from "@/src/types/resident.types";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 import { Linking, Text, View } from "react-native";
 import ResidentRelatedRecords from "./ResidentRelatedRecords";
-
-interface ResidentDetailsViewProps {
-  residentId: number | undefined;
-}
 
 const STATUS_META: Record<
   ResidentStatus,
@@ -62,7 +60,6 @@ function formatMoney(value?: string) {
   return `$${num.toLocaleString()}`;
 }
 
-/** A single label/value line used throughout every detail card. */
 function DetailRow({
   label,
   value,
@@ -82,50 +79,62 @@ function DetailRow({
   );
 }
 
-function SectionCard({
+function Divider() {
+  return <View className="h-px bg-gray-200 my-2" />;
+}
+
+function ExpandableSection({
+  sectionKey,
+  openKey,
+  setOpenKey,
   icon,
   title,
   count,
+  accentColor = "#453956",
   children,
 }: {
+  sectionKey: string;
+  openKey: string | null;
+  setOpenKey: (key: string | null) => void;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   title: string;
   count?: number;
+  accentColor?: string;
   children: React.ReactNode;
 }) {
+  const expanded = openKey === sectionKey;
+  const subtitle =
+    typeof count === "number"
+      ? `${count} record${count === 1 ? "" : "s"}`
+      : undefined;
+
   return (
-    <Card className="mb-3 overflow-hidden p-0">
-      {/* Header — separated from content with its own background + border */}
-      <View className="flex-row items-center gap-2.5 bg-gray-50/80 px-4 py-3 border-b border-gray-100">
-        <View className="h-9 w-9 items-center justify-center rounded-xl bg-primary">
-          <AppIcon name={icon} size={17} color="#FFFFFF" />
-        </View>
-        <Text className="flex-1 text-base font-bold text-textPrimary tracking-tight">
-          {title}
-        </Text>
-        {typeof count === "number" && count > 1 && (
-          <View className="min-w-[26px] items-center rounded-full bg-primary px-2 py-1">
-            <Text className="text-xs font-bold text-white">{count}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Content */}
-      <View className="px-4 py-3">{children}</View>
-    </Card>
+    <CollapsibleCard
+      icon={icon}
+      title={title}
+      subtitle={subtitle}
+      expanded={expanded}
+      onToggle={() => setOpenKey(expanded ? null : sectionKey)}
+      accentColor={accentColor}
+    >
+      {children}
+    </CollapsibleCard>
   );
-}
-
-function Divider() {
-  return <View className="h-px bg-gray-300 my-3" />;
 }
 
 export default function ResidentDetails() {
   const { residentId } = useLocalSearchParams<{ residentId: string }>();
   const parsedResidentId = residentId ? parseInt(residentId, 10) : undefined;
+  const [openKey, setOpenKey] = useState<string | null>("owners");
 
   const { data, isLoading, isError, refetch } =
     useGetResidentByBuildingResidenceOnly(parsedResidentId, !!parsedResidentId);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (parsedResidentId) refetch();
+    }, [parsedResidentId, refetch]),
+  );
 
   const resident = data?.data;
 
@@ -135,7 +144,7 @@ export default function ResidentDetails() {
         <PageHeader
           icon="person"
           title="Resident Details"
-          subtitle="View resident information, contacts, access devices, and related records."
+          subtitle="View resident information and related records."
           showBackButton
         />
         <View className="p-4">
@@ -153,7 +162,7 @@ export default function ResidentDetails() {
         <PageHeader
           icon="person"
           title="Resident Details"
-          subtitle="View resident information, contacts, access devices, and related records."
+          subtitle="View resident information and related records."
           showBackButton
         />
         <ErrorState
@@ -171,7 +180,7 @@ export default function ResidentDetails() {
         <PageHeader
           icon="person"
           title="Resident Details"
-          subtitle="View resident information, contacts, access devices, and related records."
+          subtitle="View resident information and related records."
           showBackButton
         />
         <EmptyState
@@ -181,15 +190,15 @@ export default function ResidentDetails() {
       </View>
     );
   }
+
   const statusMeta = STATUS_META[resident.status];
 
   return (
     <View>
-      {/* ── Header ── */}
       <PageHeader
         icon="person"
         title="Resident Details"
-        subtitle="View resident information, contacts, access devices, and related records."
+        subtitle="Expand a section to review or manage related records."
         showBackButton
       />
 
@@ -258,9 +267,15 @@ export default function ResidentDetails() {
         <ResidentRelatedRecords residentId={parsedResidentId} />
       ) : null}
 
-      {/* ── Owners ── */}
+      <Text className="mb-2 mt-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        Current records
+      </Text>
+
       {!!resident.owners?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="owners"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="person-outline"
           title="Owners"
           count={resident.owners.length}
@@ -285,24 +300,24 @@ export default function ResidentDetails() {
               />
             </View>
           ))}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Tenants ── */}
       {!!resident.tenants?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="tenants"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="people-outline"
           title="Tenants"
           count={resident.tenants.length}
+          accentColor="#2563EB"
         >
           {resident.tenants.map((tenant: TenantRequestPojo, i: number) => (
             <View key={i}>
               {i > 0 && <Divider />}
               <DetailRow label="Full name" value={tenant.fullName} />
-              <DetailRow
-                label="Phone"
-                value={tenant.phoneNumber}
-              />
+              <DetailRow label="Phone" value={tenant.phoneNumber} />
               <DetailRow
                 label="Email"
                 value={tenant.emailAddress || tenant.email}
@@ -325,15 +340,18 @@ export default function ResidentDetails() {
               />
             </View>
           ))}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Property agents ── */}
       {!!resident.propertyAgents?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="agents"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="briefcase-outline"
           title="Property agents"
           count={resident.propertyAgents.length}
+          accentColor="#D97706"
         >
           {resident.propertyAgents.map(
             (agent: PropertyAgentRequestPojo, i: number) => (
@@ -346,15 +364,18 @@ export default function ResidentDetails() {
               </View>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Access devices / fobs ── */}
       {!!resident.accessDevices?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="devices"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="key-outline"
           title="Access devices"
           count={resident.accessDevices.length}
+          accentColor="#BE185D"
         >
           {resident.accessDevices.map(
             (device: AccessDeviceRequestPojo, i: number) => (
@@ -378,15 +399,18 @@ export default function ResidentDetails() {
               </View>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Vehicles ── */}
       {!!resident.vehicles?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="vehicles"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="car-outline"
           title="Vehicles"
           count={resident.vehicles.length}
+          accentColor="#0F766E"
         >
           {resident.vehicles.map((vehicle: VehicleRequestPojo, i: number) => (
             <View key={i}>
@@ -396,15 +420,18 @@ export default function ResidentDetails() {
               <DetailRow label="Color" value={vehicle.color} />
             </View>
           ))}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Visitor passes ── */}
       {!!resident.visitorPasses?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="passes"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="ticket-outline"
           title="Visitor passes"
           count={resident.visitorPasses.length}
+          accentColor="#7C3AED"
         >
           {resident.visitorPasses.map(
             (pass: VisitorPassRequestPojo, i: number) => (
@@ -426,15 +453,18 @@ export default function ResidentDetails() {
               </View>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Emergency contacts ── */}
       {!!resident.emergencyContacts?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="emergency"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="medkit-outline"
           title="Emergency contacts"
           count={resident.emergencyContacts.length}
+          accentColor="#DC2626"
         >
           {resident.emergencyContacts.map(
             (contact: EmergencyContactRequestPojo, i: number) => (
@@ -450,12 +480,14 @@ export default function ResidentDetails() {
               </View>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Filters ── */}
       {!!resident.filters?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="filters"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="funnel-outline"
           title="Filters"
           count={resident.filters.length}
@@ -472,12 +504,14 @@ export default function ResidentDetails() {
               />
             </View>
           ))}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Rentals ── */}
       {!!resident.rentals?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="rentals"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="calendar-outline"
           title="Rentals"
           count={resident.rentals.length}
@@ -509,12 +543,14 @@ export default function ResidentDetails() {
               </View>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Enterphones ── */}
       {!!resident.enterphones?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="enterphones"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="call-outline"
           title="Enterphones"
           count={resident.enterphones.length}
@@ -536,12 +572,14 @@ export default function ResidentDetails() {
               </View>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
 
-      {/* ── Documents ── */}
       {!!resident.documents?.length && (
-        <SectionCard
+        <ExpandableSection
+          sectionKey="documents"
+          openKey={openKey}
+          setOpenKey={setOpenKey}
           icon="document-outline"
           title="Documents"
           count={resident.documents.length}
@@ -570,7 +608,7 @@ export default function ResidentDetails() {
               </AnimatedPressable>
             ),
           )}
-        </SectionCard>
+        </ExpandableSection>
       )}
     </View>
   );
