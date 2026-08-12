@@ -7,14 +7,16 @@ export default function ResidentAddEditPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container">
+      <ScreenContainer
+        key="static-container"
+        scrollable={false}
+        refreshable={false}
+      >
         <ResidentAddEditScreen key={screenRefreshKey} />
       </ScreenContainer>
 
       {refreshing && (
-        <View className="absolute inset-0 bg-black/30 items-center justify-center z-50">
-          {/* <ActivityIndicator size="large" color="#2563eb" /> */}
-        </View>
+        <View className="absolute inset-0 bg-black/30 items-center justify-center z-50" />
       )}
     </>
   );

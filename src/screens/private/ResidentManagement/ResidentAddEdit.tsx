@@ -17,7 +17,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
+import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import ResidentRelatedRecords from "./ResidentRelatedRecords";
 
@@ -109,108 +109,107 @@ export default function ResidentAddEditScreen() {
         }
       />
 
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAwareScrollView
-          className="flex-1"
-          contentContainerStyle={{
-            paddingHorizontal: 10,
-            paddingBottom: 30,
-          }}
-          enableOnAndroid
-          extraScrollHeight={20}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View>
-            <Controller
-              control={control}
-              name="unit"
-              render={({ field: { onChange, value } }) => (
-                <AppInput
-                  label="Unit"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="e.g. 302"
-                  size="md"
-                />
-              )}
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: 48,
+        }}
+        enableOnAndroid
+        enableAutomaticScroll
+        extraScrollHeight={24}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
+        <Controller
+          control={control}
+          name="unit"
+          render={({ field: { onChange, value } }) => (
+            <AppInput
+              label="Unit"
+              value={value}
+              onChangeText={onChange}
+              placeholder="e.g. 302"
+              size="md"
             />
+          )}
+        />
 
-            <View className="mt-3">
-              <Controller
-                control={control}
-                name="status"
-                render={({ field: { onChange, value } }) => (
-                  <SelectField
-                    label="Status"
-                    value={value}
-                    onChange={onChange}
-                    options={RESIDENT_STATUS_OPTIONS}
-                    placeholder="Select status"
-                    mode="dropdown"
-                  />
-                )}
+        <View className="mt-3">
+          <Controller
+            control={control}
+            name="status"
+            render={({ field: { onChange, value } }) => (
+              <SelectField
+                label="Status"
+                value={value}
+                onChange={onChange}
+                options={RESIDENT_STATUS_OPTIONS}
+                placeholder="Select status"
+                mode="dropdown"
               />
-            </View>
-
-            <View className="mt-3">
-              <Controller
-                control={control}
-                name="parkingStall"
-                render={({ field: { onChange, value } }) => (
-                  <AppInput
-                    label="Parking Stall"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="e.g. P-12"
-                    size="md"
-                  />
-                )}
-              />
-            </View>
-
-            <View className="my-3">
-              <Controller
-                control={control}
-                name="storageLocker"
-                render={({ field: { onChange, value } }) => (
-                  <AppInput
-                    label="Storage Locker"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="e.g. S-04"
-                    size="md"
-                  />
-                )}
-              />
-            </View>
-
-            <AppButton
-              loading={editMode ? updatePending : addPending}
-              onPress={handleSubmit(onSubmit)}
-            >
-              {editMode ? "Update Resident" : "Create Resident"}
-            </AppButton>
-
-            {editMode && id ? (
-              <View className="mt-5">
-                <ResidentRelatedRecords residentId={id} />
-              </View>
-            ) : (
-              <View className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <Text className="text-sm font-semibold text-amber-900">
-                  Next: related records
-                </Text>
-                <Text className="mt-1 text-xs text-amber-800">
-                  After you create this unit, you can add owners, tenants,
-                  property agents, vehicles, visitor passes, access devices, and
-                  emergency contacts — the same as the web resident form.
-                </Text>
-              </View>
             )}
+          />
+        </View>
+
+        <View className="mt-3">
+          <Controller
+            control={control}
+            name="parkingStall"
+            render={({ field: { onChange, value } }) => (
+              <AppInput
+                label="Parking Stall"
+                value={value}
+                onChangeText={onChange}
+                placeholder="e.g. P-12"
+                size="md"
+              />
+            )}
+          />
+        </View>
+
+        <View className="my-3">
+          <Controller
+            control={control}
+            name="storageLocker"
+            render={({ field: { onChange, value } }) => (
+              <AppInput
+                label="Storage Locker"
+                value={value}
+                onChangeText={onChange}
+                placeholder="e.g. S-04"
+                size="md"
+              />
+            )}
+          />
+        </View>
+
+        <AppButton
+          loading={editMode ? updatePending : addPending}
+          onPress={handleSubmit(onSubmit)}
+        >
+          {editMode ? "Update Resident" : "Create Resident"}
+        </AppButton>
+
+        {editMode && id ? (
+          <View className="mt-5 mb-2">
+            <ResidentRelatedRecords residentId={id} />
           </View>
-        </KeyboardAwareScrollView>
-      </TouchableWithoutFeedback>
+        ) : (
+          <View className="mt-4 mb-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <Text className="text-sm font-semibold text-amber-900">
+              Next: related records
+            </Text>
+            <Text className="mt-1 text-xs text-amber-800">
+              After you create this unit, you can add owners, tenants, property
+              agents, vehicles, visitor passes, access devices, and emergency
+              contacts — the same as the web resident form.
+            </Text>
+          </View>
+        )}
+      </KeyboardAwareScrollView>
     </View>
   );
 }
