@@ -18,13 +18,16 @@ export const useGetTenantsByResident = (
   });
 
 export const useAddTenant = (residentId: number | undefined) =>
-  useApiMutation<TenantRequestPojo>("post", `/tenant/resident/${residentId}`);
+  useApiMutation<TenantRequestPojo | FormData>(
+    "post",
+    `/tenant/resident/${residentId}`,
+  );
 
 export const useUpdateTenant = (
   residentId: number | undefined,
   tenantId: number | undefined,
 ) =>
-  useApiMutation<TenantRequestPojo>(
+  useApiMutation<TenantRequestPojo | FormData>(
     "put",
     `/tenant/${tenantId}/resident/${residentId}`,
   );

@@ -13,7 +13,9 @@ import AnchoredPopupMenu, {
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import SelectField from "@/src/components/ui/SelectField";
 import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
+import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   depositReturnedLabel,
@@ -23,7 +25,7 @@ import {
 } from "@/src/types/prePostInspection.types";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, TouchableOpacity, View } from "react-native";
 import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 
 const PAGE_SIZE = 10;
@@ -79,6 +81,7 @@ function normalizeListPayload(raw: unknown): {
 
 export default function PrePostInspection() {
   const { user, buildingId } = useAuth();
+  const { residences } = useResidencesForActiveBuilding();
   const params = useLocalSearchParams<{ bookingId?: string }>();
   const bookingIdParam = params.bookingId;
   const bookingId =
@@ -283,70 +286,91 @@ export default function PrePostInspection() {
             </Text>
           </View>
         ) : (
-          <MobileDataList<PrePostInspectionResponse>
-            data={rows}
-            columns={columns}
-            loading={isLoading}
-            refreshing={isRefetching}
-            backendMode
-            keyExtractor={(item) => item.id.toString()}
-            emptyMessage="No inspections yet. Create one to get started."
-            onRefresh={refetch}
-            onFilterPress={() => setFilterVisible(true)}
-            pagination={{
-              page,
-              pageSize: PAGE_SIZE,
-              total,
-              hasMore: page * PAGE_SIZE < total,
-              onPageChange: setPage,
-            }}
-            renderActions={(row) => {
-              const items: MenuItem[] = [
-                {
-                  label: "View",
-                  icon: "eye",
-                  onPress: () =>
-                    router.push({
-                      pathname:
-                        "/(private)/pre-post-inspection/inspection-details",
-                      params: { inspectionId: String(row.id) },
-                    }),
-                },
-                {
-                  label: "Edit",
-                  icon: "pencil",
-                  onPress: () =>
-                    router.push({
-                      pathname:
-                        "/(private)/pre-post-inspection/inspection-add-edit",
-                      params: { inspectionId: String(row.id) },
-                    }),
-                },
-                {
-                  label: "Delete",
-                  icon: "trash",
-                  danger: true,
-                  onPress: () => setDeleteTarget(row),
-                },
-              ];
-              return <AnchoredPopupMenu items={items} />;
-            }}
-          />
+          <View className="flex-1 px-1">
+            <View className="mb-2 flex-row items-start gap-2">
+              <View className="flex-1">
+                <SelectField
+                  value={residentId != null ? String(residentId) : ""}
+                  onChange={(v) =>
+                    setResidentId(v ? Number(v) : undefined)
+                  }
+                  options={[
+                    { label: "All units", value: "" },
+                    ...residences,
+                  ]}
+                  placeholder="Select unit"
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => setFilterVisible(true)}
+                className="mt-0.5 h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-white"
+              >
+                <AppIcon name="options-outline" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <MobileDataList<PrePostInspectionResponse>
+              data={rows}
+              columns={columns}
+              loading={isLoading}
+              refreshing={isRefetching}
+              backendMode
+              keyExtractor={(item) => item.id.toString()}
+              emptyMessage="No inspections yet. Create one to get started."
+              onRefresh={refetch}
+              pagination={{
+                page,
+                pageSize: PAGE_SIZE,
+                total,
+                hasMore: page * PAGE_SIZE < total,
+                onPageChange: setPage,
+              }}
+              renderActions={(row) => {
+                const items: MenuItem[] = [
+                  {
+                    label: "View",
+                    icon: "eye",
+                    onPress: () =>
+                      router.push({
+                        pathname:
+                          "/(private)/pre-post-inspection/inspection-details",
+                        params: { inspectionId: String(row.id) },
+                      }),
+                  },
+                  {
+                    label: "Edit",
+                    icon: "pencil",
+                    onPress: () =>
+                      router.push({
+                        pathname:
+                          "/(private)/pre-post-inspection/inspection-add-edit",
+                        params: { inspectionId: String(row.id) },
+                      }),
+                  },
+                  {
+                    label: "Delete",
+                    icon: "trash",
+                    danger: true,
+                    onPress: () => setDeleteTarget(row),
+                  },
+                ];
+                return <AnchoredPopupMenu items={items} />;
+              }}
+            />
+          </View>
         )}
       </View>
 
       <TaskFilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
-        residentId={residentId}
-        setResidentId={setResidentId}
+        showResident={false}
         dateType={dateType}
         fromDate={fromDate}
         toDate={toDate}
         setFromDate={setFromDate}
         setToDate={setToDate}
         applyPreset={applyPreset}
-        showResident
       />
 
       <ConfirmModal

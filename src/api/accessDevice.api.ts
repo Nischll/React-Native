@@ -22,7 +22,7 @@ export const useGetAccessDevicesByResident = (
   });
 
 export const useAddAccessDevice = (residentId: number | undefined) =>
-  useApiMutation<AccessDeviceRequestPojo>(
+  useApiMutation<AccessDeviceRequestPojo | FormData>(
     "post",
     `/access-device/resident/${residentId}`,
   );
@@ -31,7 +31,7 @@ export const useUpdateAccessDevice = (
   residentId: number | undefined,
   deviceId: number | undefined,
 ) =>
-  useApiMutation<AccessDeviceRequestPojo>(
+  useApiMutation<AccessDeviceRequestPojo | FormData>(
     "put",
     `/access-device/${deviceId}/resident/${residentId}`,
   );

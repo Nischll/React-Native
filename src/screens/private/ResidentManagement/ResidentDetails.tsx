@@ -23,8 +23,9 @@ import {
   labelFobStatus,
 } from "@/src/types/resident.types";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Linking, Text, View } from "react-native";
+import ResidentRelatedRecords from "./ResidentRelatedRecords";
 
 interface ResidentDetailsViewProps {
   residentId: number | undefined;
@@ -236,7 +237,26 @@ export default function ResidentDetails() {
             ) : null}
           </View>
         )}
+
+        <AnimatedPressable
+          onPress={() =>
+            router.push({
+              pathname: "/(private)/resident-management/resident-add-edit",
+              params: { residentId: String(resident.id) },
+            })
+          }
+          className="mt-4 flex-row items-center justify-center gap-2 rounded-xl bg-white/15 py-2.5"
+        >
+          <AppIcon name="create-outline" size={16} color="#FFFFFF" />
+          <Text className="text-sm font-semibold text-white">
+            Edit unit & related records
+          </Text>
+        </AnimatedPressable>
       </View>
+
+      {parsedResidentId ? (
+        <ResidentRelatedRecords residentId={parsedResidentId} />
+      ) : null}
 
       {/* ── Owners ── */}
       {!!resident.owners?.length && (
@@ -279,8 +299,14 @@ export default function ResidentDetails() {
             <View key={i}>
               {i > 0 && <Divider />}
               <DetailRow label="Full name" value={tenant.fullName} />
-              <DetailRow label="Phone" value={tenant.phoneNumber} />
-              <DetailRow label="Email" value={tenant.email} />
+              <DetailRow
+                label="Phone"
+                value={tenant.phoneNumber}
+              />
+              <DetailRow
+                label="Email"
+                value={tenant.emailAddress || tenant.email}
+              />
               <DetailRow
                 label="Form K submitted"
                 value={tenant.formKSubmitted}

@@ -21,7 +21,9 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
+import { dateInputToIsoOrNull, toDateInput } from "@/src/helper/formatDateTime";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { PropertyAgentResponse } from "@/src/types/resident.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useEffect, useState } from "react";
@@ -50,7 +52,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function PropertyAgentManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const [residentId, setResidentId] = useState<string>();
+  const { residentId, setResidentId } = useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -99,8 +101,8 @@ export default function PropertyAgentManagement() {
       phoneNumber: item.phoneNumber ?? "",
       email: item.email ?? "",
       isActive: item.isActive ?? true,
-      activeFromDate: item.activeFromDate ?? "",
-      activeToDate: item.activeToDate ?? "",
+      activeFromDate: toDateInput(item.activeFromDate),
+      activeToDate: toDateInput(item.activeToDate),
     });
     setModalVisible(true);
   };
@@ -112,8 +114,8 @@ export default function PropertyAgentManagement() {
       phoneNumber: values.phoneNumber,
       email: values.email,
       isActive: values.isActive,
-      activeFromDate: values.activeFromDate || null,
-      activeToDate: values.activeToDate || null,
+      activeFromDate: dateInputToIsoOrNull(values.activeFromDate),
+      activeToDate: dateInputToIsoOrNull(values.activeToDate),
     };
 
     const onSuccess = () => {

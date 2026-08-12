@@ -8,6 +8,7 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
+import { extractCreatedEntityId } from "@/src/helper/extractCreatedEntityId";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   RESIDENT_STATUS_OPTIONS,
@@ -16,8 +17,9 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Keyboard, TouchableWithoutFeedback, View } from "react-native";
+import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import ResidentRelatedRecords from "./ResidentRelatedRecords";
 
 interface FormValues {
   unit: string;
@@ -72,12 +74,20 @@ export default function ResidentAddEditScreen() {
     };
 
     if (editMode) {
-      updateResident(payload, {
-        onSuccess: () => router.back(),
-      });
+      updateResident(payload);
     } else {
       addResident(payload, {
-        onSuccess: () => router.back(),
+        onSuccess: (response) => {
+          const newId = extractCreatedEntityId(response);
+          if (newId) {
+            router.replace({
+              pathname: "/(private)/resident-management/resident-add-edit",
+              params: { residentId: String(newId) },
+            });
+            return;
+          }
+          router.back();
+        },
       });
     }
   };
@@ -94,7 +104,7 @@ export default function ResidentAddEditScreen() {
         title={editMode ? "Edit Resident" : "Add Resident"}
         subtitle={
           editMode
-            ? "Update this resident's unit details."
+            ? "Update unit details, then manage owners, tenants, and other records."
             : "Create a new resident record for this building."
         }
       />
@@ -181,6 +191,23 @@ export default function ResidentAddEditScreen() {
             >
               {editMode ? "Update Resident" : "Create Resident"}
             </AppButton>
+
+            {editMode && id ? (
+              <View className="mt-5">
+                <ResidentRelatedRecords residentId={id} />
+              </View>
+            ) : (
+              <View className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <Text className="text-sm font-semibold text-amber-900">
+                  Next: related records
+                </Text>
+                <Text className="mt-1 text-xs text-amber-800">
+                  After you create this unit, you can add owners, tenants,
+                  property agents, vehicles, visitor passes, access devices, and
+                  emergency contacts — the same as the web resident form.
+                </Text>
+              </View>
+            )}
           </View>
         </KeyboardAwareScrollView>
       </TouchableWithoutFeedback>

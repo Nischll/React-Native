@@ -20,6 +20,7 @@ import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import SelectField from "@/src/components/ui/SelectField";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { VehicleResponse } from "@/src/types/resident.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { useEffect, useState } from "react";
@@ -40,7 +41,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function VehicleManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const [residentId, setResidentId] = useState<string>();
+  const { residentId, setResidentId } = useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");

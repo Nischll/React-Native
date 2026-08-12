@@ -18,9 +18,15 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
+import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
+import {
+  accessDeviceRequiresOwnerApproval,
+  buildAccessDeviceFormData,
+} from "@/src/helper/accessDeviceFormData";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import {
   AccessDeviceResponse,
   FOB_STATUS_OPTIONS,
@@ -31,8 +37,9 @@ import {
   labelFobStatus,
 } from "@/src/types/resident.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
+import { showToast } from "@/src/utils/toast";
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { Text, View } from "react-native";
 
 const FOB_TYPE_OPTIONS = [
@@ -82,7 +89,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function AccessDeviceManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const [residentId, setResidentId] = useState<string>();
+  const { residentId, setResidentId } = useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -116,15 +123,28 @@ export default function AccessDeviceManagement() {
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: DEFAULT_VALUES,
   });
+  const assignedToWatch = useWatch({ control, name: "assignedTo" });
+  const [ownerApproval, setOwnerApproval] = useState<PickedFile | null>(null);
 
   const openAdd = () => {
     setEditing(null);
+    setOwnerApproval(null);
     reset(DEFAULT_VALUES);
     setModalVisible(true);
   };
 
   const openEdit = (item: AccessDeviceResponse) => {
     setEditing(item);
+    setOwnerApproval(
+      item.ownerApprovalUrl
+        ? {
+            uri: item.ownerApprovalUrl,
+            name: "Owner approval",
+            mimeType: "application/octet-stream",
+            isLocal: false,
+          }
+        : null,
+    );
     reset({
       type: item.type ?? "",
       cardNumber: item.cardNumber ?? "",
@@ -141,18 +161,33 @@ export default function AccessDeviceManagement() {
   };
 
   const onSubmit = (values: FormValues) => {
-    const payload = {
-      type: values.type as FobType,
-      cardNumber: values.cardNumber,
-      accessLevel: values.accessLevel,
-      assignedTo: values.assignedTo as FobAssignedTo,
-      status: values.status as FobStatus,
-      paidAmount: values.paidAmount || undefined,
-      paidType: (values.paidType || undefined) as PaidType | undefined,
-      paidNotes: values.paidNotes || undefined,
-      isFree: values.isFree,
-      isPaid: values.isPaid,
-    };
+    if (
+      accessDeviceRequiresOwnerApproval(values.assignedTo) &&
+      !editing &&
+      !ownerApproval?.isLocal
+    ) {
+      showToast(
+        "error",
+        "Owner approval document is required when assigned to a tenant.",
+      );
+      return;
+    }
+
+    const fd = buildAccessDeviceFormData(
+      {
+        type: values.type,
+        cardNumber: values.cardNumber,
+        accessLevel: values.accessLevel,
+        assignedTo: values.assignedTo,
+        status: values.status,
+        paidAmount: values.paidAmount || undefined,
+        paidType: values.paidType || undefined,
+        paidNotes: values.paidNotes || undefined,
+        isFree: values.isFree,
+        isPaid: values.isPaid,
+      },
+      ownerApproval,
+    );
 
     const onSuccess = () => {
       setModalVisible(false);
@@ -160,9 +195,9 @@ export default function AccessDeviceManagement() {
     };
 
     if (editing) {
-      updateDevice(payload, { onSuccess });
+      updateDevice(fd, { onSuccess });
     } else {
-      addDevice(payload, { onSuccess });
+      addDevice(fd, { onSuccess });
     }
   };
 
@@ -332,6 +367,19 @@ export default function AccessDeviceManagement() {
             )}
           />
         </View>
+
+        {accessDeviceRequiresOwnerApproval(assignedToWatch) ? (
+          <View className="mt-3">
+            <FilePicker
+              label="Owner approval"
+              hint="Required when assigned to a tenant"
+              value={ownerApproval}
+              onChange={setOwnerApproval}
+              accept="all"
+              compact
+            />
+          </View>
+        ) : null}
 
         <View className="mt-3">
           <Controller

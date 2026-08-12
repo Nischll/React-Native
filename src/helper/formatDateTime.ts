@@ -22,6 +22,45 @@ export function formatDateOnly(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** API timestamp / ISO / yyyy-MM-dd → yyyy-MM-dd for DatePickerField. */
+export function toDateInput(value?: string | null): string {
+  if (value == null || String(value).trim() === "") return "";
+  const s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  return formatDateOnly(d);
+}
+
+/**
+ * Date picker value (yyyy-MM-dd) → ISO at local midnight, matching web
+ * `dateInputToIsoOrNull` so Jackson can bind Timestamp fields.
+ */
+export function dateInputToIsoOrNull(
+  raw: string | null | undefined,
+): string | null {
+  if (raw == null || String(raw).trim() === "") return null;
+  let s = String(raw).trim();
+  if (s.length >= 10 && s[4] === "-" && s[7] === "-") {
+    s = s.slice(0, 10);
+  }
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const day = Number(m[3]);
+  const d = new Date(y, mo, day, 0, 0, 0, 0);
+  if (
+    Number.isNaN(d.getTime()) ||
+    d.getFullYear() !== y ||
+    d.getMonth() !== mo ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
+  return d.toISOString();
+}
+
 export type DatePreset = "today" | "week" | "month";
 
 /** Local calendar ranges for filter presets (This Month = 1st → last day of month). */

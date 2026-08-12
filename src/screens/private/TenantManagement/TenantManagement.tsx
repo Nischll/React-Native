@@ -19,13 +19,21 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import DatePickerField from "@/src/components/ui/DatePickerField";
+import { FilePicker, PickedFile } from "@/src/components/ui/FilePicker";
 import SelectField from "@/src/components/ui/SelectField";
 import SwitchField from "@/src/components/ui/SwitchField";
+import { toDateInput } from "@/src/helper/formatDateTime";
+import {
+  buildTenantFormData,
+  tenantEmail,
+} from "@/src/helper/tenantFormData";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { useResidentIdFromRoute } from "@/src/hooks/useResidentIdFromRoute";
 import { TenantResponse } from "@/src/types/resident.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
+import { showToast } from "@/src/utils/toast";
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { Text, View } from "react-native";
 
 const FORM_K_OPTIONS = [
@@ -58,7 +66,7 @@ const DEFAULT_VALUES: FormValues = {
 
 export default function TenantManagement() {
   const { residences } = useResidencesForActiveBuilding();
-  const [residentId, setResidentId] = useState<string>();
+  const { residentId, setResidentId } = useResidentIdFromRoute();
   const numericResidentId = residentId ? Number(residentId) : undefined;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -94,52 +102,57 @@ export default function TenantManagement() {
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: DEFAULT_VALUES,
   });
+  const formKSubmitted = useWatch({ control, name: "formKSubmitted" });
+  const [formKFile, setFormKFile] = useState<PickedFile | null>(null);
 
   const openAdd = () => {
     setEditing(null);
+    setFormKFile(null);
     reset(DEFAULT_VALUES);
     setModalVisible(true);
   };
 
   const openEdit = (item: TenantResponse) => {
     setEditing(item);
+    setFormKFile(
+      item.formKFileUrl
+        ? {
+            uri: item.formKFileUrl,
+            name: item.formKFilePath?.split("/").pop() || "Form K",
+            mimeType: "application/octet-stream",
+            isLocal: false,
+          }
+        : null,
+    );
     reset({
       fullName: item.fullName ?? "",
       phoneNumber: item.phoneNumber ?? "",
-      email: item.email ?? "",
+      email: tenantEmail(item),
       formKSubmitted: item.formKSubmitted ?? "",
       needsEmergencyAssistance: !!item.needsEmergencyAssistance,
       isActive: item.isActive ?? true,
-      activeFromDate: item.activeFromDate ?? "",
-      activeToDate: item.activeToDate ?? "",
+      activeFromDate: toDateInput(item.activeFromDate),
+      activeToDate: toDateInput(item.activeToDate),
     });
     setModalVisible(true);
   };
 
-  const onSubmit = (values: FormValues) => {
-    const payload = {
-      fullName: values.fullName,
-      phoneNumber: values.phoneNumber,
-      email: values.email,
-      formKSubmitted: (values.formKSubmitted || "NO") as
-        | "YES"
-        | "NO"
-        | "UPLOAD",
-      needsEmergencyAssistance: values.needsEmergencyAssistance,
-      isActive: values.isActive,
-      activeFromDate: values.activeFromDate || null,
-      activeToDate: values.activeToDate || null,
-    };
+  const onSubmit = async (values: FormValues) => {
+    if (values.formKSubmitted === "UPLOAD" && !editing && !formKFile?.isLocal) {
+      showToast("error", "Please upload the Form K file.");
+      return;
+    }
 
+    const fd = await buildTenantFormData(values, formKFile);
     const onSuccess = () => {
       setModalVisible(false);
       refetch();
     };
 
     if (editing) {
-      updateTenant(payload, { onSuccess });
+      updateTenant(fd, { onSuccess });
     } else {
-      addTenant(payload, { onSuccess });
+      addTenant(fd, { onSuccess });
     }
   };
 
@@ -157,7 +170,11 @@ export default function TenantManagement() {
   const columns: MobileColumn<TenantResponse>[] = [
     { key: "fullName", label: "Name", primary: true },
     { key: "phoneNumber", label: "Phone" },
-    { key: "email", label: "Email" },
+    {
+      key: "email",
+      label: "Email",
+      render: (_value, row) => <Text>{tenantEmail(row) || "—"}</Text>,
+    },
     { key: "formKSubmitted", label: "Form K" },
     {
       key: "isActive",
@@ -315,6 +332,19 @@ export default function TenantManagement() {
             )}
           />
         </View>
+
+        {formKSubmitted === "UPLOAD" ? (
+          <View className="mt-3">
+            <FilePicker
+              label="Form K file"
+              hint="Upload Form K document"
+              value={formKFile}
+              onChange={setFormKFile}
+              accept="all"
+              compact
+            />
+          </View>
+        ) : null}
 
         <View className="mt-3">
           <Controller

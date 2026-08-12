@@ -40,9 +40,12 @@ export interface OwnerRequestPojo {
 export interface TenantRequestPojo {
   fullName: string;
   phoneNumber: string;
-  email: string;
+  email?: string;
+  emailAddress?: string;
   formKSubmitted: "YES" | "NO" | "UPLOAD";
   formKFile?: File | string;
+  formKFilePath?: string;
+  formKFileUrl?: string;
   needsEmergencyAssistance: boolean;
   isActive?: boolean;
   activeFromDate?: string | null;
