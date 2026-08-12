@@ -47,18 +47,30 @@ function SignatureBlock({
   value: string | null | undefined;
 }) {
   const v = value?.trim() ?? "";
+  const [boxWidth, setBoxWidth] = useState(0);
+
   return (
-    <View className="mb-3">
+    <View className="mb-3 w-full overflow-hidden">
       <Text className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
         {label}
       </Text>
       {!v ? (
         <Text className="text-sm text-slate-400">—</Text>
       ) : v.startsWith("SIGNATURE_JSON:") ? (
-        <View className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-          <Svg height={120} width="100%">
-            {renderSignature(v)}
-          </Svg>
+        <View
+          className="w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2"
+          onLayout={(e) => {
+            const w = Math.floor(e.nativeEvent.layout.width);
+            if (w > 0 && w !== boxWidth) setBoxWidth(w);
+          }}
+        >
+          {boxWidth > 0 ? (
+            <Svg height={120} width={boxWidth}>
+              {renderSignature(v, boxWidth, 120)}
+            </Svg>
+          ) : (
+            <View style={{ height: 120 }} />
+          )}
         </View>
       ) : v.startsWith("data:image") ? (
         <Image

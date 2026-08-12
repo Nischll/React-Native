@@ -324,7 +324,11 @@ export default function TaskInformationCard({ task }: Props) {
 
         {/* Edit button — pinned to top-right */}
         <AppButton
-          onPress={() =>
+          fullWidth={false}
+          size="sm"
+          leftIcon="pencil-outline"
+          onPress={() => {
+            if (task?.id == null) return;
             router.push({
               pathname: "/(private)/task-management/task-add-edit",
               params: {
@@ -334,10 +338,8 @@ export default function TaskInformationCard({ task }: Props) {
                   ? { categoryId: String(categoryId) }
                   : {}),
               },
-            })
-          }
-          size="sm"
-          leftIcon="pencil-outline"
+            });
+          }}
         >
           Edit
         </AppButton>

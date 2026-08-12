@@ -1,38 +1,60 @@
-import React, { useRef, useState } from "react";
-import { PanResponder, Pressable, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { LayoutChangeEvent, PanResponder, Pressable, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 type Point = { x: number; y: number };
 
+type SignaturePadProps = {
+  /** Fixed width. If omitted, pad fills parent width via onLayout. */
+  width?: number;
+  height?: number;
+  onChange?: (value: string) => void;
+};
+
 export default function SignaturePad({
-  width = 320,
-  height = 180,
+  width: widthProp,
+  height = 160,
   onChange,
-}: any) {
+}: SignaturePadProps) {
   const [, forceRender] = useState(0);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+
+  const width = widthProp != null && widthProp > 0 ? widthProp : measuredWidth;
+
+  const widthRef = useRef(width);
+  const heightRef = useRef(height);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
+  useEffect(() => {
+    heightRef.current = height;
+  }, [height]);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const strokesRef = useRef<Point[][]>([]);
   const currentStroke = useRef<Point[]>([]);
   const lastRenderTime = useRef(0);
 
-  const normalize = (x: number, y: number) => ({
-    x: x / width,
-    y: y / height,
-  });
+  const normalize = (x: number, y: number) => {
+    const w = widthRef.current || 1;
+    const h = heightRef.current || 1;
+    return { x: x / w, y: y / h };
+  };
 
   const emit = (data: Point[][]) => {
     const payload =
       data.length === 0
         ? ""
         : `SIGNATURE_JSON:${JSON.stringify({ strokes: data })}`;
-
-    onChange?.(payload);
+    onChangeRef.current?.(payload);
   };
 
   const drawTick = () => {
     const now = Date.now();
-
-    // throttle to ~60fps (16ms)
     if (now - lastRenderTime.current > 16) {
       lastRenderTime.current = now;
       forceRender((v) => v + 1);
@@ -43,27 +65,20 @@ export default function SignaturePad({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-
       onPanResponderGrant: (evt) => {
         const { locationX, locationY } = evt.nativeEvent;
         currentStroke.current = [normalize(locationX, locationY)];
       },
-
       onPanResponderMove: (evt) => {
         const { locationX, locationY } = evt.nativeEvent;
-
         currentStroke.current.push(normalize(locationX, locationY));
-
-        drawTick(); // 🔥 live update
+        drawTick();
       },
-
       onPanResponderRelease: () => {
         strokesRef.current.push([...currentStroke.current]);
         currentStroke.current = [];
-
         emit(strokesRef.current);
-
-        forceRender((v) => v + 1); // final render
+        forceRender((v) => v + 1);
       },
     }),
   ).current;
@@ -84,61 +99,84 @@ export default function SignaturePad({
       })
       .join(" ");
 
+  const onLayout = (e: LayoutChangeEvent) => {
+    if (widthProp != null && widthProp > 0) return;
+    const next = Math.floor(e.nativeEvent.layout.width);
+    if (next > 0 && next !== measuredWidth) {
+      setMeasuredWidth(next);
+    }
+  };
+
   return (
-    <View style={{ width }}>
-      <View
-        {...panResponder.panHandlers}
-        style={{
-          width,
-          height,
-          backgroundColor: "white",
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
-        <Svg width={width} height={height}>
-          {/* live stroke */}
-          {currentStroke.current.length > 1 && (
-            <Path
-              d={drawPath(currentStroke.current)}
-              stroke="black"
-              strokeWidth={2}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
+    <View
+      style={{ alignSelf: "stretch", width: "100%", maxWidth: "100%" }}
+      onLayout={onLayout}
+    >
+      {width > 0 ? (
+        <>
+          <View
+            {...panResponder.panHandlers}
+            style={{
+              width,
+              height,
+              maxWidth: "100%",
+              backgroundColor: "white",
+              borderWidth: 1,
+              borderColor: "#ccc",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
+            <Svg width={width} height={height}>
+              {currentStroke.current.length > 1 && (
+                <Path
+                  d={drawPath(currentStroke.current)}
+                  stroke="black"
+                  strokeWidth={2}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+              {strokesRef.current.map((s, i) => (
+                <Path
+                  key={i}
+                  d={drawPath(s)}
+                  stroke="black"
+                  strokeWidth={2}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </Svg>
+          </View>
 
-          {/* committed strokes */}
-          {strokesRef.current.map((s, i) => (
-            <Path
-              key={i}
-              d={drawPath(s)}
-              stroke="black"
-              strokeWidth={2}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
-        </Svg>
-      </View>
-
-      <Pressable
-        onPress={clear}
-        style={{
-          marginTop: 10,
-          alignSelf: "flex-end",
-          backgroundColor: "red",
-          paddingHorizontal: 12,
-          paddingVertical: 6,
-          borderRadius: 8,
-        }}
-      >
-        <Text style={{ color: "white", fontWeight: "600" }}>Clear</Text>
-      </Pressable>
+          <Pressable
+            onPress={clear}
+            style={{
+              marginTop: 10,
+              alignSelf: "flex-end",
+              backgroundColor: "#DC2626",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+            }}
+          >
+            <Text style={{ color: "white", fontWeight: "600" }}>Clear</Text>
+          </Pressable>
+        </>
+      ) : (
+        <View
+          style={{
+            height,
+            borderWidth: 1,
+            borderColor: "#ccc",
+            borderRadius: 12,
+            backgroundColor: "#f8fafc",
+          }}
+        />
+      )}
     </View>
   );
 }

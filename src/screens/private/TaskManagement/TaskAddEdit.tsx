@@ -25,6 +25,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import {
   AttachmentResponse,
   FollowUpRequestRow,
+  TaskResponseData,
 } from "@/src/types/task-management.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -46,6 +47,7 @@ import {
   appendFollowUpsToFormData,
   mapFollowUpsFromResponse,
   prepareFollowUpsForSubmit,
+  toFollowUpDateInput,
 } from "./followUpFormData";
 import { toTaskAttachmentPart } from "./toTaskAttachmentPart";
 
@@ -81,28 +83,68 @@ export default function TaskAddEdit() {
   const queryClient = useQueryClient();
 
   // ── Route params ──────────────────────────────────────────────────────────
-  const { mode, taskId, categoryId: categoryIdParam } = useLocalSearchParams<{
-    mode: "create" | "edit";
-    taskId?: string;
-    categoryId?: string;
+  const rawParams = useLocalSearchParams<{
+    mode?: string | string[];
+    taskId?: string | string[];
+    categoryId?: string | string[];
   }>();
-  const isEditMode = mode === "edit";
-  const parsedTaskId = taskId ? Number(taskId) : undefined;
+  const modeParam = Array.isArray(rawParams.mode)
+    ? rawParams.mode[0]
+    : rawParams.mode;
+  const taskIdParam = Array.isArray(rawParams.taskId)
+    ? rawParams.taskId[0]
+    : rawParams.taskId;
+  const categoryIdParam = Array.isArray(rawParams.categoryId)
+    ? rawParams.categoryId[0]
+    : rawParams.categoryId;
+
+  const isEditMode = modeParam === "edit";
+  const parsedTaskId =
+    taskIdParam != null && String(taskIdParam).trim() !== ""
+      ? Number(taskIdParam)
+      : undefined;
+  const validTaskId =
+    parsedTaskId != null && Number.isFinite(parsedTaskId)
+      ? parsedTaskId
+      : undefined;
   const [existingAttachments, setExistingAttachments] = useState<
     AttachmentResponse[]
   >([]);
 
   // ── Prefill data for edit ─────────────────────────────────────────────────
   const { data: taskData, isLoading: isLoadingTask } = useGetTaskById(
-    parsedTaskId,
-    isEditMode,
+    validTaskId,
+    isEditMode && validTaskId != null,
   );
-  const existingTask = taskData?.data?.data?.[0];
+  // Backend wraps a single task in PaginationPojo: { data: [task], total, page, limit }
+  const existingTask = useMemo((): TaskResponseData | undefined => {
+    const payload = taskData?.data as unknown;
+    if (!payload) return undefined;
+    if (Array.isArray(payload)) {
+      return payload[0] as TaskResponseData | undefined;
+    }
+    if (typeof payload === "object") {
+      const root = payload as { data?: unknown; id?: number };
+      if (Array.isArray(root.data)) {
+        return root.data[0] as TaskResponseData | undefined;
+      }
+      if (
+        root.data &&
+        typeof root.data === "object" &&
+        !Array.isArray(root.data) &&
+        "id" in (root.data as object)
+      ) {
+        return root.data as TaskResponseData;
+      }
+      if (root.id != null) return root as TaskResponseData;
+    }
+    return undefined;
+  }, [taskData]);
 
   // ── API mutations ─────────────────────────────────────────────────────────
   const { mutate: addTask, isPending: isAdding } = useAddTask();
   const { mutate: updateTask, isPending: isUpdating } =
-    useUpdateTaskDetails(parsedTaskId);
+    useUpdateTaskDetails(validTaskId);
   const isPending = isAdding || isUpdating;
 
   // ── Hooks ─────────────────────────────────────────────────────────────────
@@ -155,10 +197,14 @@ export default function TaskAddEdit() {
   );
 
   useEffect(() => {
-    if (isEditMode && existingTask) {
+    if (!isEditMode || !existingTask) return;
+    try {
       reset({
         area: existingTask.area ?? "",
-        residentId: String(existingTask.residentId ?? ""),
+        residentId:
+          existingTask.residentId != null
+            ? String(existingTask.residentId)
+            : "",
         type: existingTask.type ?? "",
         subType: existingTask.subType ?? "",
         location: existingTask.location ?? "",
@@ -166,8 +212,14 @@ export default function TaskAddEdit() {
         modeOfCommunication: existingTask.modeOfCommunication ?? "",
         title: existingTask.title ?? "",
         description: existingTask.description ?? "",
-        assignedTo: String(existingTask.assignedTo ?? ""),
-        taskStatusId: String(existingTask.taskStatusId ?? ""),
+        assignedTo:
+          existingTask.assignedTo != null
+            ? String(existingTask.assignedTo)
+            : "",
+        taskStatusId:
+          existingTask.taskStatusId != null
+            ? String(existingTask.taskStatusId)
+            : "",
         priority: existingTask.priority ?? "",
         deadline: toFollowUpDateInput(existingTask.deadline),
         completedDate: toFollowUpDateInput(existingTask.completedDate),
@@ -179,9 +231,13 @@ export default function TaskAddEdit() {
       });
       if (existingTask.attachmentResponsePojoList?.length) {
         setExistingAttachments(existingTask.attachmentResponsePojoList);
+      } else {
+        setExistingAttachments([]);
       }
+    } catch (e) {
+      console.warn("Failed to hydrate task edit form", e);
     }
-  }, [existingTask, isEditMode]);
+  }, [existingTask, isEditMode, reset]);
 
   const selectedArea = watch("area");
   const selectedTaskType = watch("type");
@@ -212,7 +268,7 @@ export default function TaskAddEdit() {
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async (values: FormValues) => {
-    if (isEditMode && (parsedTaskId == null || !Number.isFinite(parsedTaskId))) {
+    if (isEditMode && validTaskId == null) {
       Alert.alert("Error", "Missing task id. Please go back and try again.");
       return;
     }
@@ -582,7 +638,7 @@ export default function TaskAddEdit() {
             <View className="mt-3">
               <AttachmentManager
                 attachments={existingAttachments}
-                taskId={parsedTaskId!}
+                taskId={validTaskId!}
                 onDeleted={(id) =>
                   setExistingAttachments((prev) =>
                     prev.filter((a) => a.id !== id),

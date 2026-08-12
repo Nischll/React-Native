@@ -1,15 +1,16 @@
 import React from "react";
 import { Path } from "react-native-svg";
 
-export const renderSignature = (dataString: string) => {
+export const renderSignature = (
+  dataString: string,
+  scaleX = 300,
+  scaleY = 150,
+) => {
   try {
     if (!dataString) return null;
 
     const cleaned = dataString.replace("SIGNATURE_JSON:", "");
     const parsed = JSON.parse(cleaned);
-
-    const scaleX = 300;
-    const scaleY = 150;
 
     return parsed.strokes.map((stroke: any[], i: number) => {
       if (!stroke.length) return null;

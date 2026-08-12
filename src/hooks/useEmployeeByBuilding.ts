@@ -16,7 +16,7 @@ export const useEmployeeByBuildingOptions = (buildingId: number | null) => {
           .join(" ");
 
         return {
-          label: fullName,
+          label: fullName || employee.username || employee.email || `Staff #${employee.id}`,
           value: String(employee.id),
           username: employee.username,
           email: employee.email,

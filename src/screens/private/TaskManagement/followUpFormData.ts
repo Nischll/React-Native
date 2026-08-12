@@ -55,7 +55,7 @@ export function mapFollowUpsFromResponse(
     id: fu.id,
     followUpDate: toFollowUpDateInput(fu.followUpDate),
     description: fu.description ?? "",
-    followUpMethod: fu.followUpMethod,
+    followUpMethod: (fu.followUpMethod ?? "") as FollowUpRequestRow["followUpMethod"],
     trade: fu.trade ?? "",
   }));
 }

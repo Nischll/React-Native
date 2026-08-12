@@ -46,7 +46,6 @@ import {
   Platform,
   Pressable,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -479,8 +478,6 @@ export default function AddEditPrePostInspection() {
 
   const { buildingId } = useAuth();
   const { residences } = useResidencesForActiveBuilding();
-  const { width } = useWindowDimensions();
-  const padWidth = Math.min(320, width - 48);
 
   const [residentId, setResidentId] = useState<number | undefined>(
     initialResidentId,
@@ -998,26 +995,28 @@ export default function AddEditPrePostInspection() {
                   Signature on file — draw again to replace
                 </Text>
               ) : null}
-              <SignaturePad
-                width={padWidth}
-                height={140}
-                onChange={(v: string) =>
-                  updateAmenity(row.key, { residentSignature: v })
-                }
-              />
+              <View className="w-full overflow-hidden">
+                <SignaturePad
+                  height={140}
+                  onChange={(v: string) =>
+                    updateAmenity(row.key, { residentSignature: v })
+                  }
+                />
+              </View>
               <Text className="mb-1 mt-3 text-sm text-slate-700">Caretaker</Text>
               {row.caretakerSignature?.trim() ? (
                 <Text className="mb-1 text-xs text-emerald-600">
                   Signature on file — draw again to replace
                 </Text>
               ) : null}
-              <SignaturePad
-                width={padWidth}
-                height={140}
-                onChange={(v: string) =>
-                  updateAmenity(row.key, { caretakerSignature: v })
-                }
-              />
+              <View className="w-full overflow-hidden">
+                <SignaturePad
+                  height={140}
+                  onChange={(v: string) =>
+                    updateAmenity(row.key, { caretakerSignature: v })
+                  }
+                />
+              </View>
             </View>
           );
         })}
@@ -1067,22 +1066,24 @@ export default function AddEditPrePostInspection() {
             Signature on file — draw again to replace
           </Text>
         ) : null}
-        <SignaturePad
-          width={padWidth}
-          height={140}
-          onChange={setFinalResidentSignature}
-        />
+        <View className="w-full overflow-hidden">
+          <SignaturePad
+            height={140}
+            onChange={setFinalResidentSignature}
+          />
+        </View>
         <Text className="mb-1 mt-3 text-sm text-slate-700">Final caretaker</Text>
         {finalCaretakerSignature?.trim() ? (
           <Text className="mb-1 text-xs text-emerald-600">
             Signature on file — draw again to replace
           </Text>
         ) : null}
-        <SignaturePad
-          width={padWidth}
-          height={140}
-          onChange={setFinalCaretakerSignature}
-        />
+        <View className="w-full overflow-hidden">
+          <SignaturePad
+            height={140}
+            onChange={setFinalCaretakerSignature}
+          />
+        </View>
 
         <View className="mt-6 gap-3">
           <AppButton

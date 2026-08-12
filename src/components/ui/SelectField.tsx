@@ -76,7 +76,9 @@ export default function SelectField(props: SelectFieldProps) {
   const isSelected = (val: string) => selectedValues.includes(val);
 
   const filteredOptions = options.filter((o) =>
-    o.label.toLowerCase().includes(search.toLowerCase()),
+    String(o?.label ?? "")
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
 
   // ── Select all ───────────────────────────────────────────
