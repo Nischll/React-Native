@@ -115,6 +115,20 @@ export function depositStatusLabel(value?: string | null): string {
   return value?.trim() ? value : "—";
 }
 
+/** Params used by booking view details → create inspection. */
+export function getInspectionParamsFromRevenue(
+  item: RevenueDetailItem,
+): Record<string, string> {
+  const bookingId = item.bookingDetail?.id ?? item.sourceId;
+  const residentId = item.bookingDetail?.residentId ?? item.residentId;
+  const amenityId = item.bookingDetail?.amenityId;
+  const params: Record<string, string> = {};
+  if (bookingId != null) params.bookingId = String(bookingId);
+  if (residentId != null) params.residentId = String(residentId);
+  if (amenityId != null) params.amenityId = String(amenityId);
+  return params;
+}
+
 export function getRevenueReference(item: RevenueDetailItem): string {
   if (item.type === "BOOKING") {
     return (

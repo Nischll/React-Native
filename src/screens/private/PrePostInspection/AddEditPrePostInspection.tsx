@@ -13,7 +13,6 @@ import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
-import DatePickerField from "@/src/components/ui/DatePickerField";
 import SelectField from "@/src/components/ui/SelectField";
 import SignaturePad from "@/src/components/ui/SignaturePad";
 import TextAreaField from "@/src/components/ui/TextAreaFeld";
@@ -32,17 +31,11 @@ import {
   PrePostInspectionMutationPayload,
   PrePostInspectionStatus,
 } from "@/src/types/prePostInspection.types";
-import AppIcon from "@/src/components/ui/AppIcon";
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
 import * as DocumentPicker from "expo-document-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Platform,
   Pressable,
   Text,
   View,
@@ -140,7 +133,24 @@ function toYmd(isoOrDate: string): string {
 }
 
 function todayYmd() {
-  return toYmd(new Date().toISOString());
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function inspectionDateDisplay(ymd: string): string {
+  if (!ymd) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  return ymd;
 }
 
 function nowHm() {
@@ -253,70 +263,19 @@ function AmenityRevenuePanel({
   );
 }
 
-function TimePickerField({
+function ReadOnlyField({
+  label,
   value,
-  onChange,
 }: {
+  label: string;
   value: string;
-  onChange: (v: string) => void;
 }) {
-  const [showIOS, setShowIOS] = useState(false);
-  const parsed = useMemo(() => {
-    const d = new Date();
-    if (/^\d{2}:\d{2}$/.test(value)) {
-      const [h, m] = value.split(":").map(Number);
-      d.setHours(h, m, 0, 0);
-    }
-    return d;
-  }, [value]);
-
-  const openAndroid = () => {
-    DateTimePickerAndroid.open({
-      value: parsed,
-      mode: "time",
-      onChange: (event, selected) => {
-        if (event.type !== "set" || !selected) return;
-        onChange(
-          `${String(selected.getHours()).padStart(2, "0")}:${String(
-            selected.getMinutes(),
-          ).padStart(2, "0")}`,
-        );
-      },
-    });
-  };
-
-  const onIOS = (_e: DateTimePickerEvent, selected?: Date) => {
-    if (!selected) return;
-    onChange(
-      `${String(selected.getHours()).padStart(2, "0")}:${String(
-        selected.getMinutes(),
-      ).padStart(2, "0")}`,
-    );
-  };
-
   return (
-    <View>
-      <Pressable
-        onPress={() => {
-          if (Platform.OS === "android") openAndroid();
-          else setShowIOS(true);
-        }}
-        className="flex-row items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3"
-      >
-        <Text className="text-slate-900">{value || "Select time"}</Text>
-        <AppIcon name="time-outline" size={20} color="#94a3b8" />
-      </Pressable>
-      {Platform.OS === "ios" && showIOS && (
-        <View className="mt-2 rounded-xl border border-slate-200 bg-white p-2">
-          <DateTimePicker value={parsed} mode="time" display="spinner" onChange={onIOS} />
-          <Pressable
-            onPress={() => setShowIOS(false)}
-            className="mt-2 rounded-lg bg-primary py-3"
-          >
-            <Text className="text-center font-semibold text-white">Done</Text>
-          </Pressable>
-        </View>
-      )}
+    <View className="mt-3">
+      <Text className="mb-1.5 text-sm font-medium text-slate-700">{label}</Text>
+      <View className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-3">
+        <Text className="text-slate-900">{value || "—"}</Text>
+      </View>
     </View>
   );
 }
@@ -830,7 +789,7 @@ export default function AddEditPrePostInspection() {
         <SectionHeading
           step={1}
           title="Who & when"
-          description="Resident, date, time, and status"
+          description="Resident and status — date and time are set automatically"
         />
 
         <SelectField
@@ -855,23 +814,14 @@ export default function AddEditPrePostInspection() {
           </Text>
         ) : null}
 
-        <View className="mt-3">
-          <Text className="mb-1.5 text-sm font-medium text-slate-700">
-            Inspection date *
-          </Text>
-          <DatePickerField
-            value={inspectionDate ? `${inspectionDate}T12:00:00` : ""}
-            onChange={(iso) => setInspectionDate(toYmd(iso))}
-            placeholder="Select date"
-          />
-        </View>
-
-        <View className="mt-3">
-          <Text className="mb-1.5 text-sm font-medium text-slate-700">
-            Inspection time
-          </Text>
-          <TimePickerField value={inspectionTime} onChange={setInspectionTime} />
-        </View>
+        <ReadOnlyField
+          label="Inspection date"
+          value={inspectionDateDisplay(inspectionDate)}
+        />
+        <ReadOnlyField
+          label="Inspection time"
+          value={inspectionTime.trim() || "—"}
+        />
 
         <View className="mt-3">
           <SelectField
@@ -893,7 +843,7 @@ export default function AddEditPrePostInspection() {
 
         {!residentId || !inspectionDate ? (
           <Text className="mb-3 text-sm text-slate-400">
-            Select a resident and date to load amenities.
+            Select a resident to load amenities.
           </Text>
         ) : amenitiesLoading ? (
           <Text className="mb-3 text-sm text-slate-400">Loading amenities…</Text>

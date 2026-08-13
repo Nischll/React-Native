@@ -13,6 +13,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import {
   depositStatusLabel,
   getDepositAmount,
+  getInspectionParamsFromRevenue,
   getRevenueAmount,
   getRevenueReference,
   getRevenueSubDetail,
@@ -23,6 +24,7 @@ import {
   typeLabel,
 } from "@/src/types/revenueDetail.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
@@ -322,6 +324,18 @@ export default function RevenueDetails() {
                       onPress: () => openAction(row, "view"),
                     },
                   ];
+              if (row.type === "BOOKING") {
+                items.push({
+                  label: "Start inspection",
+                  icon: "clipboard-outline",
+                  onPress: () =>
+                    router.push({
+                      pathname:
+                        "/(private)/pre-post-inspection/inspection-add-edit",
+                      params: getInspectionParamsFromRevenue(row),
+                    }),
+                });
+              }
               return <AnchoredPopupMenu items={items} />;
             }}
           />

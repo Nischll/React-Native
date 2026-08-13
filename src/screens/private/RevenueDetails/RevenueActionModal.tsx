@@ -28,6 +28,7 @@ import {
   DEPOSIT_STATUS_OPTIONS,
   DepositAmountStatus,
   depositStatusLabel,
+  getInspectionParamsFromRevenue,
   getRevenueReference,
   getRevenueSubDetail,
   RevenueDetailItem,
@@ -35,6 +36,7 @@ import {
 } from "@/src/types/revenueDetail.types";
 import { showToast } from "@/src/utils/toast";
 import * as FileSystem from "expo-file-system/legacy";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -913,6 +915,25 @@ export default function RevenueActionModal({
                       {readOnly ? "Close" : "Cancel"}
                     </AppButton>
                   </View>
+                  {readOnly && isBooking ? (
+                    <View className="flex-1">
+                      <AppButton
+                        variant="outline"
+                        leftIcon="clipboard-outline"
+                        onPress={() => {
+                          if (!item) return;
+                          onClose();
+                          router.push({
+                            pathname:
+                              "/(private)/pre-post-inspection/inspection-add-edit",
+                            params: getInspectionParamsFromRevenue(item),
+                          });
+                        }}
+                      >
+                        Start inspection
+                      </AppButton>
+                    </View>
+                  ) : null}
                   {!readOnly && (
                     <View className="flex-1">
                       <AppButton onPress={handleSave} loading={pending}>
