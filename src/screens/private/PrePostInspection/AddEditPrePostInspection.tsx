@@ -616,21 +616,6 @@ export default function AddEditPrePostInspection() {
     [amenities],
   );
 
-  const hasAmenityDataFilled = useMemo(
-    () =>
-      amenities.some(
-        (a) =>
-          a.amenityId != null ||
-          !!a.residentSignature?.trim() ||
-          !!a.caretakerSignature?.trim() ||
-          a.preImages.length > 0 ||
-          a.postImages.length > 0,
-      ),
-    [amenities],
-  );
-
-  const canChangeResident = !hasAmenityDataFilled;
-
   const validate = (): string | null => {
     if (buildingId == null) return "Select a building first.";
     if (residentId == null) return "Select a resident / unit.";
@@ -795,24 +780,10 @@ export default function AddEditPrePostInspection() {
         <SelectField
           label="Resident / unit *"
           value={residentId != null ? String(residentId) : ""}
-          onChange={(v) => {
-            if (!canChangeResident) {
-              Alert.alert(
-                "Clear amenities first",
-                "Clear amenities to change resident.",
-              );
-              return;
-            }
-            setResidentId(v ? Number(v) : undefined);
-          }}
+          onChange={(v) => setResidentId(v ? Number(v) : undefined)}
           options={residences}
           placeholder="Select unit"
         />
-        {!canChangeResident ? (
-          <Text className="mt-1 text-xs text-amber-600">
-            Clear amenities to change resident.
-          </Text>
-        ) : null}
 
         <ReadOnlyField
           label="Inspection date"
