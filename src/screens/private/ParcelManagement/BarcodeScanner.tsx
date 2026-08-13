@@ -2,6 +2,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
+import { TRACKING_ID_MAX } from "@/src/types/parcelManagement.types";
 
 export default function BarcodeScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -32,7 +33,7 @@ export default function BarcodeScannerScreen() {
 
           setScanned(true);
 
-          const scannedValue = result.data;
+          const scannedValue = result.data.trim().slice(0, TRACKING_ID_MAX);
 
           router.replace({
             pathname: "/(private)/parcel-management/parcel-add-edit",

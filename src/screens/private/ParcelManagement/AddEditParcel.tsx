@@ -15,11 +15,12 @@ import {
   PACKAGE_SIZE_OPTIONS,
   PACKAGE_TYPE_OPTIONS,
   PARCEL_CONDITION_OPTIONS,
+  TRACKING_ID_MAX,
 } from "@/src/types/parcelManagement.types";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Keyboard, TouchableWithoutFeedback, View } from "react-native";
+import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 interface FormValues {
@@ -47,7 +48,14 @@ export default function AddEditParcelScreen() {
     useUpdateParcel(id, buildingId ?? undefined);
 
   const editmode = !!parcelId;
-  const barcodeData = typeof scannedValue === "string" ? scannedValue : "";
+  const scannedTrackingId =
+    typeof scannedValue === "string"
+      ? scannedValue.trim().slice(0, TRACKING_ID_MAX)
+      : "";
+  const existingTrackingId = editmode
+    ? (data?.data?.trackingId ?? "").trim().slice(0, TRACKING_ID_MAX)
+    : "";
+  const trackingId = scannedTrackingId || existingTrackingId;
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
@@ -86,7 +94,7 @@ export default function AddEditParcelScreen() {
       location: values.location,
       condition: values.condition as any,
       receivedById: Number(values.receivedById),
-      trackingId: barcodeData || undefined,
+      trackingId: trackingId.slice(0, TRACKING_ID_MAX) || undefined,
     };
 
     if (editmode) {
@@ -107,7 +115,7 @@ export default function AddEditParcelScreen() {
   if (editmode && isLoading) {
     return <LoadingState message="Parcel details loading." />;
   }
-  // console.log("barcodeData:", barcodeData);
+
   return (
     <View className="flex-1">
       <PageHeader
@@ -118,10 +126,6 @@ export default function AddEditParcelScreen() {
           editmode ? "Update parcel details" : "Create a new parcel record"
         }
       />
-
-      {/* <View>
-        <Text>Tracking ID: {barcodeData}</Text>
-      </View> */}
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
@@ -136,6 +140,22 @@ export default function AddEditParcelScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View className="">
+            {trackingId ? (
+              <View className="mb-3">
+                <Text className="mb-1.5 text-sm font-medium text-slate-700">
+                  Tracking ID
+                </Text>
+                <View className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-3">
+                  <Text
+                    className="font-medium text-slate-900"
+                    selectable
+                  >
+                    {trackingId}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             {/* Resident */}
             <Controller
               control={control}

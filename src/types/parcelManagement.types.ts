@@ -60,6 +60,8 @@ export const PARCEL_STATUS_OPTIONS: { value: ParcelStatus; label: string }[] = [
   { value: "DELIVERED", label: "Delivered" },
 ];
 
+export const TRACKING_ID_MAX = 250;
+
 export interface ParcelRequestPojo {
   residentId: number;
   courier?: CourierType;

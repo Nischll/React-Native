@@ -2,6 +2,7 @@ import DatePickerField from "@/src/components/ui/DatePickerField";
 import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
+import { TRACKING_ID_MAX } from "@/src/types/parcelManagement.types";
 import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
 
 interface TaskFilterModalProps {
@@ -93,8 +94,11 @@ export const TaskFilterModal = ({
                 <AppInput
                   label="Tracking ID"
                   value={trackingId ?? ""}
-                  onChangeText={(t) => setTrackingId?.(t)}
+                  onChangeText={(t) =>
+                    setTrackingId?.(t.slice(0, TRACKING_ID_MAX))
+                  }
                   placeholder="Search tracking ID"
+                  maxLength={TRACKING_ID_MAX}
                 />
               </>
             )}
