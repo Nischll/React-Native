@@ -52,12 +52,13 @@ const MASTER_MGMT_PATHS = new Set([
   "/tower-management",
 ]);
 
-/** Daily / Weekly / Monthly / Annual → Routine Checklist Template */
+/** Daily / Weekly / Monthly / Annual / Overnight Concierge Patrol → Routine Checklist Template */
 const ROUTINE_CHECKLIST_TEMPLATE_PATHS = new Set([
   "/daily-checklist-template",
   "/weekly-checklist-template",
   "/monthly-checklist-template",
   "/annual-checklist-template",
+  "/overnight-concierge-patrol-template",
 ]);
 
 function normalizeName(name: string): string {
@@ -78,6 +79,7 @@ function isChecklistTemplatePath(path: string | null | undefined): boolean {
   const p = normalizeModulePath(path);
   if (!p) return false;
   if (ROUTINE_CHECKLIST_TEMPLATE_PATHS.has(p)) return true;
+  if (p.includes("overnight-concierge-patrol-template")) return true;
   return p.includes("checklist-template");
 }
 
@@ -107,7 +109,15 @@ export function isAccountMenuModule(item: ModuleItem): boolean {
     return true;
   }
 
+  if (name.includes("concierge patrol") && name.includes("template")) {
+    return true;
+  }
+
   if (path.includes("checklist-template")) {
+    return true;
+  }
+
+  if (path.includes("overnight-concierge-patrol-template")) {
     return true;
   }
 
@@ -117,7 +127,10 @@ export function isAccountMenuModule(item: ModuleItem): boolean {
       const childName = normalizeName(child.name);
       return (
         childPath.includes("checklist-template") ||
-        (childName.includes("checklist") && childName.includes("template"))
+        childPath.includes("overnight-concierge-patrol-template") ||
+        (childName.includes("checklist") && childName.includes("template")) ||
+        (childName.includes("concierge patrol") &&
+          childName.includes("template"))
       );
     })
   ) {

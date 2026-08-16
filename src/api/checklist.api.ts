@@ -46,6 +46,15 @@ export const useAddChecklistTemplate = (basePath: string) =>
     showSuccessToast: false,
   });
 
+export const useUpdateChecklistTemplate = (basePath: string) =>
+  useApiMutation<
+    ChecklistTemplateRequest & { pathVars: { id: number } },
+    unknown,
+    { id: number }
+  >("put", (vars) => `${basePath}/templates/${vars?.id}`, {
+    showSuccessToast: false,
+  });
+
 export const useDeleteChecklistTemplate = (basePath: string) =>
   useApiMutation<{ id: number }, any, { id: number }>(
     "delete",

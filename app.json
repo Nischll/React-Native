@@ -54,6 +54,13 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to photos for overnight concierge patrol scan points.",
+          "cameraPermission": "Allow camera access to capture overnight concierge patrol photos."
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-web-browser",
       "expo-font"

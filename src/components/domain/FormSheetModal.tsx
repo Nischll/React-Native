@@ -16,9 +16,11 @@ interface FormSheetModalProps {
   title: string;
   subtitle?: string;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit?: () => void;
   submitLabel?: string;
   loading?: boolean;
+  submitDisabled?: boolean;
+  hideSubmit?: boolean;
   children: React.ReactNode;
 }
 
@@ -30,6 +32,8 @@ export default function FormSheetModal({
   onSubmit,
   submitLabel = "Save",
   loading = false,
+  submitDisabled = false,
+  hideSubmit = false,
   children,
 }: FormSheetModalProps) {
   return (
@@ -80,11 +84,17 @@ export default function FormSheetModal({
               {children}
             </ScrollView>
 
-            <View className="border-t border-gray-100 px-5 py-4">
-              <AppButton loading={loading} onPress={onSubmit}>
-                {submitLabel}
-              </AppButton>
-            </View>
+            {hideSubmit ? null : (
+              <View className="border-t border-gray-100 px-5 py-4">
+                <AppButton
+                  loading={loading}
+                  disabled={submitDisabled}
+                  onPress={onSubmit ?? (() => {})}
+                >
+                  {submitLabel}
+                </AppButton>
+              </View>
+            )}
           </View>
         </TouchableWithoutFeedback>
       </View>

@@ -18,3 +18,11 @@ export interface MonthlyReportResponse {
   tradeServiceLogs?: unknown[];
   residents?: unknown[];
 }
+
+export interface ReportPdfSignatures {
+  buildingManager: string;
+  operationsSupervisor: string;
+  operationsManager: string;
+  generalManager: string;
+  director: string;
+}

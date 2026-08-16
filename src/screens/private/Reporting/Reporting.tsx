@@ -5,12 +5,21 @@ import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
+import PdfClosingNamesSheet from "@/src/components/domain/PdfClosingNamesSheet";
+import {
+  loadReportPdfSignatures,
+  REPORT_PDF_SIGNATURE_DEFAULTS,
+  saveReportPdfSignatures,
+} from "@/src/helper/reportSignatures";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { MonthlyReportResponse } from "@/src/types/reporting.types";
+import {
+  MonthlyReportResponse,
+  ReportPdfSignatures,
+} from "@/src/types/reporting.types";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Platform,
@@ -141,10 +150,18 @@ function ReportSection({
 export default function Reporting() {
   const { buildingId, selectedBuilding } = useAuth();
   const [downloading, setDownloading] = useState(false);
+  const [namesVisible, setNamesVisible] = useState(false);
+  const [signatures, setSignatures] = useState<ReportPdfSignatures>({
+    ...REPORT_PDF_SIGNATURE_DEFAULTS,
+  });
   const [month, setMonth] = useState(() => {
     const n = new Date();
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
   });
+
+  useEffect(() => {
+    loadReportPdfSignatures().then(setSignatures);
+  }, []);
 
   const { data, isLoading, refetch, isRefetching } = useGetMonthlyReport(
     month,
@@ -177,7 +194,11 @@ export default function Reporting() {
     }
     setDownloading(true);
     try {
-      const response = await fetchMonthlyReportPdf(month, buildingId);
+      const response = await fetchMonthlyReportPdf(
+        month,
+        buildingId,
+        signatures,
+      );
       const contentType = String(
         response.headers?.["content-type"] ?? "",
       ).toLowerCase();
@@ -260,7 +281,25 @@ export default function Reporting() {
     }
   };
 
+  const openDownloadSheet = () => {
+    if (!buildingId || !month || !/^\d{4}-\d{2}$/.test(month)) {
+      Alert.alert(
+        "Select month",
+        "Choose a calendar month and building first.",
+      );
+      return;
+    }
+    setNamesVisible(true);
+  };
+
+  const handleConfirmDownload = async () => {
+    await saveReportPdfSignatures(signatures);
+    await handleDownloadPdf();
+    setNamesVisible(false);
+  };
+
   return (
+    <>
     <ScrollView
       className="flex-1"
       contentContainerStyle={{ paddingBottom: 40 }}
@@ -294,7 +333,7 @@ export default function Reporting() {
 
       <AppButton
         leftIcon="download-outline"
-        onPress={handleDownloadPdf}
+        onPress={openDownloadSheet}
         loading={downloading}
         disabled={!buildingId}
       >
@@ -371,5 +410,29 @@ export default function Reporting() {
         </View>
       )}
     </ScrollView>
+    <PdfClosingNamesSheet
+      visible={namesVisible}
+      title="PDF closing names"
+      subtitle="Printed on the last page exactly as written."
+      hint="Leave Building Manager blank for an empty signature line. Other blank names are omitted."
+      fields={[
+        {
+          key: "buildingManager",
+          label: "Building Manager",
+          placeholder: "Leave blank for an empty line",
+        },
+        { key: "operationsSupervisor", label: "Operations Supervisor" },
+        { key: "operationsManager", label: "Operations Manager" },
+        { key: "generalManager", label: "General Manager" },
+        { key: "director", label: "Director" },
+      ]}
+      value={signatures}
+      onChange={setSignatures}
+      submitLabel="Download PDF"
+      loading={downloading}
+      onClose={() => setNamesVisible(false)}
+      onSubmit={handleConfirmDownload}
+    />
+    </>
   );
 }

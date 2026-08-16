@@ -1,7 +1,8 @@
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { apiService } from "./client";
 import { ApiListResponse } from "./auth.api";
-import { MonthlyReportResponse } from "../types/reporting.types";
+import { compactNameParams } from "../helper/pdfClosingNames";
+import { MonthlyReportResponse, ReportPdfSignatures } from "../types/reporting.types";
 
 export const useGetMonthlyReport = (
   month?: string,
@@ -23,12 +24,29 @@ export const useGetMonthlyReport = (
   );
 };
 
-/** Binary PDF fetch — same params as JSON report. Avoids axios JSON transform corrupting bytes. */
-export const fetchMonthlyReportPdf = (month: string, buildingId: number) =>
+/** Binary PDF fetch — same params as JSON report plus closing-page names. */
+export const fetchMonthlyReportPdf = (
+  month: string,
+  buildingId: number,
+  signatures?: ReportPdfSignatures,
+) =>
   apiService.get("/reporting/monthly/pdf", {
-    params: { month, buildingId },
+    params: {
+      month,
+      buildingId,
+      ...(signatures
+        ? compactNameParams({
+            buildingManager: signatures.buildingManager,
+            operationsSupervisor: signatures.operationsSupervisor,
+            operationsManager: signatures.operationsManager,
+            generalManager: signatures.generalManager,
+            director: signatures.director,
+          })
+        : {}),
+    },
     responseType: "arraybuffer",
     transformResponse: (data) => data,
+    timeout: 120000,
     headers: {
       Accept: "*/*",
       "Content-Type": undefined,
