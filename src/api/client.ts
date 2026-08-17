@@ -86,10 +86,12 @@ apiService.interceptors.request.use(
         const h = config.headers as any;
         if (typeof h.set === "function") {
           h.set("Accept", "application/pdf");
+          h.set("Accept-Encoding", "identity");
           if (typeof h.delete === "function") h.delete("Content-Type");
           else h.set("Content-Type", false);
         } else {
           h["Accept"] = "application/pdf";
+          h["Accept-Encoding"] = "identity";
           delete h["Content-Type"];
         }
       }

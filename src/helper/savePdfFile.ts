@@ -1,4 +1,7 @@
 import { apiService } from "@/src/api/client";
+import { BASE_URL } from "@/src/constants/env";
+import { serializeQueryParams } from "@/src/helper/pdfClosingNames";
+import { ENABLE_DEBUG_LOGS } from "@/src/utils/debug";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -8,130 +11,137 @@ function uint8ToBase64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64");
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = String(reader.result ?? "");
+function looksLikePdf(bytes: Uint8Array): boolean {
+  const limit = Math.min(bytes.length, 1024);
+  for (let i = 0; i <= limit - 4; i++) {
+    if (
+      bytes[i] === 0x25 &&
+      bytes[i + 1] === 0x50 &&
+      bytes[i + 2] === 0x44 &&
+      bytes[i + 3] === 0x46
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function stringToBytes(value: string): Uint8Array {
+  const out = new Uint8Array(value.length);
+  for (let i = 0; i < value.length; i++) {
+    out[i] = value.charCodeAt(i) & 0xff;
+  }
+  return out;
+}
+
+async function readBlobBytes(data: unknown): Promise<Uint8Array | null> {
+  if (!data || typeof data !== "object" || typeof FileReader === "undefined") {
+    return null;
+  }
+  try {
+    const result = await new Promise<string | ArrayBuffer | null>(
+      (resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        if (typeof reader.readAsArrayBuffer === "function") {
+          reader.readAsArrayBuffer(data as Blob);
+        } else {
+          reader.readAsDataURL(data as Blob);
+        }
+      },
+    );
+    if (result instanceof ArrayBuffer) return new Uint8Array(result);
+    if (typeof result === "string") {
       const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(new Error("Could not read the PDF file."));
-    reader.readAsDataURL(blob);
-  });
+      const b64 = comma >= 0 ? result.slice(comma + 1) : result;
+      return new Uint8Array(Buffer.from(b64, "base64"));
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
-function isBlobLike(value: unknown): value is Blob {
-  if (!value || typeof value !== "object") return false;
-  if (typeof Blob !== "undefined" && value instanceof Blob) return true;
-  const v = value as { arrayBuffer?: unknown; size?: unknown };
-  return typeof v.arrayBuffer === "function" && "size" in v;
-}
-
-export async function responseDataToBase64(data: unknown): Promise<string> {
-  if (data == null) return "";
+async function toPdfBytes(data: unknown): Promise<Uint8Array | null> {
+  if (data == null) return null;
 
   if (typeof data === "string") {
-    const start = data.trimStart();
-    if (start.startsWith("JVBERi")) return data.replace(/\s/g, "");
-    if (start.startsWith("%PDF")) {
-      return Buffer.from(data, "latin1").toString("base64");
+    if (data.trimStart().startsWith("JVBERi")) {
+      return new Uint8Array(Buffer.from(data.replace(/\s/g, ""), "base64"));
     }
-    return Buffer.from(data, "latin1").toString("base64");
+    return stringToBytes(data);
   }
 
   if (typeof Buffer !== "undefined" && Buffer.isBuffer(data)) {
-    return data.toString("base64");
+    return new Uint8Array(data);
   }
 
-  if (Array.isArray(data) && data.every((n) => typeof n === "number")) {
-    return uint8ToBase64(Uint8Array.from(data));
-  }
-
-  if (
-    data &&
-    typeof data === "object" &&
-    (data as { type?: string }).type === "Buffer" &&
-    Array.isArray((data as { data?: unknown }).data)
-  ) {
-    return uint8ToBase64(Uint8Array.from((data as { data: number[] }).data));
-  }
-
-  if (isBlobLike(data)) {
-    try {
-      return await blobToBase64(data);
-    } catch {
-      if (typeof data.arrayBuffer === "function") {
-        const ab = await data.arrayBuffer();
-        return uint8ToBase64(new Uint8Array(ab));
-      }
-    }
+  if (Array.isArray(data) && data.length > 0 && typeof data[0] === "number") {
+    return Uint8Array.from(data);
   }
 
   if (data instanceof ArrayBuffer) {
-    return uint8ToBase64(new Uint8Array(data));
+    return new Uint8Array(data);
   }
 
   if (ArrayBuffer.isView(data)) {
     const view = data as ArrayBufferView;
-    return uint8ToBase64(
-      new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
-    );
+    return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
   }
 
-  if (
-    data &&
-    typeof data === "object" &&
-    typeof (data as ArrayBuffer).byteLength === "number"
-  ) {
+  const blobBytes = await readBlobBytes(data);
+  if (blobBytes) return blobBytes;
+
+  if (data && typeof data === "object") {
+    const rec = data as Record<string, unknown>;
+    if (rec.type === "Buffer" && Array.isArray(rec.data)) {
+      return Uint8Array.from(rec.data as number[]);
+    }
+    if (typeof rec.byteLength === "number") {
+      try {
+        return new Uint8Array(data as ArrayBuffer);
+      } catch {
+        /* ignore */
+      }
+    }
     try {
-      return uint8ToBase64(new Uint8Array(data as ArrayBuffer));
+      const copied = Buffer.from(data as ArrayBuffer);
+      if (copied.length > 0) return new Uint8Array(copied);
     } catch {
-      /* fall through */
+      /* ignore */
     }
+    if ("data" in rec) return toPdfBytes(rec.data);
+    if ("_data" in rec) return toPdfBytes(rec._data);
   }
 
-  if (typeof data === "object" && data !== null && "data" in data) {
-    return responseDataToBase64((data as { data: unknown }).data);
-  }
-
-  try {
-    return Buffer.from(data as ArrayBuffer).toString("base64");
-  } catch {
-    return "";
-  }
-}
-
-export function isPdfBase64(base64: string): boolean {
-  if (!base64) return false;
-  try {
-    const header = Buffer.from(base64, "base64")
-      .subarray(0, 8)
-      .toString("latin1");
-    return header.startsWith("%PDF");
-  } catch {
-    return false;
-  }
-}
-
-function messageFromFailedPayload(base64: string, contentType: string): string | null {
-  const ct = String(contentType ?? "").toLowerCase();
-  try {
-    const text = Buffer.from(base64, "base64").toString("utf8");
-    const start = text.trimStart();
-    if (ct.includes("application/json") || start.startsWith("{")) {
-      const parsed = JSON.parse(text) as { message?: string };
-      return parsed?.message ?? "Download failed";
-    }
-  } catch {
-    /* ignore */
-  }
   return null;
+}
+
+function bytesFromAxiosResponse(response: {
+  data?: unknown;
+  request?: { response?: unknown; _response?: unknown; responseText?: string };
+}): unknown[] {
+  const req = response.request;
+  const sources: unknown[] = [response.data];
+  if (req?.response != null) sources.push(req.response);
+  if (req?._response != null) sources.push(req._response);
+  try {
+    if (typeof req?.responseText === "string") sources.push(req.responseText);
+  } catch {
+    /* responseText throws when responseType is not text */
+  }
+  return sources;
 }
 
 export function waitForModalDismiss(ms = 400): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const pdfHeaders = {
+  Accept: "application/pdf",
+  "Accept-Encoding": "identity",
+};
 
 const pdfRequestConfig = {
   responseType: "arraybuffer" as const,
@@ -139,14 +149,85 @@ const pdfRequestConfig = {
   timeout: 120000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
-  headers: {
-    Accept: "application/pdf",
-  },
+  headers: pdfHeaders,
+  decompress: false as const,
 };
 
+async function pdfBase64FromResponse(response: {
+  data?: unknown;
+  headers?: Record<string, unknown>;
+  request?: { response?: unknown; _response?: unknown; responseText?: string };
+}): Promise<string | null> {
+  const sources = bytesFromAxiosResponse(response);
+  if (ENABLE_DEBUG_LOGS) {
+    const sample = response.data;
+    console.log("📄 PDF payload type:", typeof sample);
+    console.log(
+      "📄 PDF constructor:",
+      sample && typeof sample === "object"
+        ? (sample as object).constructor?.name
+        : "",
+    );
+    if (sample && typeof sample === "object") {
+      console.log("📄 PDF keys:", Object.keys(sample as object).slice(0, 12));
+    }
+  }
+
+  for (const source of sources) {
+    const bytes = await toPdfBytes(source);
+    if (!bytes || bytes.byteLength < 5) continue;
+    if (ENABLE_DEBUG_LOGS) {
+      const head = Array.from(bytes.subarray(0, 8))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(" ");
+      console.log("📄 PDF first bytes:", head, "len", bytes.byteLength);
+    }
+    if (looksLikePdf(bytes)) return uint8ToBase64(bytes);
+  }
+  return null;
+}
+
+function jsonErrorFromBytes(bytes: Uint8Array | null): string | null {
+  if (!bytes || bytes.byteLength > 8000) return null;
+  try {
+    const text = Buffer.from(bytes).toString("utf8").trim();
+    if (!text.startsWith("{")) return null;
+    const parsed = JSON.parse(text) as { message?: string };
+    return parsed?.message ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadPdfNative(
+  path: string,
+  params: Record<string, string | number>,
+): Promise<string | null> {
+  const query = serializeQueryParams(params);
+  const url = `${BASE_URL.replace(/\/$/, "")}${
+    path.startsWith("/") ? path : `/${path}`
+  }${query ? `?${query}` : ""}`;
+  const dest = `${FileSystem.cacheDirectory ?? FileSystem.documentDirectory}ocp-pdf-${Date.now()}.pdf`;
+  try {
+    const result = await FileSystem.downloadAsync(url, dest, {
+      headers: pdfHeaders,
+    });
+    if (result.status !== 200) return null;
+    const b64 = await FileSystem.readAsStringAsync(result.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const bytes = new Uint8Array(Buffer.from(b64, "base64"));
+    if (looksLikePdf(bytes)) return b64;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 /**
- * Fetch a PDF through the shared axios client so cookies, refresh, and
- * interceptors match every other API call in the app.
+ * Fetch a PDF through the shared axios client (same cookies as the rest of the app).
+ * Android often returns a native Blob / gzip bytes instead of a JS ArrayBuffer —
+ * we decode those shapes and also disable gzip so the body starts with %PDF.
  */
 export async function downloadAuthenticatedPdf(
   path: string,
@@ -163,11 +244,11 @@ export async function downloadAuthenticatedPdf(
     ...pdfRequestConfig,
   });
 
-  const contentType = String(response.headers?.["content-type"] ?? "");
-  const base64 = await responseDataToBase64(response.data);
-  if (isPdfBase64(base64)) return base64;
+  let base64 = await pdfBase64FromResponse(response);
+  if (base64) return base64;
 
-  const jsonError = messageFromFailedPayload(base64, contentType);
+  const firstBytes = await toPdfBytes(response.data);
+  const jsonError = jsonErrorFromBytes(firstBytes);
   if (jsonError) throw new Error(jsonError);
 
   const blobResponse = await apiService.get(path, {
@@ -175,11 +256,11 @@ export async function downloadAuthenticatedPdf(
     ...pdfRequestConfig,
     responseType: "blob",
   });
-  const blobBase64 = await responseDataToBase64(blobResponse.data);
-  if (isPdfBase64(blobBase64)) return blobBase64;
+  base64 = await pdfBase64FromResponse(blobResponse);
+  if (base64) return base64;
 
-  const blobJsonError = messageFromFailedPayload(blobBase64, contentType);
-  if (blobJsonError) throw new Error(blobJsonError);
+  const nativeB64 = await downloadPdfNative(path, cleanParams);
+  if (nativeB64) return nativeB64;
 
   throw new Error(
     "Server did not return a valid PDF. Try again or check permissions.",
