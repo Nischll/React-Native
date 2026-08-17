@@ -81,17 +81,17 @@ apiService.interceptors.request.use(
         config.timeout = 120000;
       }
     } else if (isBinary) {
-      // Don't force application/json — Android XHR corrupts PDF/file bytes.
+      // Keep bytes intact (no JSON transform). Do not set Accept-Encoding:
+      // Android OkHttp only auto-unzips gzip when it owns that header, same as
+      // the browser on the web app. Forcing `identity` left us with gzip bytes.
       if (config.headers) {
         const h = config.headers as any;
         if (typeof h.set === "function") {
-          h.set("Accept", "application/pdf");
-          h.set("Accept-Encoding", "identity");
+          if (!h.get?.("Accept") && !h.Accept) h.set("Accept", "*/*");
           if (typeof h.delete === "function") h.delete("Content-Type");
           else h.set("Content-Type", false);
         } else {
-          h["Accept"] = "application/pdf";
-          h["Accept-Encoding"] = "identity";
+          if (!h["Accept"]) h["Accept"] = "*/*";
           delete h["Content-Type"];
         }
       }
