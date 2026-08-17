@@ -1,7 +1,4 @@
 import { apiService } from "@/src/api/client";
-import { BASE_URL } from "@/src/constants/env";
-import { serializeQueryParams } from "@/src/helper/pdfClosingNames";
-import { startGlobalLoading, stopGlobalLoading } from "@/src/utils/loadingBus";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -27,17 +24,19 @@ function blobToBase64(blob: Blob): Promise<string> {
 function isBlobLike(value: unknown): value is Blob {
   if (!value || typeof value !== "object") return false;
   if (typeof Blob !== "undefined" && value instanceof Blob) return true;
-  const v = value as { arrayBuffer?: unknown; size?: unknown; type?: unknown };
+  const v = value as { arrayBuffer?: unknown; size?: unknown };
   return typeof v.arrayBuffer === "function" && "size" in v;
 }
 
-/** RN Android XHR / Axios may return PDF bytes as string, Blob, Buffer JSON, or ArrayBuffer. */
 export async function responseDataToBase64(data: unknown): Promise<string> {
   if (data == null) return "";
 
   if (typeof data === "string") {
     const start = data.trimStart();
     if (start.startsWith("JVBERi")) return data.replace(/\s/g, "");
+    if (start.startsWith("%PDF")) {
+      return Buffer.from(data, "latin1").toString("base64");
+    }
     return Buffer.from(data, "latin1").toString("base64");
   }
 
@@ -55,9 +54,7 @@ export async function responseDataToBase64(data: unknown): Promise<string> {
     (data as { type?: string }).type === "Buffer" &&
     Array.isArray((data as { data?: unknown }).data)
   ) {
-    return uint8ToBase64(
-      Uint8Array.from((data as { data: number[] }).data),
-    );
+    return uint8ToBase64(Uint8Array.from((data as { data: number[] }).data));
   }
 
   if (isBlobLike(data)) {
@@ -117,140 +114,76 @@ export function isPdfBase64(base64: string): boolean {
   }
 }
 
-export function jsonMessageFromBinary(
-  data: unknown,
-  contentType?: string,
-): string | null {
+function messageFromFailedPayload(base64: string, contentType: string): string | null {
   const ct = String(contentType ?? "").toLowerCase();
-  let text = "";
-  if (typeof data === "string") text = data;
-  else return ct.includes("application/json") ? "Download failed" : null;
-
-  const looksJson =
-    ct.includes("application/json") || text.trimStart().startsWith("{");
-  if (!looksJson) return null;
   try {
-    const parsed = JSON.parse(text) as { message?: string };
-    return parsed?.message ?? "Download failed";
+    const text = Buffer.from(base64, "base64").toString("utf8");
+    const start = text.trimStart();
+    if (ct.includes("application/json") || start.startsWith("{")) {
+      const parsed = JSON.parse(text) as { message?: string };
+      return parsed?.message ?? "Download failed";
+    }
   } catch {
-    return null;
+    /* ignore */
   }
+  return null;
 }
 
 export function waitForModalDismiss(ms = 400): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function xhrGet(url: string, responseType: XMLHttpRequestResponseType) {
-  return new Promise<{ status: number; data: unknown; contentType: string }>(
-    (resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("GET", url);
-      xhr.withCredentials = true;
-      xhr.timeout = 120000;
-      try {
-        xhr.responseType = responseType;
-      } catch {
-        xhr.responseType = "arraybuffer";
-      }
-      xhr.setRequestHeader("Accept", "application/pdf,*/*");
-
-      xhr.onload = () => {
-        resolve({
-          status: xhr.status,
-          data: xhr.response,
-          contentType: xhr.getResponseHeader("content-type") ?? "",
-        });
-      };
-      xhr.onerror = () =>
-        reject(new Error("Network error while downloading the PDF."));
-      xhr.ontimeout = () =>
-        reject(new Error("PDF download timed out. Try again."));
-      xhr.send();
-    },
-  );
-}
-
-async function pdfBase64FromXhrPayload(
-  data: unknown,
-  contentType: string,
-): Promise<string> {
-  const jsonError = jsonMessageFromBinary(data, contentType);
-  if (jsonError) throw new Error(jsonError);
-  const base64 = await responseDataToBase64(data);
-  if (isPdfBase64(base64)) return base64;
-  try {
-    const text = Buffer.from(base64, "base64").toString("utf8");
-    if (text.trimStart().startsWith("{")) {
-      const parsed = JSON.parse(text) as { message?: string };
-      throw new Error(parsed?.message ?? "Download failed");
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message !== "INVALID_PDF") throw err;
-  }
-  throw new Error("INVALID_PDF");
-}
+const pdfRequestConfig = {
+  responseType: "arraybuffer" as const,
+  transformResponse: [(data: unknown) => data],
+  timeout: 120000,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
+  headers: {
+    Accept: "application/pdf",
+  },
+};
 
 /**
- * Download a PDF with session cookies. Uses XHR blob/arraybuffer so Android
- * does not UTF-8-decode (and corrupt) the file the way Axios often does.
+ * Fetch a PDF through the shared axios client so cookies, refresh, and
+ * interceptors match every other API call in the app.
  */
 export async function downloadAuthenticatedPdf(
   path: string,
   params: Record<string, string | number | undefined | null> = {},
 ): Promise<string> {
-  const query = serializeQueryParams(params);
-  const url = `${BASE_URL.replace(/\/$/, "")}${
-    path.startsWith("/") ? path : `/${path}`
-  }${query ? `?${query}` : ""}`;
-
-  const run = async (): Promise<string> => {
-    try {
-      const blobRes = await xhrGet(url, "blob");
-      if (blobRes.status === 403) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
-      if (blobRes.status < 200 || blobRes.status >= 300) {
-        throw new Error(`Download failed (${blobRes.status}).`);
-      }
-      return await pdfBase64FromXhrPayload(blobRes.data, blobRes.contentType);
-    } catch (err) {
-      if ((err as { status?: number }).status === 403) throw err;
-      const abRes = await xhrGet(url, "arraybuffer");
-      if (abRes.status === 403) throw Object.assign(new Error("FORBIDDEN"), { status: 403 });
-      if (abRes.status < 200 || abRes.status >= 300) {
-        throw new Error(`Download failed (${abRes.status}).`);
-      }
-      return await pdfBase64FromXhrPayload(abRes.data, abRes.contentType);
-    }
-  };
-
-  startGlobalLoading();
-  try {
-    try {
-      return await run();
-    } catch (err) {
-      if ((err as { status?: number }).status !== 403) {
-        if (err instanceof Error && err.message === "INVALID_PDF") {
-          throw new Error(
-            "Server did not return a valid PDF. Try again or check permissions.",
-          );
-        }
-        throw err;
-      }
-      await apiService.post("/auth/refresh");
-      try {
-        return await run();
-      } catch (retryErr) {
-        if (retryErr instanceof Error && retryErr.message === "INVALID_PDF") {
-          throw new Error(
-            "Server did not return a valid PDF. Try again or check permissions.",
-          );
-        }
-        throw retryErr;
-      }
-    }
-  } finally {
-    stopGlobalLoading();
+  const cleanParams: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || String(value) === "") continue;
+    cleanParams[key] = value;
   }
+
+  const response = await apiService.get(path, {
+    params: cleanParams,
+    ...pdfRequestConfig,
+  });
+
+  const contentType = String(response.headers?.["content-type"] ?? "");
+  const base64 = await responseDataToBase64(response.data);
+  if (isPdfBase64(base64)) return base64;
+
+  const jsonError = messageFromFailedPayload(base64, contentType);
+  if (jsonError) throw new Error(jsonError);
+
+  const blobResponse = await apiService.get(path, {
+    params: cleanParams,
+    ...pdfRequestConfig,
+    responseType: "blob",
+  });
+  const blobBase64 = await responseDataToBase64(blobResponse.data);
+  if (isPdfBase64(blobBase64)) return blobBase64;
+
+  const blobJsonError = messageFromFailedPayload(blobBase64, contentType);
+  if (blobJsonError) throw new Error(blobJsonError);
+
+  throw new Error(
+    "Server did not return a valid PDF. Try again or check permissions.",
+  );
 }
 
 export async function saveAndSharePdf(
@@ -280,23 +213,3 @@ export async function saveAndSharePdf(
     UTI: "com.adobe.pdf",
   });
 }
-
-/** @deprecated use responseDataToBase64 */
-export const binaryToBase64 = (data: unknown) => {
-  if (typeof data === "string" && data.trimStart().startsWith("JVBERi")) {
-    return data.replace(/\s/g, "");
-  }
-  if (typeof data === "string") {
-    return Buffer.from(data, "latin1").toString("base64");
-  }
-  if (data instanceof ArrayBuffer) {
-    return uint8ToBase64(new Uint8Array(data));
-  }
-  if (ArrayBuffer.isView(data)) {
-    const view = data as ArrayBufferView;
-    return uint8ToBase64(
-      new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
-    );
-  }
-  return "";
-};

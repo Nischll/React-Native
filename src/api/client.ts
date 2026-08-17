@@ -85,11 +85,11 @@ apiService.interceptors.request.use(
       if (config.headers) {
         const h = config.headers as any;
         if (typeof h.set === "function") {
-          h.set("Accept", "application/pdf,*/*");
+          h.set("Accept", "application/pdf");
           if (typeof h.delete === "function") h.delete("Content-Type");
           else h.set("Content-Type", false);
         } else {
-          h["Accept"] = "application/pdf,*/*";
+          h["Accept"] = "application/pdf";
           delete h["Content-Type"];
         }
       }
