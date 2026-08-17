@@ -287,6 +287,7 @@ export default function OvernightConciergePatrolGrid() {
       });
       await cellMutation.mutateAsync(fd);
       setUncheckTarget(null);
+      setAttachmentsTarget(null);
       await refetch();
     } catch {
       /* toast from mutation */
@@ -507,7 +508,7 @@ export default function OvernightConciergePatrolGrid() {
                   return (
                     <View
                       key={day}
-                      className={`flex-1 mx-0.5 h-[58px] rounded-lg items-center justify-center ${
+                      className={`flex-1 mx-0.5 h-[62px] rounded-lg items-center justify-center ${
                         done
                           ? "bg-green-500"
                           : isToday
@@ -516,46 +517,29 @@ export default function OvernightConciergePatrolGrid() {
                       } ${busy ? "opacity-50" : ""}`}
                     >
                       {done ? (
-                        <View className="items-center">
-                          <Pressable
-                            disabled={busySaving}
-                            onPress={() =>
-                              setUncheckTarget({
-                                templateId: row.templateId,
-                                day,
-                              })
-                            }
-                            hitSlop={6}
+                        <Pressable
+                          disabled={busySaving}
+                          onPress={() =>
+                            setAttachmentsTarget({
+                              templateId: row.templateId,
+                              day,
+                            })
+                          }
+                          className="flex-1 w-full items-center justify-center px-0.5"
+                        >
+                          <AppIcon
+                            name="images-outline"
+                            size={18}
+                            color={amber ? "#fbbf24" : "#fff"}
+                          />
+                          <Text
+                            className={`text-[10px] font-semibold mt-0.5 ${
+                              amber ? "text-amber-300" : "text-white"
+                            }`}
                           >
-                            <Text className="text-white text-base font-bold leading-5">
-                              ×
-                            </Text>
-                          </Pressable>
-                          <Pressable
-                            disabled={busySaving}
-                            onPress={() =>
-                              setAttachmentsTarget({
-                                templateId: row.templateId,
-                                day,
-                              })
-                            }
-                            className="flex-row items-center mt-0.5"
-                            hitSlop={6}
-                          >
-                            <AppIcon
-                              name="attach"
-                              size={13}
-                              color={amber ? "#fbbf24" : "#fff"}
-                            />
-                            <Text
-                              className={`text-[10px] font-semibold ml-0.5 ${
-                                amber ? "text-amber-300" : "text-white"
-                              }`}
-                            >
-                              {attachments.length}
-                            </Text>
-                          </Pressable>
-                        </View>
+                            {attachments.length}
+                          </Text>
+                        </Pressable>
                       ) : (
                         <Pressable
                           disabled={busySaving}
@@ -602,6 +586,10 @@ export default function OvernightConciergePatrolGrid() {
         updatingId={updatingAttachmentId}
         onClose={() => setAttachmentsTarget(null)}
         onPreview={setPreviewAttachment}
+        onUncheck={() => {
+          if (!attachmentsTarget) return;
+          setUncheckTarget(attachmentsTarget);
+        }}
         onUpdate={handleUpdateAttachment}
         onAddMore={handleAddMore}
       />

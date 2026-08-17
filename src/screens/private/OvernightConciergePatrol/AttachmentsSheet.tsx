@@ -1,6 +1,5 @@
 import FormSheetModal from "@/src/components/domain/FormSheetModal";
 import AppButton from "@/src/components/ui/AppButton";
-import AppIcon from "@/src/components/ui/AppIcon";
 import {
   draftsAreComplete,
   promptOcpPhotoSource,
@@ -42,6 +41,7 @@ export default function AttachmentsSheet({
   updatingId,
   onClose,
   onPreview,
+  onUncheck,
   onUpdate,
   onAddMore,
 }: {
@@ -52,6 +52,7 @@ export default function AttachmentsSheet({
   updatingId: number | null;
   onClose: () => void;
   onPreview: (attachment: OcpAttachment) => void;
+  onUncheck: () => void;
   onUpdate: (id: number, draft: EditState) => void;
   onAddMore: (photos: OcpDraftPhoto[]) => Promise<boolean> | boolean | void;
 }) {
@@ -213,20 +214,24 @@ export default function AttachmentsSheet({
             <Text className="text-sm font-semibold text-textPrimary">
               New photo {index + 1}
             </Text>
-            <Pressable
-              onPress={() =>
-                setDrafts((prev) => prev.filter((p) => p.key !== photo.key))
-              }
-              className="h-8 w-8 items-center justify-center rounded-full bg-red-50"
-            >
-              <AppIcon name="trash-outline" size={16} color="#ef4444" />
-            </Pressable>
           </View>
           <Image
             source={{ uri: photo.uri }}
             className="w-full h-36 rounded-lg mb-3 bg-slate-100"
             resizeMode="cover"
           />
+          <View className="mb-3">
+            <AppButton
+              variant="outline"
+              size="sm"
+              leftIcon="trash-outline"
+              onPress={() =>
+                setDrafts((prev) => prev.filter((p) => p.key !== photo.key))
+              }
+            >
+              Remove photo
+            </AppButton>
+          </View>
           <OcpPhotoMetaFields
             title={photo.title}
             area={photo.area}
@@ -254,6 +259,17 @@ export default function AttachmentsSheet({
           Save new photos
         </AppButton>
       ) : null}
+
+      <View className="mt-5 pt-4 border-t border-slate-200">
+        <AppButton
+          variant="danger"
+          size="sm"
+          leftIcon="close-circle-outline"
+          onPress={onUncheck}
+        >
+          Uncheck this night
+        </AppButton>
+      </View>
     </FormSheetModal>
   );
 }

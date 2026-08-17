@@ -89,14 +89,6 @@ export default function CompleteTaskSheet({
               <Text className="text-sm font-semibold text-textPrimary">
                 Photo {index + 1}
               </Text>
-              <Pressable
-                onPress={() =>
-                  onChangePhotos(photos.filter((p) => p.key !== photo.key))
-                }
-                className="h-8 w-8 items-center justify-center rounded-full bg-red-50"
-              >
-                <AppIcon name="trash-outline" size={16} color="#ef4444" />
-              </Pressable>
             </View>
             <Pressable onPress={() => setPreview(photo)}>
               <Image
@@ -105,6 +97,18 @@ export default function CompleteTaskSheet({
                 resizeMode="cover"
               />
             </Pressable>
+            <View className="mb-3">
+              <AppButton
+                variant="outline"
+                size="sm"
+                leftIcon="trash-outline"
+                onPress={() =>
+                  onChangePhotos(photos.filter((p) => p.key !== photo.key))
+                }
+              >
+                Remove photo
+              </AppButton>
+            </View>
             <OcpPhotoMetaFields
               title={photo.title}
               area={photo.area}
