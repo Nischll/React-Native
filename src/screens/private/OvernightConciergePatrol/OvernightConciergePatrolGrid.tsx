@@ -32,6 +32,7 @@ import { flattenModules } from "@/src/helper/flattenModules";
 import { normalizeModulePath } from "@/src/helper/accountMenuModules";
 import { staffDisplayName } from "@/src/helper/pdfClosingNames";
 import { loadOcpSignatures, saveOcpSignatures } from "@/src/helper/ocpSignatures";
+import { waitForModalDismiss } from "@/src/helper/savePdfFile";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { DAY_CODES, DayCode } from "@/src/types/checklist.types";
 import {
@@ -344,10 +345,11 @@ export default function OvernightConciergePatrolGrid() {
       await saveOcpSignatures(signatures);
       const date = pdfDatePending;
       setPdfDatePending(null);
+      setSignaturesVisible(false);
       if (date) {
+        await waitForModalDismiss();
         await downloadDayPdf(date, signatures);
       }
-      setSignaturesVisible(false);
     } finally {
       setSignaturesSaving(false);
     }

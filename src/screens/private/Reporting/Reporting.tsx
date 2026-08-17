@@ -11,18 +11,21 @@ import {
   REPORT_PDF_SIGNATURE_DEFAULTS,
   saveReportPdfSignatures,
 } from "@/src/helper/reportSignatures";
+import {
+  binaryToBase64,
+  isPdfBase64,
+  jsonMessageFromBinary,
+  saveAndSharePdf,
+  waitForModalDismiss,
+} from "@/src/helper/savePdfFile";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   MonthlyReportResponse,
   ReportPdfSignatures,
 } from "@/src/types/reporting.types";
-import { Buffer } from "buffer";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -204,72 +207,17 @@ export default function Reporting() {
       ).toLowerCase();
       const raw = response.data;
 
-      // Backend may return JSON error with 200/4xx while still hitting this path
-      if (contentType.includes("application/json")) {
-        let msg = "Download failed";
-        try {
-          const text =
-            typeof raw === "string"
-              ? raw
-              : Buffer.from(raw as ArrayBuffer).toString("utf8");
-          const j = JSON.parse(text) as { message?: string };
-          if (j?.message) msg = j.message;
-        } catch {
-          /* ignore */
-        }
-        throw new Error(msg);
-      }
+      const jsonError = jsonMessageFromBinary(raw, contentType);
+      if (jsonError) throw new Error(jsonError);
 
-      const base64 = Buffer.from(raw as ArrayBuffer).toString("base64");
-      // PDF files start with "%PDF" — catch corrupt/empty payloads early
-      const header = Buffer.from(raw as ArrayBuffer).subarray(0, 4).toString("utf8");
-      if (header !== "%PDF") {
+      const base64 = binaryToBase64(raw);
+      if (!isPdfBase64(base64)) {
         throw new Error(
           "Server did not return a valid PDF. Try again or check permissions.",
         );
       }
 
-      const fileName = `monthly-report-${month}.pdf`;
-
-      if (Platform.OS === "android") {
-        const permissions =
-          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (!permissions.granted) {
-          Alert.alert(
-            "Permission required",
-            "Please allow access to save files.",
-          );
-          return;
-        }
-        const fileUri =
-          await FileSystem.StorageAccessFramework.createFileAsync(
-            permissions.directoryUri,
-            fileName,
-            "application/pdf",
-          );
-        await FileSystem.writeAsStringAsync(fileUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        Alert.alert("Downloaded", `${fileName} saved successfully.`);
-      } else {
-        if (!FileSystem.documentDirectory) {
-          throw new Error("Storage is not available on this device.");
-        }
-        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-        await FileSystem.writeAsStringAsync(fileUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const canShare = await Sharing.isAvailableAsync();
-        if (!canShare) {
-          Alert.alert("Saved", `${fileName} was saved on device.`);
-          return;
-        }
-        await Sharing.shareAsync(fileUri, {
-          mimeType: "application/pdf",
-          dialogTitle: `Save ${fileName}`,
-          UTI: "com.adobe.pdf",
-        });
-      }
+      await saveAndSharePdf(`monthly-report-${month}.pdf`, base64);
     } catch (e) {
       const message =
         e instanceof Error && e.message
@@ -294,8 +242,9 @@ export default function Reporting() {
 
   const handleConfirmDownload = async () => {
     await saveReportPdfSignatures(signatures);
-    await handleDownloadPdf();
     setNamesVisible(false);
+    await waitForModalDismiss();
+    await handleDownloadPdf();
   };
 
   return (

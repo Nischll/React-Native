@@ -59,6 +59,10 @@ apiService.interceptors.request.use(
         typeof config.data === "object" &&
         "_parts" in config.data);
 
+    const isBinary =
+      config.responseType === "arraybuffer" ||
+      config.responseType === "blob";
+
     if (isFormData) {
       // React Native Android: Axios may force application/x-www-form-urlencoded on
       // PUT/POST after defaults merge. Setting Content-Type to `false` blocks that so
@@ -76,6 +80,25 @@ apiService.interceptors.request.use(
       if (config.timeout == null || config.timeout < 120000) {
         config.timeout = 120000;
       }
+    } else if (isBinary) {
+      // Don't force application/json — Android XHR corrupts PDF/file bytes.
+      if (config.headers) {
+        const h = config.headers as any;
+        if (typeof h.set === "function") {
+          if (!h.get?.("Accept")) h.set("Accept", "*/*");
+          if (typeof h.delete === "function") h.delete("Content-Type");
+          else h.set("Content-Type", false);
+        } else {
+          if (!h["Accept"]) h["Accept"] = "*/*";
+          delete h["Content-Type"];
+        }
+      }
+      config.transformResponse = [(data) => data];
+      if (config.timeout == null || config.timeout < 120000) {
+        config.timeout = 120000;
+      }
+      config.maxContentLength = Infinity;
+      config.maxBodyLength = Infinity;
     } else {
       config.headers["Content-Type"] = "application/json";
     }

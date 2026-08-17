@@ -1,7 +1,7 @@
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import { apiService } from "./client";
 import { ApiListResponse } from "./auth.api";
-import { compactNameParams } from "../helper/pdfClosingNames";
+import { compactNameParams, serializeQueryParams } from "../helper/pdfClosingNames";
 import { MonthlyReportResponse, ReportPdfSignatures } from "../types/reporting.types";
 
 export const useGetMonthlyReport = (
@@ -44,11 +44,13 @@ export const fetchMonthlyReportPdf = (
           })
         : {}),
     },
+    paramsSerializer: serializeQueryParams,
     responseType: "arraybuffer",
-    transformResponse: (data) => data,
+    transformResponse: [(data) => data],
     timeout: 120000,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
     headers: {
-      Accept: "*/*",
-      "Content-Type": undefined,
+      Accept: "application/pdf,*/*",
     },
   });

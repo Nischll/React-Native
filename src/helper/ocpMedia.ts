@@ -11,11 +11,16 @@ import {
   OcpSignatures,
 } from "@/src/types/overnightConciergePatrol.types";
 import { Buffer } from "buffer";
-import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
-import * as Sharing from "expo-sharing";
-import { Alert, Platform } from "react-native";
+import { Alert } from "react-native";
+import { serializeQueryParams } from "./pdfClosingNames";
 import { ocpSignatureQueryParams } from "./ocpSignatures";
+import {
+  binaryToBase64,
+  isPdfBase64,
+  jsonMessageFromBinary,
+  saveAndSharePdf,
+} from "./savePdfFile";
 
 export function titleFromFilename(name: string): string {
   const base = name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
@@ -283,12 +288,14 @@ export async function fetchOcpDailyPdf(params: {
 
   return apiService.get(`${OCP_BASE_PATH}/records/daily/pdf`, {
     params: query,
+    paramsSerializer: serializeQueryParams,
     responseType: "arraybuffer",
-    transformResponse: (data) => data,
+    transformResponse: [(data) => data],
     timeout: 120000,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
     headers: {
-      Accept: "*/*",
-      "Content-Type": undefined,
+      Accept: "application/pdf,*/*",
     },
   });
 }
@@ -305,68 +312,18 @@ export async function saveOcpDailyPdf(params: {
   ).toLowerCase();
   const raw = response.data;
 
-  if (contentType.includes("application/json")) {
-    let msg = "Download failed";
-    try {
-      const text =
-        typeof raw === "string"
-          ? raw
-          : Buffer.from(raw as ArrayBuffer).toString("utf8");
-      const j = JSON.parse(text) as { message?: string };
-      if (j?.message) msg = j.message;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  const jsonError = jsonMessageFromBinary(raw, contentType);
+  if (jsonError) throw new Error(jsonError);
 
-  const header = Buffer.from(raw as ArrayBuffer).subarray(0, 4).toString("utf8");
-  if (header !== "%PDF") {
+  const base64 = binaryToBase64(raw);
+  if (!isPdfBase64(base64)) {
     throw new Error(
       "Server did not return a valid PDF. Try again or check permissions.",
     );
   }
 
-  const fileName = `Overnight_Concierge_Patrol_${params.date}.pdf`;
-  const base64 = Buffer.from(raw as ArrayBuffer).toString("base64");
-
-  if (Platform.OS === "android") {
-    const permissions =
-      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-    if (!permissions.granted) {
-      Alert.alert(
-        "Permission required",
-        "Please allow access to save files.",
-      );
-      return;
-    }
-    const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-      permissions.directoryUri,
-      fileName,
-      "application/pdf",
-    );
-    await FileSystem.writeAsStringAsync(fileUri, base64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    Alert.alert("Downloaded", `${fileName} saved successfully.`);
-    return;
-  }
-
-  if (!FileSystem.documentDirectory) {
-    throw new Error("Storage is not available on this device.");
-  }
-  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-  await FileSystem.writeAsStringAsync(fileUri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const canShare = await Sharing.isAvailableAsync();
-  if (!canShare) {
-    Alert.alert("Saved", `${fileName} was saved on device.`);
-    return;
-  }
-  await Sharing.shareAsync(fileUri, {
-    mimeType: "application/pdf",
-    dialogTitle: `Save ${fileName}`,
-    UTI: "com.adobe.pdf",
-  });
+  await saveAndSharePdf(
+    `Overnight_Concierge_Patrol_${params.date}.pdf`,
+    base64,
+  );
 }

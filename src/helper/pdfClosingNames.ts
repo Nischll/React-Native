@@ -19,6 +19,18 @@ export function compactNameParams(
   return out;
 }
 
+export function serializeQueryParams(
+  params: Record<string, string | number | undefined | null>,
+): string {
+  return Object.entries(params)
+    .filter(([, value]) => value != null && String(value) !== "")
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
+    )
+    .join("&");
+}
+
 export function staffDisplayName(user: UserData | null | undefined): string {
   const full = user?.fullName?.trim();
   if (full) return full;
