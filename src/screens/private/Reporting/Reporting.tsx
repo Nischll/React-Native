@@ -1,4 +1,4 @@
-import { fetchMonthlyReportPdf, useGetMonthlyReport } from "@/src/api/reporting.api";
+import { useGetMonthlyReport } from "@/src/api/reporting.api";
 import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
@@ -12,9 +12,10 @@ import {
   saveReportPdfSignatures,
 } from "@/src/helper/reportSignatures";
 import {
-  binaryToBase64,
-  isPdfBase64,
-  jsonMessageFromBinary,
+  compactNameParams,
+} from "@/src/helper/pdfClosingNames";
+import {
+  downloadAuthenticatedPdf,
   saveAndSharePdf,
   waitForModalDismiss,
 } from "@/src/helper/savePdfFile";
@@ -197,26 +198,17 @@ export default function Reporting() {
     }
     setDownloading(true);
     try {
-      const response = await fetchMonthlyReportPdf(
+      const base64 = await downloadAuthenticatedPdf("/reporting/monthly/pdf", {
         month,
         buildingId,
-        signatures,
-      );
-      const contentType = String(
-        response.headers?.["content-type"] ?? "",
-      ).toLowerCase();
-      const raw = response.data;
-
-      const jsonError = jsonMessageFromBinary(raw, contentType);
-      if (jsonError) throw new Error(jsonError);
-
-      const base64 = binaryToBase64(raw);
-      if (!isPdfBase64(base64)) {
-        throw new Error(
-          "Server did not return a valid PDF. Try again or check permissions.",
-        );
-      }
-
+        ...compactNameParams({
+          buildingManager: signatures.buildingManager,
+          operationsSupervisor: signatures.operationsSupervisor,
+          operationsManager: signatures.operationsManager,
+          generalManager: signatures.generalManager,
+          director: signatures.director,
+        }),
+      });
       await saveAndSharePdf(`monthly-report-${month}.pdf`, base64);
     } catch (e) {
       const message =

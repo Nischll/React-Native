@@ -85,11 +85,11 @@ apiService.interceptors.request.use(
       if (config.headers) {
         const h = config.headers as any;
         if (typeof h.set === "function") {
-          if (!h.get?.("Accept")) h.set("Accept", "*/*");
+          h.set("Accept", "application/pdf,*/*");
           if (typeof h.delete === "function") h.delete("Content-Type");
           else h.set("Content-Type", false);
         } else {
-          if (!h["Accept"]) h["Accept"] = "*/*";
+          h["Accept"] = "application/pdf,*/*";
           delete h["Content-Type"];
         }
       }
@@ -136,7 +136,14 @@ apiService.interceptors.response.use(
       console.log("✅ API RESPONSE");
       console.log("⬅️ URL:", response.config.url);
       console.log("⬅️ STATUS:", response.status);
-      console.log("⬅️ DATA:", response.data);
+      if (
+        response.config.responseType === "arraybuffer" ||
+        response.config.responseType === "blob"
+      ) {
+        console.log("⬅️ DATA: [binary]");
+      } else {
+        console.log("⬅️ DATA:", response.data);
+      }
       console.log("⬅️ REQUEST COUNT:", requestCount);
     }
 

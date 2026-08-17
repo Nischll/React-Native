@@ -13,14 +13,8 @@ import {
 import { Buffer } from "buffer";
 import * as ImagePicker from "expo-image-picker";
 import { Alert } from "react-native";
-import { serializeQueryParams } from "./pdfClosingNames";
 import { ocpSignatureQueryParams } from "./ocpSignatures";
-import {
-  binaryToBase64,
-  isPdfBase64,
-  jsonMessageFromBinary,
-  saveAndSharePdf,
-} from "./savePdfFile";
+import { downloadAuthenticatedPdf, saveAndSharePdf } from "./savePdfFile";
 
 export function titleFromFilename(name: string): string {
   const base = name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
@@ -273,55 +267,22 @@ export async function fetchOcpImageDisplayUri(
   return `data:${mime};base64,${base64}`;
 }
 
-export async function fetchOcpDailyPdf(params: {
-  buildingId: number;
-  date: string;
-  employeeId?: number;
-  signatures: OcpSignatures;
-}) {
-  const query: Record<string, string | number> = {
-    buildingId: params.buildingId,
-    date: params.date,
-    ...ocpSignatureQueryParams(params.signatures),
-  };
-  if (params.employeeId != null) query.employeeId = params.employeeId;
-
-  return apiService.get(`${OCP_BASE_PATH}/records/daily/pdf`, {
-    params: query,
-    paramsSerializer: serializeQueryParams,
-    responseType: "arraybuffer",
-    transformResponse: [(data) => data],
-    timeout: 120000,
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-    headers: {
-      Accept: "application/pdf,*/*",
-    },
-  });
-}
-
 export async function saveOcpDailyPdf(params: {
   buildingId: number;
   date: string;
   employeeId?: number;
   signatures: OcpSignatures;
 }): Promise<void> {
-  const response = await fetchOcpDailyPdf(params);
-  const contentType = String(
-    response.headers?.["content-type"] ?? "",
-  ).toLowerCase();
-  const raw = response.data;
-
-  const jsonError = jsonMessageFromBinary(raw, contentType);
-  if (jsonError) throw new Error(jsonError);
-
-  const base64 = binaryToBase64(raw);
-  if (!isPdfBase64(base64)) {
-    throw new Error(
-      "Server did not return a valid PDF. Try again or check permissions.",
-    );
-  }
-
+  const query: Record<string, string | number | undefined> = {
+    buildingId: params.buildingId,
+    date: params.date,
+    ...ocpSignatureQueryParams(params.signatures),
+    employeeId: params.employeeId,
+  };
+  const base64 = await downloadAuthenticatedPdf(
+    `${OCP_BASE_PATH}/records/daily/pdf`,
+    query,
+  );
   await saveAndSharePdf(
     `Overnight_Concierge_Patrol_${params.date}.pdf`,
     base64,
