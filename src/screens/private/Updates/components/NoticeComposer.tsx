@@ -1,12 +1,16 @@
 import { useCreateCommunicationWithRefresh } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
+import {
+  MentionState,
+  MentionSuggestions,
+  MentionTextInput,
+} from "@/src/helper/mentionTextInput";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -16,6 +20,7 @@ type Audience = "everyone" | "buildings";
 export function NoticeComposer() {
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [mentionState, setMentionState] = useState<MentionState | null>(null);
   const [audience, setAudience] = useState<Audience>("buildings");
   const { user, selectedBuilding } = useAuth();
   const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
@@ -54,6 +59,7 @@ export function NoticeComposer() {
         onSuccess: () => {
           setText("");
           setExpanded(false);
+          setMentionState(null);
           setAudience("buildings");
           setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
         },
@@ -64,6 +70,7 @@ export function NoticeComposer() {
   const handleCancel = () => {
     setText("");
     setExpanded(false);
+    setMentionState(null);
     setAudience("buildings");
     setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
   };
@@ -220,13 +227,14 @@ export function NoticeComposer() {
               </View>
             ) : null}
 
-            <TextInput
+            <MentionTextInput
               value={text}
               onChangeText={setText}
+              onMentionStateChange={setMentionState}
               placeholder={
                 audience === "everyone"
-                  ? "Broadcast a notice to everyone…"
-                  : "Share an update for the selected buildings…"
+                  ? "Broadcast a notice to everyone…  Type @ to mention"
+                  : "Share an update for the selected buildings…  Type @ to mention"
               }
               placeholderTextColor="#CBD5E1"
               multiline
@@ -240,6 +248,16 @@ export function NoticeComposer() {
                 marginBottom: 10,
               }}
             />
+
+            {mentionState ? (
+              <MentionSuggestions
+                mentionState={mentionState}
+                value={text}
+                onChangeText={setText}
+                onDismiss={() => setMentionState(null)}
+                direction="below"
+              />
+            ) : null}
 
             <View
               style={{

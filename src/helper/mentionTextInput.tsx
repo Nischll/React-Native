@@ -79,8 +79,11 @@ export function MentionSuggestions({
   onMentionSelect,
 }: MentionSuggestionsProps) {
   const { user, selectedBuilding } = useAuth();
+  const buildingId = selectedBuilding?.value
+    ? Number(selectedBuilding.value)
+    : null;
   const { employees, isLoading } = useEmployeeByBuildingOptions(
-    Number(selectedBuilding?.value),
+    Number.isFinite(buildingId) ? buildingId : null,
   );
 
   const filtered = useMemo(() => {
@@ -101,7 +104,8 @@ export function MentionSuggestions({
     });
   }, [employees, mentionState, user]);
 
-  if (!mentionState || filtered.length === 0) return null;
+  if (!mentionState) return null;
+  if (!isLoading && filtered.length === 0) return null;
 
   const handleSelect = (emp: any) => {
     const updated = value.replace(/(?:^|\s)@([a-zA-Z0-9._-]*)$/, (m) => {

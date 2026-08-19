@@ -95,6 +95,7 @@ export default function CompleteTaskSheet({
                 source={{ uri: photo.uri }}
                 className="w-full h-36 rounded-lg mb-3 bg-slate-100"
                 resizeMode="cover"
+                resizeMethod="resize"
               />
             </Pressable>
             <View className="mb-3">

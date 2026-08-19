@@ -1,14 +1,33 @@
+import { useGetCommunications } from "@/src/api/communication.api";
+import { useGetPrivateInbox } from "@/src/api/privateMessage.api";
 import AppIcon from "@/src/components/ui/AppIcon";
+import { hasModuleCode } from "@/src/helper/flattenModules";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useSegments } from "expo-router";
 import { Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
-  const { refreshing, unseenUpdatesCount } = useGlobalRefresh();
+  const { refreshing } = useGlobalRefresh();
+  const { user, buildingId } = useAuth();
   const insets = useSafeAreaInsets();
   const segments = useSegments();
+  const canMessage = hasModuleCode(user?.moduleList ?? [], "D");
+
+  const { data: communicationCountData } = useGetCommunications(
+    1,
+    1,
+    "all",
+    buildingId ?? undefined,
+    canMessage,
+  );
+  const { data: privateCountData } = useGetPrivateInbox(1, 1, canMessage);
+
+  const communicationUnseen = communicationCountData?.data?.unseenCount ?? 0;
+  const privateUnseen =
+    privateCountData?.data?.unreadConversationCount ?? 0;
 
   const isOnReplies = segments.includes("replies" as never);
   const tabBarStyle = isOnReplies
@@ -54,43 +73,31 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="(updates)"
           options={{
-            title: "Messages",
+            title: "Communicate",
             tabBarIcon: ({ color, focused }) => (
-              <View>
-                <TabIcon
-                  icon="chatbubbles"
-                  label="Messages"
-                  color={color}
-                  focused={focused}
-                />
+              <TabIcon
+                icon="chatbubbles"
+                label="Communicate"
+                color={color}
+                focused={focused}
+                badge={communicationUnseen}
+              />
+            ),
+          }}
+        />
 
-                {unseenUpdatesCount > 0 && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: -2,
-                      right: 12,
-                      minWidth: 18,
-                      height: 18,
-                      borderRadius: 9,
-                      backgroundColor: "#EF4444",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingHorizontal: 5,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "white",
-                        fontSize: 10,
-                        fontWeight: "700",
-                      }}
-                    >
-                      {unseenUpdatesCount > 99 ? "99+" : unseenUpdatesCount}
-                    </Text>
-                  </View>
-                )}
-              </View>
+        <Tabs.Screen
+          name="private-messages"
+          options={{
+            title: "Private",
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                icon="chatbubble-ellipses"
+                label="Private"
+                color={color}
+                focused={focused}
+                badge={privateUnseen}
+              />
             ),
           }}
         />
@@ -132,18 +139,51 @@ function TabIcon({
   label,
   color,
   focused,
+  badge,
 }: {
   icon: React.ComponentProps<typeof Ionicons>["name"];
   label: string;
   color: string;
   focused: boolean;
+  badge?: number;
 }) {
   return (
     <View
-      style={{ alignItems: "center", justifyContent: "center", minWidth: 84 }}
+      style={{ alignItems: "center", justifyContent: "center", minWidth: 64 }}
     >
-      <AppIcon name={icon} color={color} size={22} />
-      <Text style={{ marginTop: 3, fontSize: 11, fontWeight: "600", color }}>
+      <View>
+        <AppIcon name={icon} color={color} size={22} />
+        {badge != null && badge > 0 ? (
+          <View
+            style={{
+              position: "absolute",
+              top: -4,
+              right: -10,
+              minWidth: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: "#EF4444",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingHorizontal: 4,
+            }}
+          >
+            <Text
+              style={{
+                color: "white",
+                fontSize: 9,
+                fontWeight: "700",
+              }}
+            >
+              {badge > 99 ? "99+" : badge}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Text
+        style={{ marginTop: 3, fontSize: 10, fontWeight: "600", color }}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </View>

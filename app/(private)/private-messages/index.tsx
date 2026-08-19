@@ -1,18 +1,5 @@
-import ScreenContainer from "@/src/components/layout/ScreenContainer";
-import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
-import PrivateMessages from "@/src/screens/private/PrivateMessages/PrivateMessages";
-import { View } from "react-native";
+import { Redirect } from "expo-router";
 
-export default function PrivateMessagesPage() {
-  const { screenRefreshKey, refreshing } = useGlobalRefresh();
-  return (
-    <>
-      <ScreenContainer key="static-container" virtualized refreshable={false}>
-        <PrivateMessages key={screenRefreshKey} />
-      </ScreenContainer>
-      {refreshing && (
-        <View className="absolute inset-0 bg-black/30 items-center justify-center z-50" />
-      )}
-    </>
-  );
+export default function PrivateMessagesRedirect() {
+  return <Redirect href="/(private)/(tabs)/private-messages" />;
 }

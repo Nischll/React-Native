@@ -5,7 +5,7 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -57,63 +57,71 @@ function FormSheetModalBody({
   children,
 }: FormSheetModalProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const bottomPad = Math.max(insets.bottom, 16);
+  const sheetMaxHeight = Math.round(windowHeight * 0.88);
 
   return (
     <View className="flex-1 justify-end bg-black/40">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View
-          className="max-h-[88%] rounded-t-3xl bg-white"
-          style={{
-            paddingBottom: bottomPad,
-            shadowColor: "#000",
-            shadowOpacity: 0.15,
-            shadowRadius: 16,
-            shadowOffset: { width: 0, height: -4 },
-            elevation: 10,
-          }}
-        >
-          <View className="flex-row items-center justify-between border-b border-gray-100 px-5 py-4">
-            <View className="flex-1 pr-3">
-              <Text className="text-lg font-bold text-textPrimary">
-                {title}
+      <Pressable
+        accessibilityRole="button"
+        className="absolute inset-0"
+        onPress={Keyboard.dismiss}
+      />
+      <View
+        className="rounded-t-3xl bg-white overflow-hidden"
+        style={{
+          maxHeight: sheetMaxHeight,
+          paddingBottom: bottomPad,
+          shadowColor: "#000",
+          shadowOpacity: 0.15,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: -4 },
+          elevation: 10,
+        }}
+      >
+        <View className="flex-row items-center justify-between border-b border-gray-100 px-5 py-4">
+          <View className="flex-1 pr-3">
+            <Text className="text-lg font-bold text-textPrimary">{title}</Text>
+            {subtitle ? (
+              <Text className="mt-0.5 text-xs text-textSecondary">
+                {subtitle}
               </Text>
-              {subtitle ? (
-                <Text className="mt-0.5 text-xs text-textSecondary">
-                  {subtitle}
-                </Text>
-              ) : null}
-            </View>
-            <Pressable
-              onPress={onClose}
-              className="h-9 w-9 items-center justify-center rounded-full bg-surfaceMuted"
-            >
-              <AppIcon name="close" size={18} color="#453956" />
-            </Pressable>
+            ) : null}
           </View>
-
-          <ScrollView
-            className="px-5"
-            contentContainerStyle={{ paddingVertical: 16, paddingBottom: 20 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+          <Pressable
+            onPress={onClose}
+            className="h-9 w-9 items-center justify-center rounded-full bg-surfaceMuted"
           >
-            {children}
-          </ScrollView>
-
-          {hideSubmit ? null : (
-            <View className="border-t border-gray-100 px-5 pt-4 pb-3">
-              <AppButton
-                loading={loading}
-                disabled={submitDisabled}
-                onPress={onSubmit ?? (() => {})}
-              >
-                {submitLabel}
-              </AppButton>
-            </View>
-          )}
+            <AppIcon name="close" size={18} color="#453956" />
+          </Pressable>
         </View>
-      </TouchableWithoutFeedback>
+
+        <ScrollView
+          className="px-5"
+          style={{ flexGrow: 0, flexShrink: 1 }}
+          contentContainerStyle={{ paddingVertical: 16, paddingBottom: 20 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
+          bounces
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+
+        {hideSubmit ? null : (
+          <View className="border-t border-gray-100 px-5 pt-4 pb-3">
+            <AppButton
+              loading={loading}
+              disabled={submitDisabled}
+              onPress={onSubmit ?? (() => {})}
+            >
+              {submitLabel}
+            </AppButton>
+          </View>
+        )}
+      </View>
     </View>
   );
 }

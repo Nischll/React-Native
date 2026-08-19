@@ -285,7 +285,6 @@ export default function PrivateMessages() {
     <View className="flex-1 bg-white">
       <View className="px-4 pt-1">
         <PageHeader
-          showBackButton
           icon="chatbubble-ellipses-outline"
           title="Private Messages"
           subtitle="Direct messages with one person"
