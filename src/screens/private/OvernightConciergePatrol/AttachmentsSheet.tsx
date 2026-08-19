@@ -39,10 +39,12 @@ export default function AttachmentsSheet({
   attachments,
   adding,
   updatingId,
+  deletingId,
   onClose,
   onPreview,
   onUncheck,
   onUpdate,
+  onDelete,
   onAddMore,
 }: {
   visible: boolean;
@@ -50,10 +52,12 @@ export default function AttachmentsSheet({
   attachments: OcpAttachment[];
   adding: boolean;
   updatingId: number | null;
+  deletingId: number | null;
   onClose: () => void;
   onPreview: (attachment: OcpAttachment) => void;
   onUncheck: () => void;
   onUpdate: (id: number, draft: EditState) => void;
+  onDelete: (attachment: OcpAttachment) => void;
   onAddMore: (photos: OcpDraftPhoto[]) => Promise<boolean> | boolean | void;
 }) {
   const [edits, setEdits] = useState<Record<number, EditState>>({});
@@ -187,6 +191,18 @@ export default function AttachmentsSheet({
                   Update
                 </AppButton>
               </View>
+            </View>
+            <View className="mt-2">
+              <AppButton
+                variant="outline"
+                size="sm"
+                leftIcon="trash-outline"
+                loading={deletingId === att.id}
+                disabled={deletingId != null && deletingId !== att.id}
+                onPress={() => onDelete(att)}
+              >
+                Delete photo
+              </AppButton>
             </View>
           </View>
         );

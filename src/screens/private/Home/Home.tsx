@@ -1,19 +1,22 @@
 import { useGetDashboardStatistics } from "@/src/api/dashboard.api";
+import { useGetCommunications } from "@/src/api/communication.api";
+import { useGetPrivateInbox } from "@/src/api/privateMessage.api";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
 import { isHiddenFromHome } from "@/src/helper/accountMenuModules";
 import { StatCard } from "@/src/helper/dashboardStatCard";
-import { flattenModules } from "@/src/helper/flattenModules";
+import { flattenModules, hasModuleCode } from "@/src/helper/flattenModules";
 import { mapIcon } from "@/src/helper/mapIcon";
 import { mapToAppRoute } from "@/src/helper/mapToAppRoute";
+import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { router } from "expo-router";
+import { Href, router } from "expo-router";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
-import { useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { resolveProfilePicture } from "../Profile/Profile";
 import { ActivityBar } from "./components/ActivityBar";
@@ -22,6 +25,8 @@ import SearchBar from "./components/SearchBar";
 export default function Home() {
   const { user, buildingId, selectedBuilding, openBuildingSelectDialog } =
     useAuth();
+  const { setUnseenUpdatesCount } = useGlobalRefresh();
+  const canMessage = hasModuleCode(user?.moduleList ?? [], "D");
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
@@ -36,6 +41,24 @@ export default function Home() {
       !!buildingId,
     );
 
+  const { data: communicationCountData } = useGetCommunications(
+    1,
+    1,
+    "all",
+    buildingId ?? undefined,
+    canMessage,
+  );
+  const { data: privateCountData } = useGetPrivateInbox(1, 1, canMessage);
+
+  const communicationUnseen =
+    communicationCountData?.data?.unseenCount ?? 0;
+  const privateUnseen =
+    privateCountData?.data?.unreadConversationCount ?? 0;
+
+  useEffect(() => {
+    if (canMessage) setUnseenUpdatesCount(communicationUnseen);
+  }, [canMessage, communicationUnseen, setUnseenUpdatesCount]);
+
   const stats = statsData?.data;
 
   const modules = user?.moduleList ?? [];
@@ -48,9 +71,39 @@ export default function Home() {
     .map((mod) => {
       const route = mapToAppRoute(mod.path);
       if (!route) return null;
-      return { title: mod.name, icon: mapIcon(mod.icon), route };
+      return {
+        title: mod.name,
+        icon: mapIcon(mod.icon),
+        route,
+        badge: 0,
+      };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  if (canMessage) {
+    const titles = new Set(quickModules.map((m) => m.title.toLowerCase()));
+    if (![...titles].some((t) => t.includes("communication"))) {
+      quickModules.unshift({
+        title: "Communications",
+        icon: "chatbubbles",
+        route: "/(private)/(tabs)/(updates)" as Href,
+        badge: communicationUnseen,
+      });
+    }
+    if (![...titles].some((t) => t.includes("private message"))) {
+      quickModules.splice(Math.min(1, quickModules.length), 0, {
+        title: "Private Messages",
+        icon: "chatbubble-ellipses",
+        route: "/(private)/private-messages" as Href,
+        badge: privateUnseen,
+      });
+    }
+    for (const item of quickModules) {
+      const title = item.title.toLowerCase();
+      if (title.includes("private message")) item.badge = privateUnseen;
+      else if (title.includes("communication")) item.badge = communicationUnseen;
+    }
+  }
 
   const remoteAvatarUri = resolveProfilePicture(
     (user as any)?.profilePictureUrl,
@@ -174,8 +227,15 @@ export default function Home() {
                 className="mb-3 w-[48%]"
               >
                 <Card className="flex-row items-center gap-2 p-3 min-h-[72px]">
-                  <View className="h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <View className="relative h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                     <AppIcon name={item.icon} size={20} color="#453956" />
+                    {item.badge != null && item.badge > 0 ? (
+                      <View className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-danger items-center justify-center">
+                        <Text className="text-[9px] font-bold text-white">
+                          {item.badge > 99 ? "99+" : item.badge}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                   <Text
                     className="flex-1 text-xs font-semibold text-textPrimary"

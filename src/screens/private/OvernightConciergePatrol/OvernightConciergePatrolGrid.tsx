@@ -1,5 +1,6 @@
 import {
   useAddOcpAttachments,
+  useDeleteOcpAttachment,
   useGetOcpWeekly,
   useUpdateOcpAttachment,
   useUpdateOcpWeeklyCell,
@@ -44,6 +45,7 @@ import {
   OcpSignatures,
   OcpWeeklyRow,
   ocpCellHasNotNormal,
+  ocpVisibleAttachments,
 } from "@/src/types/overnightConciergePatrol.types";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -124,6 +126,8 @@ export default function OvernightConciergePatrolGrid() {
   const [updatingAttachmentId, setUpdatingAttachmentId] = useState<
     number | null
   >(null);
+  const [deletePhotoTarget, setDeletePhotoTarget] =
+    useState<OcpAttachment | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +177,7 @@ export default function OvernightConciergePatrolGrid() {
   const cellMutation = useUpdateOcpWeeklyCell();
   const addAttachmentsMutation = useAddOcpAttachments();
   const updateAttachmentMutation = useUpdateOcpAttachment();
+  const deleteAttachmentMutation = useDeleteOcpAttachment();
 
   const canManageTemplates = flattenModules(user?.moduleList ?? []).some(
     (m) =>
@@ -182,7 +187,8 @@ export default function OvernightConciergePatrolGrid() {
   const busySaving =
     cellMutation.isPending ||
     addAttachmentsMutation.isPending ||
-    updateAttachmentMutation.isPending;
+    updateAttachmentMutation.isPending ||
+    deleteAttachmentMutation.isPending;
 
   const downloadDayPdf = async (
     date: string,
@@ -337,6 +343,27 @@ export default function OvernightConciergePatrolGrid() {
       return true;
     } catch {
       return false;
+    }
+  };
+
+  const handleConfirmDeletePhoto = async () => {
+    if (!deletePhotoTarget) return;
+    const cell = attachmentsTarget
+      ? findRow(attachmentsTarget.templateId)?.days?.[attachmentsTarget.day]
+      : undefined;
+    const wasLast = ocpVisibleAttachments(cell).length <= 1;
+    try {
+      await deleteAttachmentMutation.mutateAsync({
+        pathVars: { attachmentId: deletePhotoTarget.id },
+      });
+      if (previewAttachment?.id === deletePhotoTarget.id) {
+        setPreviewAttachment(null);
+      }
+      setDeletePhotoTarget(null);
+      if (wasLast) setAttachmentsTarget(null);
+      await refetch();
+    } catch {
+      /* toast from mutation */
     }
   };
 
@@ -502,7 +529,7 @@ export default function OvernightConciergePatrolGrid() {
                   const isToday = todayDay === day;
                   const cellKey = `${row.templateId}-${day}`;
                   const busy = pendingCell === cellKey;
-                  const attachments = cell?.attachments ?? [];
+                  const attachments = ocpVisibleAttachments(cell);
                   const amber = ocpCellHasNotNormal(cell);
 
                   return (
@@ -581,9 +608,14 @@ export default function OvernightConciergePatrolGrid() {
       <AttachmentsSheet
         visible={!!attachmentsTarget}
         dutyTitle={attachmentsRow?.workTitle ?? ""}
-        attachments={attachmentsCell?.attachments ?? []}
+        attachments={ocpVisibleAttachments(attachmentsCell)}
         adding={addAttachmentsMutation.isPending}
         updatingId={updatingAttachmentId}
+        deletingId={
+          deleteAttachmentMutation.isPending && deletePhotoTarget
+            ? deletePhotoTarget.id
+            : null
+        }
         onClose={() => setAttachmentsTarget(null)}
         onPreview={setPreviewAttachment}
         onUncheck={() => {
@@ -591,6 +623,7 @@ export default function OvernightConciergePatrolGrid() {
           setUncheckTarget(attachmentsTarget);
         }}
         onUpdate={handleUpdateAttachment}
+        onDelete={setDeletePhotoTarget}
         onAddMore={handleAddMore}
       />
 
@@ -632,12 +665,27 @@ export default function OvernightConciergePatrolGrid() {
       <ConfirmModal
         visible={!!uncheckTarget}
         title="Uncheck duty"
-        message="Mark this duty as not done for this night? Photos stay on the record unless the server removes them."
+        message="This unchecks the duty and permanently deletes every photo for this night (records and files). Unchecked nights are left out of the daily PDF."
         confirmText="Uncheck"
         destructive
         loading={cellMutation.isPending}
         onCancel={() => setUncheckTarget(null)}
         onConfirm={handleConfirmUncheck}
+      />
+
+      <ConfirmModal
+        visible={!!deletePhotoTarget}
+        title="Delete photo"
+        message={
+          ocpVisibleAttachments(attachmentsCell).length <= 1
+            ? "This is the last photo. The file will be deleted and the duty will be unchecked."
+            : "This photo file will be permanently deleted."
+        }
+        confirmText="Delete photo"
+        destructive
+        loading={deleteAttachmentMutation.isPending}
+        onCancel={() => setDeletePhotoTarget(null)}
+        onConfirm={handleConfirmDeletePhoto}
       />
     </View>
   );

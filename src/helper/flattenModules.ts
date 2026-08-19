@@ -11,3 +11,10 @@ export const flattenModules = (modules: Module[]): Module[] => {
     mod.path ? [mod] : flattenModules(mod.moduleList),
   );
 };
+
+export function hasModuleCode(modules: Module[], code: string): boolean {
+  return modules.some(
+    (mod) =>
+      mod.code === code || hasModuleCode(mod.moduleList ?? [], code),
+  );
+}

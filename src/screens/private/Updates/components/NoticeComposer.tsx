@@ -1,78 +1,61 @@
 import { useCreateCommunicationWithRefresh } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
-import {
-  MentionState,
-  MentionSuggestions,
-  MentionTextInput,
-} from "@/src/helper/mentionTextInput";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
-function stripMentions(text: string): string {
-  return text
-    .replace(/@[\w._-]+/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
+type Audience = "everyone" | "buildings";
 
 export function NoticeComposer() {
   const [text, setText] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const [mentionState, setMentionState] = useState<MentionState | null>(null);
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
-  const [isAllBuildings, setIsAllBuildings] = useState(false);
-
-  const { selectedBuilding } = useAuth();
+  const [audience, setAudience] = useState<Audience>("buildings");
+  const { user, selectedBuilding } = useAuth();
   const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
 
-  const hasText = text.trim().length > 0;
+  const buildingOptions = user?.buildingList ?? [];
+  const defaultBuildingId = selectedBuilding
+    ? Number(selectedBuilding.value)
+    : buildingOptions[0]
+      ? Number(buildingOptions[0].value)
+      : null;
 
-  const handleMentionSelect = (id: string) => {
-    setSelectedEmployeeIds((prev) =>
-      prev.includes(Number(id)) ? prev : [...prev, Number(id)],
-    );
-  };
+  const [buildingIds, setBuildingIds] = useState<number[]>(() =>
+    defaultBuildingId ? [defaultBuildingId] : [],
+  );
 
-  const handleToggleAllBuildings = () => {
-    const next = !isAllBuildings;
-    setIsAllBuildings(next);
+  const selectedLabels = useMemo(() => {
+    return buildingOptions
+      .filter((b) => buildingIds.includes(Number(b.value)))
+      .map((b) => b.label.split("(")[0]?.trim() || b.label);
+  }, [buildingOptions, buildingIds]);
 
-    if (next) {
-      setText((prev) => stripMentions(prev));
-      setSelectedEmployeeIds([]);
-      setMentionState(null);
-    }
-  };
+  const canSend =
+    text.trim().length > 0 &&
+    (audience === "everyone" || buildingIds.length > 0);
 
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (audience === "buildings" && buildingIds.length === 0) return;
 
     create(
-      {
-        message: trimmed,
-        parentId: null,
-        buildingIds: isAllBuildings
-          ? []
-          : selectedBuilding
-            ? [Number(selectedBuilding.value)]
-            : [],
-        employeeIds: isAllBuildings ? [] : selectedEmployeeIds,
-      },
+      audience === "everyone"
+        ? { message: trimmed }
+        : { message: trimmed, buildingIds },
       {
         onSuccess: () => {
           setText("");
           setExpanded(false);
-          setMentionState(null);
-          setSelectedEmployeeIds([]);
-          setIsAllBuildings(false);
+          setAudience("buildings");
+          setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
         },
       },
     );
@@ -81,9 +64,14 @@ export function NoticeComposer() {
   const handleCancel = () => {
     setText("");
     setExpanded(false);
-    setMentionState(null);
-    setSelectedEmployeeIds([]);
-    setIsAllBuildings(false);
+    setAudience("buildings");
+    setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
+  };
+
+  const toggleBuilding = (id: number) => {
+    setBuildingIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   return (
@@ -101,7 +89,6 @@ export function NoticeComposer() {
           elevation: 2,
         }}
       >
-        {/* Header */}
         <Pressable
           onPress={() => setExpanded(true)}
           style={{
@@ -126,65 +113,120 @@ export function NoticeComposer() {
           </Text>
         </Pressable>
 
-        {/* Expanded area */}
-        {(expanded || hasText) && (
+        {(expanded || text.trim().length > 0) && (
           <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-            {/* ── All Buildings toggle ── */}
-            <TouchableOpacity
-              onPress={handleToggleAllBuildings}
-              activeOpacity={0.7}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 10,
-                alignSelf: "flex-start",
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 99,
-                borderWidth: 1.5,
-                borderColor: isAllBuildings ? "#7C3AED" : "#E2E8F0",
-                backgroundColor: isAllBuildings ? "#F5F3FF" : "#FAFAFA",
-              }}
-            >
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+              <TouchableOpacity
+                onPress={() => setAudience("everyone")}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 99,
+                  borderWidth: 1.5,
+                  borderColor: audience === "everyone" ? "#7C3AED" : "#E2E8F0",
+                  backgroundColor:
+                    audience === "everyone" ? "#F5F3FF" : "#FAFAFA",
+                }}
+              >
+                <AppIcon
+                  name="globe-outline"
+                  size={14}
+                  color={audience === "everyone" ? "#7C3AED" : "#64748B"}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: audience === "everyone" ? "#7C3AED" : "#64748B",
+                  }}
+                >
+                  Everyone
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setAudience("buildings")}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 99,
+                  borderWidth: 1.5,
+                  borderColor: audience === "buildings" ? "#7C3AED" : "#E2E8F0",
+                  backgroundColor:
+                    audience === "buildings" ? "#F5F3FF" : "#FAFAFA",
+                }}
+              >
+                <AppIcon
+                  name="business-outline"
+                  size={14}
+                  color={audience === "buildings" ? "#7C3AED" : "#64748B"}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: audience === "buildings" ? "#7C3AED" : "#64748B",
+                  }}
+                >
+                  Selected buildings
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {audience === "buildings" ? (
               <View
                 style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: 4,
-                  borderWidth: 1.5,
-                  borderColor: isAllBuildings ? "#7C3AED" : "#CBD5E1",
-                  backgroundColor: isAllBuildings ? "#7C3AED" : "#fff",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: 10,
                 }}
               >
-                {isAllBuildings && (
-                  <AppIcon name="checkmark" size={10} color="#fff" />
-                )}
+                {buildingOptions.map((b) => {
+                  const id = Number(b.value);
+                  const on = buildingIds.includes(id);
+                  return (
+                    <TouchableOpacity
+                      key={b.value}
+                      onPress={() => toggleBuilding(id)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 99,
+                        borderWidth: 1,
+                        borderColor: on ? "#16A34A" : "#E2E8F0",
+                        backgroundColor: on ? "#F0FDF4" : "#fff",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "600",
+                          color: on ? "#16A34A" : "#64748B",
+                        }}
+                      >
+                        {b.label.split("(")[0]?.trim() || b.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: isAllBuildings ? "#7C3AED" : "#64748B",
-                }}
-              >
-                All Buildings
-              </Text>
-            </TouchableOpacity>
+            ) : null}
 
-            {/* ── Message input ── */}
-            <MentionTextInput
+            <TextInput
               value={text}
               onChangeText={setText}
-              onMentionStateChange={
-                isAllBuildings ? undefined : setMentionState
-              }
               placeholder={
-                isAllBuildings
-                  ? "Enter message… (mentions disabled for all buildings)"
-                  : "Enter message…. Type @ to mention someone"
+                audience === "everyone"
+                  ? "Broadcast a notice to everyone…"
+                  : "Share an update for the selected buildings…"
               }
               placeholderTextColor="#CBD5E1"
               multiline
@@ -199,19 +241,6 @@ export function NoticeComposer() {
               }}
             />
 
-            {/* Mention suggestions  */}
-            {mentionState && !isAllBuildings && (
-              <MentionSuggestions
-                mentionState={mentionState}
-                value={text}
-                onChangeText={setText}
-                onDismiss={() => setMentionState(null)}
-                direction="below"
-                onMentionSelect={handleMentionSelect}
-              />
-            )}
-
-            {/* ── Scope indicator ── */}
             <View
               style={{
                 flexDirection: "row",
@@ -221,18 +250,19 @@ export function NoticeComposer() {
               }}
             >
               <AppIcon
-                name={isAllBuildings ? "globe-outline" : "business-outline"}
+                name={audience === "everyone" ? "globe-outline" : "business-outline"}
                 size={12}
                 color="#94A3B8"
               />
               <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-                {isAllBuildings
-                  ? "Sending to all buildings"
-                  : `Sending to ${selectedBuilding?.label ?? "current building"}`}
+                {audience === "everyone"
+                  ? "Sending to everyone"
+                  : selectedLabels.length
+                    ? `Sending to ${selectedLabels.join(", ")}`
+                    : "Pick at least one building"}
               </Text>
             </View>
 
-            {/* ── Actions ── */}
             <View
               style={{
                 flexDirection: "row",
@@ -260,7 +290,7 @@ export function NoticeComposer() {
 
               <Pressable
                 onPress={handleSend}
-                disabled={!text.trim() || isPending}
+                disabled={!canSend || isPending}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -268,8 +298,7 @@ export function NoticeComposer() {
                   paddingHorizontal: 16,
                   paddingVertical: 7,
                   borderRadius: 10,
-                  backgroundColor:
-                    !text.trim() || isPending ? "#E2E8F0" : "#7C3AED",
+                  backgroundColor: !canSend || isPending ? "#E2E8F0" : "#7C3AED",
                 }}
               >
                 {isPending ? (
@@ -278,14 +307,14 @@ export function NoticeComposer() {
                   <AppIcon
                     name="send"
                     size={14}
-                    color={!text.trim() ? "#94A3B8" : "#fff"}
+                    color={!canSend ? "#94A3B8" : "#fff"}
                   />
                 )}
                 <Text
                   style={{
                     fontSize: 13,
                     fontWeight: "700",
-                    color: !text.trim() || isPending ? "#94A3B8" : "#fff",
+                    color: !canSend || isPending ? "#94A3B8" : "#fff",
                   }}
                 >
                   {isPending ? "Posting…" : "Post"}
@@ -295,8 +324,7 @@ export function NoticeComposer() {
           </View>
         )}
 
-        {/* Collapsed placeholder */}
-        {!expanded && !hasText && (
+        {!expanded && text.trim().length === 0 && (
           <Pressable
             onPress={() => setExpanded(true)}
             style={{ paddingHorizontal: 14, paddingBottom: 14 }}

@@ -16,6 +16,7 @@ export interface OcpAttachment {
   area?: string;
   status?: OcpPhotoStatus | string;
   description?: string;
+  active?: boolean;
 }
 
 export interface OcpDayCell {
@@ -24,6 +25,14 @@ export interface OcpDayCell {
   completedDate: string;
   completedTime?: string | null;
   attachments?: OcpAttachment[];
+}
+
+/** Photos shown on a completed cell. Unchecked days omit images even if files linger. */
+export function ocpVisibleAttachments(
+  cell?: OcpDayCell | null,
+): OcpAttachment[] {
+  if (!cell?.isDone) return [];
+  return (cell.attachments ?? []).filter((a) => a.active !== false);
 }
 
 export interface OcpWeeklyRow {
@@ -78,5 +87,5 @@ export function isOcpNotNormal(status?: string | null): boolean {
 }
 
 export function ocpCellHasNotNormal(cell?: OcpDayCell | null): boolean {
-  return (cell?.attachments ?? []).some((a) => isOcpNotNormal(a.status));
+  return ocpVisibleAttachments(cell).some((a) => isOcpNotNormal(a.status));
 }

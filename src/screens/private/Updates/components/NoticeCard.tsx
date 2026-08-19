@@ -4,13 +4,7 @@ import {
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
-import {
-  MentionState,
-  MentionSuggestions,
-  MentionTextInput,
-} from "@/src/helper/mentionTextInput";
 import { MessageText } from "@/src/helper/messageDisplayText";
-import { useEmployeeOptions } from "@/src/hooks/useEmployee";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
@@ -23,6 +17,7 @@ import {
   PanResponder,
   Pressable,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
@@ -58,7 +53,6 @@ export function NoticeCard({
   const [editText, setEditText] = useState(item.message);
   const [expanded, setExpanded] = useState(false);
   const [deleteZoneVisible, setDeleteZoneVisible] = useState(false);
-  const [mentionState, setMentionState] = useState<MentionState | null>(null);
 
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteScale = useRef(new Animated.Value(0.8)).current;
@@ -68,7 +62,6 @@ export function NoticeCard({
     useUpdateCommunicationWithRefresh();
   const { mutate: deleteMsg, isPending: deleting } =
     useDeleteCommunicationWithRefresh();
-  const { employees } = useEmployeeOptions(1, 100);
 
   const isLong = item.message.length > 180;
   const displayText =
@@ -145,20 +138,12 @@ export function NoticeCard({
       return;
     }
 
-    const mentionedUsernames = (trimmed.match(/@([a-zA-Z0-9._-]+)/g) ?? []).map(
-      (m) => m.slice(1),
-    );
-    const resolvedEmployeeIds = employees
-      .filter((e) => mentionedUsernames.includes(e.username))
-      .map((e) => Number(e.value));
-
     updateMsg(
       {
         id: item.id,
         message: trimmed,
         parentId: null,
         buildingIds: item.buildingIds,
-        employeeIds: resolvedEmployeeIds.length > 0 ? resolvedEmployeeIds : [],
       },
       {
         onSuccess: () => {
@@ -330,20 +315,7 @@ export function NoticeCard({
               {isOwn && (
                 <Pressable
                   onPress={() => {
-                    const existingMentions = (item.employeeIds ?? [])
-                      .map((id) =>
-                        employees.find((e) => e.value === String(id)),
-                      )
-                      .filter(Boolean)
-                      .map((e) => `@${e!.username}`)
-                      .join(" ");
-                    const baseText = item.message;
-                    const textWithMentions = existingMentions
-                      ? baseText.includes("@")
-                        ? baseText
-                        : `${baseText} ${existingMentions}`.trim()
-                      : baseText;
-                    setEditText(textWithMentions);
+                    setEditText(item.message);
                     setEditing(true);
                   }}
                   hitSlop={8}
@@ -366,23 +338,13 @@ export function NoticeCard({
                     backgroundColor: "#FAFAF9",
                   }}
                 >
-                  <MentionTextInput
+                  <TextInput
                     value={editText}
                     onChangeText={setEditText}
-                    onMentionStateChange={setMentionState}
                     multiline
                     autoFocus
                     style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
                   />
-                  {mentionState && (
-                    <MentionSuggestions
-                      mentionState={mentionState}
-                      value={editText}
-                      onChangeText={setEditText}
-                      onDismiss={() => setMentionState(null)}
-                      direction="above"
-                    />
-                  )}
 
                   <View
                     style={{
@@ -440,62 +402,6 @@ export function NoticeCard({
                       </Text>
                     </Pressable>
                   )}
-
-                  {/* Employee chips */}
-                  {(() => {
-                    const mentionedUsernames = (
-                      item.message.match(/@([a-zA-Z0-9._-]+)/g) ?? []
-                    ).map((m) => m.slice(1));
-                    const unmentionedEmployees = (item.employeeIds ?? [])
-                      .map((id) =>
-                        employees.find((e) => e.value === String(id)),
-                      )
-                      .filter(Boolean)
-                      .filter(
-                        (emp) => !mentionedUsernames.includes(emp!.username),
-                      );
-                    if (unmentionedEmployees.length === 0) return null;
-                    return (
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          flexWrap: "wrap",
-                          gap: 6,
-                          marginTop: 6,
-                        }}
-                      >
-                        {unmentionedEmployees.map((emp) => (
-                          <View
-                            key={emp!.value}
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 4,
-                              backgroundColor: "#EDE9FE",
-                              borderRadius: 99,
-                              paddingHorizontal: 8,
-                              paddingVertical: 3,
-                            }}
-                          >
-                            <AppIcon
-                              name="person-outline"
-                              size={11}
-                              color="#7C3AED"
-                            />
-                            <Text
-                              style={{
-                                fontSize: 12,
-                                color: "#7C3AED",
-                                fontWeight: "600",
-                              }}
-                            >
-                              @{emp!.username}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    );
-                  })()}
 
                   {/* Building chips — only when specific buildings tagged (not all) */}
                   {!isAllBuildings && (item.buildingIds ?? []).length > 0 && (

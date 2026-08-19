@@ -46,16 +46,14 @@ export interface CommunicationListResponse {
 
 export interface CreateCommunicationPayload {
   message: string;
-  parentId: number | null;
-  employeeIds?: number[] | null;
+  parentId?: number | null;
   buildingIds?: number[] | null;
 }
 
 export interface UpdateCommunicationPayload {
   id: number;
   message: string;
-  parentId: number | null;
-  employeeIds?: number[] | null;
+  parentId?: number | null;
   buildingIds?: number[] | null;
 }
 

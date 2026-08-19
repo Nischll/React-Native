@@ -27,6 +27,8 @@ export const mapIcon = (
     Zap: "flash",
     Layers: "layers",
     Home: "home",
+    Chatbubble: "chatbubble-ellipses",
+    MessageCircle: "chatbubbles",
     LayoutDashboard: "grid",
     ListTodo: "list",
     GraduationCap: "school",

@@ -20,8 +20,11 @@ export function useGetCommunications(
   limit = 10,
   seenStatus: SeenStatus = "all",
   buildingId?: number,
+  enabled = true,
 ) {
   return useApiQuery<CommunicationListResponse>(COMMUNICATION_KEY, {
+    enabled,
+    retry: 0,
     queryParams: {
       page,
       limit,

@@ -47,3 +47,15 @@ export const useUpdateOcpAttachment = () =>
   >("put", (vars) => `${OCP_BASE_PATH}/records/attachments/${vars?.id}`, {
     showSuccessToast: false,
   });
+
+export const useDeleteOcpAttachment = () =>
+  useApiMutation<
+    { pathVars: { attachmentId: number } },
+    unknown,
+    { attachmentId: number }
+  >(
+    "delete",
+    (vars) =>
+      `${OCP_BASE_PATH}/records/attachments/${vars?.attachmentId}`,
+    { showSuccessToast: false },
+  );
