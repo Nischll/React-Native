@@ -24,6 +24,8 @@ interface ScreenContainerProps extends ScrollViewProps {
   refreshable?: boolean;
 
   virtualized?: boolean;
+  /** Extra bottom safe-area padding. Turn off inside tab screens. */
+  safeBottom?: boolean;
 }
 
 export default function ScreenContainer({
@@ -34,6 +36,7 @@ export default function ScreenContainer({
   backgroundClassName = "bg-white",
   contentClassName = "bg-white",
   refreshable = true,
+  safeBottom = true,
   ...props
 }: ScreenContainerProps) {
   const { triggerRefresh, refreshing, setRefreshing } = useGlobalRefresh();
@@ -53,7 +56,7 @@ export default function ScreenContainer({
   const content = (
     <View
       className={`${padded ? "p-4" : ""} flex-1 ${contentClassName}`}
-      style={{ paddingBottom: insets.bottom }}
+      style={safeBottom ? { paddingBottom: insets.bottom } : undefined}
     >
       {children}
     </View>

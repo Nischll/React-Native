@@ -4,7 +4,7 @@ import ListPager from "@/src/components/layout/ListPager";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { PrivateInboxItem } from "@/src/types/privateMessage.types";
 import { timeAgo } from "@/src/utils/timeAgo";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 export default function ConversationList({
   items,
@@ -41,7 +41,12 @@ export default function ConversationList({
 
   return (
     <View className="flex-1">
-      <View className="flex-1">
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 8 }}
+      >
         {items.map((item) => {
           const selected = selectedUserId === item.userId;
           return (
@@ -88,7 +93,7 @@ export default function ConversationList({
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
       <ListPager
         page={page}
         pageSize={pageSize}

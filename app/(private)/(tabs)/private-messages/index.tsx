@@ -7,7 +7,13 @@ export default function PrivateMessagesPage() {
   const { screenRefreshKey, refreshing } = useGlobalRefresh();
   return (
     <>
-      <ScreenContainer key="static-container" virtualized refreshable={false}>
+      <ScreenContainer
+        key="static-container"
+        virtualized
+        refreshable={false}
+        padded={false}
+        safeBottom={false}
+      >
         <PrivateMessages key={screenRefreshKey} />
       </ScreenContainer>
       {refreshing && (

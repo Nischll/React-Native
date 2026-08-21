@@ -283,23 +283,25 @@ export default function PrivateMessages() {
 
   return (
     <View className="flex-1 bg-white">
-      <View className="px-4 pt-1">
-        <PageHeader
-          icon="chatbubble-ellipses-outline"
-          title="Private Messages"
-          subtitle="Direct messages with one person"
-        />
-      </View>
+      {split || !selected ? (
+        <View className="px-4 pt-1">
+          <PageHeader
+            icon="chatbubble-ellipses-outline"
+            title="Private Messages"
+            subtitle="Direct messages with one person"
+          />
+        </View>
+      ) : null}
 
       {split ? (
-        <View className="flex-1 flex-row">
+        <View className="flex-1 flex-row min-h-0">
           {listPane}
           {threadPane}
         </View>
       ) : selected ? (
-        threadPane
+        <View className="flex-1 min-h-0">{threadPane}</View>
       ) : (
-        listPane
+        <View className="flex-1 min-h-0">{listPane}</View>
       )}
 
       <UserPickerSheet

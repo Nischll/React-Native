@@ -3,8 +3,10 @@ import ListPager from "@/src/components/layout/ListPager";
 import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { PrivateThreadMessage } from "@/src/types/privateMessage.types";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +14,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MessageBubble from "./MessageBubble";
 
 export default function ChatThread({
@@ -50,13 +51,21 @@ export default function ChatThread({
   onPageChange: (page: number) => void;
   onDelete: (item: PrivateThreadMessage) => void;
 }) {
-  const insets = useSafeAreaInsets();
+  const ordered = useMemo(
+    () =>
+      [...messages].sort(
+        (a, b) =>
+          new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime(),
+      ),
+    [messages],
+  );
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-white"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+      keyboardVerticalOffset={0}
     >
       <View className="flex-row items-center border-b border-slate-200 px-3 py-3">
         {showBack ? (
@@ -78,38 +87,51 @@ export default function ChatThread({
         </Text>
       </View>
 
-      {loading ? (
+      {loading && ordered.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#453956" />
         </View>
-      ) : messages.length === 0 ? (
-        <EmptyState message="No messages yet. Say hello." />
+      ) : ordered.length === 0 ? (
+        <View className="flex-1">
+          <EmptyState message="No messages yet. Say hello." />
+        </View>
       ) : (
-        <View className="flex-1 px-3 pt-2">
-          {messages.map((item) => (
+        <FlatList
+          className="flex-1"
+          data={ordered}
+          keyExtractor={(item) => String(item.id)}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "flex-end",
+            paddingHorizontal: 12,
+            paddingTop: 8,
+            paddingBottom: 12,
+          }}
+          renderItem={({ item }) => (
             <MessageBubble
-              key={item.id}
               item={item}
               isMine={item.createdBy === loggedInUserId}
               onDelete={
                 item.createdBy === loggedInUserId ? onDelete : undefined
               }
             />
-          ))}
-        </View>
+          )}
+        />
       )}
 
-      <ListPager
-        page={page}
-        pageSize={pageSize}
-        total={total}
-        onPageChange={onPageChange}
-      />
+      {totalPages > 1 ? (
+        <ListPager
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={onPageChange}
+        />
+      ) : null}
 
-      <View
-        className="flex-row items-end gap-2 border-t border-slate-200 px-3 pt-2"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-      >
+      <View className="flex-row items-end gap-2 border-t border-slate-200 px-3 pt-2 pb-3">
         <TextInput
           value={draft}
           onChangeText={onChangeDraft}

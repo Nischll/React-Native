@@ -7,7 +7,9 @@ export type CourierType =
   | "RUSH"
   | "DRAGONFLY"
   | "FEDEX"
-  | "INTELCOM";
+  | "INTELCOM"
+  | "UPS"
+  | "FLEETOPTICS";
 
 export type PackageType = "BOX" | "ENVELOPE" | "SHEET";
 export type PackageSize = "SMALL" | "MEDIUM" | "LARGE" | "OVERSIZED";
@@ -24,6 +26,8 @@ export const COURIER_OPTIONS: { value: CourierType; label: string }[] = [
   { value: "DRAGONFLY", label: "Dragonfly" },
   { value: "FEDEX", label: "FedEx" },
   { value: "INTELCOM", label: "Intelcom" },
+  { value: "UPS", label: "UPS" },
+  { value: "FLEETOPTICS", label: "FleetOptics" },
 ];
 
 export function courierLabel(courier?: string | null): string {
