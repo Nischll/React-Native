@@ -200,3 +200,34 @@ export function getReplyCount(item: CommunicationItem): number {
       : 0;
   return Math.max(explicit, nested, unseen);
 }
+
+/** Turns a flat or nested reply list into a tree under the original post. */
+export function buildReplyTree(
+  rootId: number,
+  replies: CommunicationItem[],
+): CommunicationItem[] {
+  if (!Array.isArray(replies) || replies.length === 0) return [];
+
+  const alreadyNested = replies.some(
+    (reply) => Array.isArray(reply.replies) && reply.replies.length > 0,
+  );
+  if (alreadyNested) return replies;
+
+  const nodes = new Map<number, CommunicationItem>();
+  for (const reply of replies) {
+    nodes.set(reply.id, { ...reply, replies: [] });
+  }
+
+  const roots: CommunicationItem[] = [];
+  for (const reply of replies) {
+    const node = nodes.get(reply.id);
+    if (!node) continue;
+    const parent = reply.parentId;
+    if (parent != null && parent !== rootId && nodes.has(parent)) {
+      nodes.get(parent)!.replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}

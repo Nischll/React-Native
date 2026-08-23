@@ -1,5 +1,6 @@
 import {
   COMMUNICATION_KEY,
+  buildReplyTree,
   findCommunicationInCache,
   getReplyCount,
   useCreateCommunicationWithRefresh,
@@ -54,8 +55,12 @@ export function ReplySheet() {
   const parentAuthor = cachedParent?.createdByFullName || String(author ?? "");
   const parentMessage = cachedParent?.message || String(message ?? "");
   const replies = useMemo(
-    () => (Array.isArray(cachedParent?.replies) ? cachedParent.replies : []),
-    [cachedParent],
+    () =>
+      buildReplyTree(
+        parentId,
+        Array.isArray(cachedParent?.replies) ? cachedParent.replies : [],
+      ),
+    [cachedParent, parentId],
   );
   const replyCount = cachedParent ? getReplyCount(cachedParent) : replies.length;
 
@@ -65,6 +70,7 @@ export function ReplySheet() {
   const [editingReply, setEditingReply] = useState<CommunicationItem | null>(
     null,
   );
+  const [replyingTo, setReplyingTo] = useState<CommunicationItem | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const { mutate: create, isPending: sending } =
@@ -82,7 +88,11 @@ export function ReplySheet() {
 
     if (editingReply) {
       update(
-        { id: editingReply.id, message: trimmed, parentId },
+        {
+          id: editingReply.id,
+          message: trimmed,
+          parentId: editingReply.parentId ?? parentId,
+        },
         {
           onSuccess: () => {
             setEditingReply(null);
@@ -93,8 +103,13 @@ export function ReplySheet() {
       return;
     }
     create(
-      { message: trimmed, parentId },
-      { onSuccess: () => setReplyText("") },
+      { message: trimmed, parentId: replyingTo?.id ?? parentId },
+      {
+        onSuccess: () => {
+          setReplyText("");
+          setReplyingTo(null);
+        },
+      },
     );
   };
 
@@ -185,8 +200,14 @@ export function ReplySheet() {
               onSwipeOpen={setOpenSwipeId}
               onRequestDelete={setDeleteTargetId}
               onEdit={(r) => {
+                setReplyingTo(null);
                 setEditingReply(r);
                 setReplyText(r.message);
+              }}
+              onReply={(r) => {
+                setEditingReply(null);
+                setReplyText("");
+                setReplyingTo(r);
               }}
             />
           )}
@@ -242,6 +263,35 @@ export function ReplySheet() {
         </View>
       )}
 
+      {!editingReply && replyingTo && (
+        <View
+          style={{
+            paddingHorizontal: 12,
+            paddingBottom: 6,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{ fontSize: 12, color: "#7C3AED", fontWeight: "600", flex: 1 }}
+            numberOfLines={1}
+          >
+            Replying to {replyingTo.createdByFullName}
+          </Text>
+          <Pressable
+            onPress={() => {
+              setReplyingTo(null);
+              setReplyText("");
+            }}
+          >
+            <Text style={{ fontSize: 12, color: "#94A3B8", fontWeight: "600" }}>
+              Cancel
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       <View
         style={{
           paddingHorizontal: 12,
@@ -259,7 +309,9 @@ export function ReplySheet() {
             placeholder={
               editingReply
                 ? "Edit reply..."
-                : `Reply to ${parentAuthor || "post"}…`
+                : replyingTo
+                  ? `Reply to ${replyingTo.createdByFullName}…`
+                  : `Reply to ${parentAuthor || "post"}…`
             }
             placeholderTextColor="#CBD5E1"
             multiline

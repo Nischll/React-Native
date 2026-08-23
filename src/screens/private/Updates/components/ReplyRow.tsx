@@ -36,18 +36,22 @@ const OTHER = {
 
 interface ReplyRowProps {
   item: CommunicationItem;
+  depth?: number;
   openSwipeId: number | null;
   onSwipeOpen: (id: number | null) => void;
   onRequestDelete: (id: number) => void;
   onEdit: (item: CommunicationItem) => void;
+  onReply: (item: CommunicationItem) => void;
 }
 
 export function ReplyRow({
   item,
+  depth = 0,
   openSwipeId,
   onSwipeOpen,
   onRequestDelete,
   onEdit,
+  onReply,
 }: ReplyRowProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
@@ -284,6 +288,18 @@ export function ReplyRow({
                   )}
 
                   <Pressable
+                    onPress={() => onReply(item)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    <AppIcon name="return-down-forward" size={12} color={C.meta} />
+                    <Text style={{ fontSize: 12, color: C.meta }}>Reply</Text>
+                  </Pressable>
+
+                  <Pressable
                     onPress={() => setShowReactionPicker(true)}
                     style={{
                       flexDirection: "row",
@@ -327,6 +343,31 @@ export function ReplyRow({
           )}
         </View>
       </View>
+
+      {(item.replies ?? []).length > 0 ? (
+        <View
+          style={{
+            marginTop: 4,
+            marginLeft: depth >= 6 ? 0 : 16,
+            paddingLeft: 10,
+            borderLeftWidth: 2,
+            borderLeftColor: "#E2E8F0",
+          }}
+        >
+          {(item.replies ?? []).map((child) => (
+            <ReplyRow
+              key={child.id}
+              item={child}
+              depth={depth + 1}
+              openSwipeId={openSwipeId}
+              onSwipeOpen={onSwipeOpen}
+              onRequestDelete={onRequestDelete}
+              onEdit={onEdit}
+              onReply={onReply}
+            />
+          ))}
+        </View>
+      ) : null}
 
       {/* Reaction picker modal */}
       <Modal
