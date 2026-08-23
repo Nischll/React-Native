@@ -380,6 +380,10 @@ export default function BookingDetailsScreen() {
               const aid = booking.amenityId ?? undefined;
               if (rid != null) params.residentId = String(rid);
               if (aid != null) params.amenityId = String(aid);
+              const bookingDate = booking.startDate
+                ? String(booking.startDate).slice(0, 10)
+                : "";
+              if (bookingDate) params.bookingDate = bookingDate;
               router.push({
                 pathname: "/(private)/pre-post-inspection/inspection-add-edit",
                 params,

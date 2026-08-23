@@ -193,23 +193,17 @@ export default function PrePostInspectionDetails() {
             />
           </InfoRow>
           <InfoRow>
-            <InfoField
-              label="Time"
-              value={row.inspectionTime?.trim() || "—"}
-            />
             <InfoField label="Status" value={statusLabel(String(row.status))} />
-          </InfoRow>
-          <InfoRow>
             <InfoField
               label="Deposit returned"
               value={depositReturnedLabel(row.depositReturned)}
             />
+          </InfoRow>
+          <InfoRow>
             <InfoField
               label="Created by"
               value={row.createdByUserName?.trim() || "—"}
             />
-          </InfoRow>
-          <InfoRow>
             <InfoField
               label="Created date"
               value={

@@ -122,10 +122,12 @@ export function getInspectionParamsFromRevenue(
   const bookingId = item.bookingDetail?.id ?? item.sourceId;
   const residentId = item.bookingDetail?.residentId ?? item.residentId;
   const amenityId = item.bookingDetail?.amenityId;
+  const bookingDate = item.bookingDetail?.startDate;
   const params: Record<string, string> = {};
   if (bookingId != null) params.bookingId = String(bookingId);
   if (residentId != null) params.residentId = String(residentId);
   if (amenityId != null) params.amenityId = String(amenityId);
+  if (bookingDate) params.bookingDate = String(bookingDate).slice(0, 10);
   return params;
 }
 

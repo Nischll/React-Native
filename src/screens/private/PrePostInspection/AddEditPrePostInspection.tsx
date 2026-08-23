@@ -48,6 +48,7 @@ type AmenityOption = {
   amenityId: number;
   name: string;
   bookingId?: number;
+  startDate?: string;
   revenue?: BookingRevenueResponse | null;
 };
 
@@ -123,9 +124,10 @@ function mapAmenityFromResponse(
 
 function toYmd(isoOrDate: string): string {
   if (!isoOrDate) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDate)) return isoOrDate;
+  const match = String(isoOrDate).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
   const d = new Date(isoOrDate);
-  if (Number.isNaN(d.getTime())) return isoOrDate.slice(0, 10);
+  if (Number.isNaN(d.getTime())) return String(isoOrDate).slice(0, 10);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -151,20 +153,6 @@ function inspectionDateDisplay(ymd: string): string {
     });
   }
   return ymd;
-}
-
-function nowHm() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes(),
-  ).padStart(2, "0")}`;
-}
-
-function normalizeTimeInput(t: string | undefined | null): string {
-  if (!t?.trim()) return "";
-  const trimmed = t.trim();
-  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed.slice(0, 5);
-  return trimmed;
 }
 
 function inspectionDateInputValue(iso: string | undefined): string {
@@ -406,11 +394,13 @@ export default function AddEditPrePostInspection() {
     bookingId: qBookingId,
     residentId: qResidentId,
     amenityId: qAmenityId,
+    bookingDate: qBookingDate,
   } = useLocalSearchParams<{
     inspectionId?: string;
     bookingId?: string;
     residentId?: string;
     amenityId?: string;
+    bookingDate?: string;
   }>();
 
   const editId =
@@ -431,6 +421,8 @@ export default function AddEditPrePostInspection() {
     qAmenityId && !Number.isNaN(Number(qAmenityId))
       ? Number(qAmenityId)
       : undefined;
+  const initialBookingDate =
+    typeof qBookingDate === "string" ? toYmd(qBookingDate) : "";
 
   const { buildingId } = useAuth();
   const { residences } = useResidencesForActiveBuilding();
@@ -441,8 +433,10 @@ export default function AddEditPrePostInspection() {
   const [bookingId, setBookingId] = useState<number | undefined>(
     initialBookingId,
   );
-  const [inspectionDate, setInspectionDate] = useState(todayYmd());
-  const [inspectionTime, setInspectionTime] = useState(nowHm());
+  const [inspectionDate, setInspectionDate] = useState(
+    initialBookingDate || (initialBookingId != null ? "" : todayYmd()),
+  );
+  const [inspectionTime, setInspectionTime] = useState("");
   const [status, setStatus] = useState<PrePostInspectionStatus>("IN_PROGRESS");
   const [depositReturned, setDepositReturned] = useState<
     "yes" | "no" | "unset"
@@ -471,8 +465,8 @@ export default function AddEditPrePostInspection() {
     useGetPrePostInspectionById(editId, isEdit);
 
   const { data: bookingData } = useGetBookingById(
-    !isEdit && initialBookingId != null ? initialBookingId : undefined,
-    !isEdit && initialBookingId != null,
+    !isEdit ? bookingId : undefined,
+    !isEdit && bookingId != null,
   );
 
   const { data: amenitiesData, isLoading: amenitiesLoading } =
@@ -509,12 +503,20 @@ export default function AddEditPrePostInspection() {
           bookingIdRaw != null && !Number.isNaN(Number(bookingIdRaw))
             ? Number(bookingIdRaw)
             : undefined;
+        const startDateRaw = String(
+          r.startDate ??
+            r.bookingDate ??
+            r.bookingStartDate ??
+            (r.booking as { startDate?: string } | undefined)?.startDate ??
+            "",
+        ).trim();
         const option: AmenityOption = {
           amenityId,
           name: name || `Amenity #${amenityId}`,
           revenue: (r.revenue ?? null) as BookingRevenueResponse | null,
         };
         if (bid != null) option.bookingId = bid;
+        if (startDateRaw) option.startDate = toYmd(startDateRaw);
         return option;
       })
       .filter((x): x is AmenityOption => x != null);
@@ -547,6 +549,8 @@ export default function AddEditPrePostInspection() {
     if (b.residentId != null && residentId == null) {
       setResidentId(b.residentId);
     }
+    const bookingYmd = toYmd(String(b.startDate ?? ""));
+    if (bookingYmd) setInspectionDate(bookingYmd);
     if (b.amenityId != null) {
       setAmenities((rows) => {
         if (rows.length === 1 && rows[0].amenityId == null) {
@@ -574,7 +578,7 @@ export default function AddEditPrePostInspection() {
     setResidentId(row.residentId);
     setBookingId(row.bookingId ?? undefined);
     setInspectionDate(inspectionDateInputValue(row.inspectionDate));
-    setInspectionTime(normalizeTimeInput(row.inspectionTime) || nowHm());
+    setInspectionTime(String(row.inspectionTime ?? "").trim());
     setStatus(
       (String(row.status) as PrePostInspectionStatus) || "IN_PROGRESS",
     );
@@ -642,7 +646,7 @@ export default function AddEditPrePostInspection() {
       residentId: residentId!,
       bookingId: bookingId ?? null,
       inspectionDate: inspectionDate.trim(),
-      inspectionTime: inspectionTime.trim() || undefined,
+      inspectionTime: isEdit ? inspectionTime.trim() || undefined : undefined,
       status: statusOverride ?? status,
       depositReturned:
         depositReturned === "yes"
@@ -774,7 +778,7 @@ export default function AddEditPrePostInspection() {
         <SectionHeading
           step={1}
           title="Who & when"
-          description="Resident and status — date and time are set automatically"
+          description="Resident and status — inspection date matches the booking date"
         />
 
         <SelectField
@@ -787,11 +791,11 @@ export default function AddEditPrePostInspection() {
 
         <ReadOnlyField
           label="Inspection date"
-          value={inspectionDateDisplay(inspectionDate)}
-        />
-        <ReadOnlyField
-          label="Inspection time"
-          value={inspectionTime.trim() || "—"}
+          value={
+            inspectionDate
+              ? inspectionDateDisplay(inspectionDate)
+              : "Set from the booking date"
+          }
         />
 
         <View className="mt-3">
@@ -809,7 +813,7 @@ export default function AddEditPrePostInspection() {
         <SectionHeading
           step={2}
           title="Amenities"
-          description="Booked amenities for this resident on the inspection date"
+          description="Booked amenities for this resident on the booking date"
         />
 
         {!residentId || !inspectionDate ? (
@@ -876,8 +880,11 @@ export default function AddEditPrePostInspection() {
                     bookingId: opt?.bookingId,
                     revenue: opt?.revenue ?? null,
                   });
-                  if (opt?.bookingId != null && bookingId == null) {
+                  if (opt?.bookingId != null) {
                     setBookingId(opt.bookingId);
+                  }
+                  if (opt?.startDate) {
+                    setInspectionDate(toYmd(opt.startDate));
                   }
                 }}
                 options={optionsForRow}

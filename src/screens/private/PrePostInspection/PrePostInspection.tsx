@@ -157,15 +157,10 @@ export default function PrePostInspection() {
       label: "Date",
       primary: true,
       searchable: true,
-      render: (value, row) => (
-        <View style={{ gap: 2 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}>
-            {inspectionDateDisplay(String(value ?? ""))}
-          </Text>
-          <Text style={{ fontSize: 12, color: "#6B7280" }}>
-            {row.inspectionTime?.trim() || "—"}
-          </Text>
-        </View>
+      render: (value) => (
+        <Text style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}>
+          {inspectionDateDisplay(String(value ?? ""))}
+        </Text>
       ),
     },
     {
