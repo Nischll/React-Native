@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import {
+  CommunicationItem,
   CommunicationListResponse,
   CreateCommunicationPayload,
   ReactionPayload,
@@ -154,4 +155,48 @@ export function useToggleReactionWithRefresh() {
   };
 
   return { ...mutation, mutate: mutateWithRefresh };
+}
+
+export function findCommunicationInCache(
+  qc: ReturnType<typeof useQueryClient>,
+  id: number,
+): CommunicationItem | undefined {
+  let best: CommunicationItem | undefined;
+  let bestScore = -1;
+  const entries = qc.getQueriesData<CommunicationListResponse>({
+    queryKey: [COMMUNICATION_KEY],
+  });
+  for (const [, payload] of entries) {
+    const rows = payload?.data?.data;
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      if (row?.id !== id) continue;
+      const score =
+        (Array.isArray(row.replies) ? row.replies.length : 0) +
+        (typeof row.replyCount === "number" ? row.replyCount : 0);
+      if (score > bestScore) {
+        best = row;
+        bestScore = score;
+      }
+    }
+  }
+  return best;
+}
+
+export function getReplyCount(item: CommunicationItem): number {
+  const replies = Array.isArray(item.replies) ? item.replies : [];
+  const nested = replies.reduce(
+    (sum, reply) => sum + 1 + getReplyCount(reply),
+    0,
+  );
+  const explicit =
+    typeof item.replyCount === "number" && Number.isFinite(item.replyCount)
+      ? item.replyCount
+      : 0;
+  const unseen =
+    typeof item.replyUnseenCount === "number" &&
+    Number.isFinite(item.replyUnseenCount)
+      ? item.replyUnseenCount
+      : 0;
+  return Math.max(explicit, nested, unseen);
 }

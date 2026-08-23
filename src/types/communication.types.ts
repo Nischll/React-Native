@@ -28,6 +28,7 @@ export interface CommunicationItem {
   buildingIds: number[] | null;
   employeeIds: number[] | null;
   replyUnseenCount: number;
+  replyCount?: number;
 }
 
 export interface CommunicationListResponse {

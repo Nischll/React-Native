@@ -1,7 +1,9 @@
 import {
+  COMMUNICATION_KEY,
+  findCommunicationInCache,
+  getReplyCount,
   useCreateCommunicationWithRefresh,
   useDeleteCommunicationWithRefresh,
-  useGetCommunications,
   useUpdateCommunicationWithRefresh,
 } from "@/src/api/communication.api";
 import PageHeader from "@/src/components/layout/PageHeader";
@@ -13,8 +15,9 @@ import {
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
 import { CommunicationItem } from "@/src/types/communication.types";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -27,15 +30,34 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ReplyRow } from "./components/ReplyRow";
 
 export function ReplySheet() {
-  const { parentItem } = useLocalSearchParams();
-  const parsedParent: CommunicationItem = JSON.parse(parentItem as string);
-  const parentId = parsedParent.id;
+  const { parentId: parentIdParam, author, message } = useLocalSearchParams<{
+    parentId?: string;
+    author?: string;
+    message?: string;
+  }>();
+  const parentId = Number(parentIdParam);
+  const qc = useQueryClient();
 
-  const { data } = useGetCommunications();
-  const parentFromServer = data?.data?.data?.find(
-    (item) => item.id === parentId,
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      qc.getQueryCache().subscribe((event) => {
+        if (event?.query?.queryKey?.[0] === COMMUNICATION_KEY) onStoreChange();
+      }),
+    [qc],
   );
-  const replies = parentFromServer?.replies ?? [];
+  const getSnapshot = useCallback(
+    () => (parentId ? findCommunicationInCache(qc, parentId) ?? null : null),
+    [qc, parentId],
+  );
+  const cachedParent = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  const parentAuthor = cachedParent?.createdByFullName || String(author ?? "");
+  const parentMessage = cachedParent?.message || String(message ?? "");
+  const replies = useMemo(
+    () => (Array.isArray(cachedParent?.replies) ? cachedParent.replies : []),
+    [cachedParent],
+  );
+  const replyCount = cachedParent ? getReplyCount(cachedParent) : replies.length;
 
   const [replyText, setReplyText] = useState("");
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
@@ -56,7 +78,7 @@ export function ReplySheet() {
 
   const handleSend = () => {
     const trimmed = replyText.trim();
-    if (!trimmed) return;
+    if (!trimmed || !parentId) return;
 
     if (editingReply) {
       update(
@@ -97,9 +119,8 @@ export function ReplySheet() {
         barStyle="dark-content"
       />
 
-      {/* ── Header — never moves ── */}
       <PageHeader
-        title={`${replies.length <= 1 ? "Reply" : "Replies"}${replies.length > 0 ? ` (${replies.length})` : ""}`}
+        title={`${replyCount <= 1 ? "Reply" : "Replies"}${replyCount > 0 ? ` (${replyCount})` : ""}`}
         subtitle=""
         icon="chatbox"
         showBackButton
@@ -112,7 +133,6 @@ export function ReplySheet() {
         }}
       />
 
-      {/* ── Original post — never moves ── */}
       <View style={{ paddingHorizontal: 12, marginBottom: 8 }}>
         <View
           style={{
@@ -131,25 +151,25 @@ export function ReplySheet() {
               marginBottom: 2,
             }}
           >
-            {parsedParent.createdByFullName}
+            {parentAuthor}
           </Text>
           <Text
             style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
             numberOfLines={3}
           >
-            {parsedParent.message}
+            {parentMessage}
           </Text>
         </View>
       </View>
 
-      {/* ── Reply list — shrinks when keyboard opens ── */}
-      {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss}> */}
       <View style={{ flex: 1 }}>
         <FlatList
           data={replies}
           keyExtractor={(item) => String(item.id)}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          windowSize={5}
           contentContainerStyle={{
             paddingHorizontal: 12,
             paddingVertical: 8,
@@ -186,9 +206,7 @@ export function ReplySheet() {
           }
         />
       </View>
-      {/* </TouchableWithoutFeedback> */}
 
-      {/* ── Mention suggestions ── */}
       {mentionState && (
         <MentionSuggestions
           mentionState={mentionState}
@@ -199,7 +217,6 @@ export function ReplySheet() {
         />
       )}
 
-      {/* ── Edit indicator ── */}
       {editingReply && (
         <View
           style={{
@@ -225,7 +242,6 @@ export function ReplySheet() {
         </View>
       )}
 
-      {/* ── Pinned composer ── */}
       <View
         style={{
           paddingHorizontal: 12,
@@ -243,7 +259,7 @@ export function ReplySheet() {
             placeholder={
               editingReply
                 ? "Edit reply..."
-                : `Reply to ${parsedParent.createdByFullName ?? "post"}…`
+                : `Reply to ${parentAuthor || "post"}…`
             }
             placeholderTextColor="#CBD5E1"
             multiline

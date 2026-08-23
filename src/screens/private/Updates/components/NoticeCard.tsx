@@ -1,4 +1,5 @@
 import {
+  getReplyCount,
   useDeleteCommunicationWithRefresh,
   useUpdateCommunicationWithRefresh,
 } from "@/src/api/communication.api";
@@ -42,8 +43,9 @@ export function NoticeCard({
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false && !isOwn;
 
-  const hasUnseenReplies = item.replyUnseenCount > 0;
-  const unseenReplyCount = item.replyUnseenCount;
+  const hasUnseenReplies = (item.replyUnseenCount ?? 0) > 0;
+  const unseenReplyCount = item.replyUnseenCount ?? 0;
+  const replyCount = getReplyCount(item);
 
   // buildingIds empty array = sent to all buildings
   const isAllBuildings = (item.buildingIds ?? []).length === 0;
@@ -477,7 +479,11 @@ export function NoticeCard({
                 onPress={() =>
                   router.push({
                     pathname: "/(private)/(tabs)/(updates)/replies",
-                    params: { parentItem: JSON.stringify(item) },
+                    params: {
+                      parentId: String(item.id),
+                      author: item.createdByFullName ?? "",
+                      message: (item.message ?? "").slice(0, 400),
+                    },
                   })
                 }
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
@@ -494,8 +500,8 @@ export function NoticeCard({
                     color: hasUnseenReplies ? "#7C3AED" : "#64748B",
                   }}
                 >
-                  {item.replies.length > 0
-                    ? `${item.replies.length} ${item.replies.length === 1 ? "reply" : "replies"}`
+                  {replyCount > 0
+                    ? `${replyCount} ${replyCount === 1 ? "reply" : "replies"}`
                     : "Reply"}
                 </Text>
                 {/* Use replyUnseenCount from API directly */}
