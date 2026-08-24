@@ -3,10 +3,17 @@ import {
   DayCode,
   WeeklyChecklistDayCell,
   WeeklyChecklistRow,
+  pickDayCell,
 } from "@/src/types/checklist.types";
 import { getCompletedDateForDay } from "./checklistDateUtils";
 
 const SCHEDULED_DAY_TO_CODE: Record<string, DayCode> = {
+  saturday: "Sa",
+  sat: "Sa",
+  sa: "Sa",
+  sunday: "Su",
+  sun: "Su",
+  su: "Su",
   monday: "M",
   mon: "M",
   m: "M",
@@ -58,20 +65,26 @@ function resolveScheduledDayCode(
 }
 
 /**
- * Normalize weekly/daily checklist rows so the UI always has an M–F `days` map.
+ * Normalize weekly/daily checklist rows so the UI always has a Sat–Fri `days` map.
  * Weekly API historically returned only `cell` + `scheduledDay`; newer APIs return `days`.
  */
 export function normalizeWeeklyChecklistRow(
   row: WeeklyChecklistRow,
   weekEnding: string,
 ): WeeklyChecklistRow {
-  if (row.days && DAY_CODES.every((d) => row.days?.[d] != null)) {
-    return row;
-  }
-
   const days = {} as Record<DayCode, WeeklyChecklistDayCell>;
   for (const day of DAY_CODES) {
-    days[day] = emptyCell(getCompletedDateForDay(weekEnding, day));
+    const existing = pickDayCell(row.days, day);
+    days[day] = existing
+      ? {
+          detailId: existing.detailId ?? null,
+          isDone: !!existing.isDone,
+          completedDate: String(
+            existing.completedDate || getCompletedDateForDay(weekEnding, day),
+          ).slice(0, 10),
+          completedTime: existing.completedTime ?? null,
+        }
+      : emptyCell(getCompletedDateForDay(weekEnding, day));
   }
 
   if (row.cell) {
@@ -81,10 +94,11 @@ export function normalizeWeeklyChecklistRow(
       row.scheduledDate ||
       getCompletedDateForDay(weekEnding, scheduledDay);
     days[scheduledDay] = {
-      detailId: row.cell.detailId ?? null,
-      isDone: !!row.cell.isDone,
+      detailId: row.cell.detailId ?? days[scheduledDay].detailId ?? null,
+      isDone: !!row.cell.isDone || !!days[scheduledDay].isDone,
       completedDate: String(completedDate).slice(0, 10),
-      completedTime: row.cell.completedTime ?? null,
+      completedTime:
+        row.cell.completedTime ?? days[scheduledDay].completedTime ?? null,
     };
   }
 

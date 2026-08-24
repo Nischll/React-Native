@@ -35,7 +35,7 @@ import { staffDisplayName } from "@/src/helper/pdfClosingNames";
 import { loadOcpSignatures, saveOcpSignatures } from "@/src/helper/ocpSignatures";
 import { waitForModalDismiss } from "@/src/helper/savePdfFile";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { DAY_CODES, DayCode } from "@/src/types/checklist.types";
+import { DAY_CODES, DAY_LABELS, DayCode, pickDayCell } from "@/src/types/checklist.types";
 import {
   OCP_SIGNATURE_DEFAULTS,
   OcpAttachment,
@@ -65,7 +65,7 @@ import PhotoPreviewModal from "./PhotoPreviewModal";
 function normalizeOcpRow(row: OcpWeeklyRow, weekEnding: string): OcpWeeklyRow {
   const days = {} as Record<DayCode, OcpDayCell>;
   for (const day of DAY_CODES) {
-    const existing = row.days?.[day];
+    const existing = pickDayCell(row.days, day);
     const completedDate = existing?.completedDate
       ? String(existing.completedDate).slice(0, 10)
       : getCompletedDateForDay(weekEnding, day);
@@ -470,7 +470,7 @@ export default function OvernightConciergePatrolGrid() {
                   isToday ? "text-primary" : "text-slate-600"
                 }`}
               >
-                {day}
+                {DAY_LABELS[day]}
               </Text>
               <Text className="text-[9px] text-slate-400 mb-1">
                 {formatDayHeaderDate(date)}

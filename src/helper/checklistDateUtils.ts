@@ -50,6 +50,8 @@ export function formatCompletedTime(date: Date = new Date()): string {
 }
 
 const DAY_OFFSET_FROM_FRIDAY: Record<DayCode, number> = {
+  Sa: 6,
+  Su: 5,
   M: 4,
   T: 3,
   W: 2,

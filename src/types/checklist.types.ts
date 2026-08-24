@@ -6,7 +6,7 @@ export interface ChecklistPeriodConfig {
   basePath: string;
   title: string;
   templateTitle: string;
-  /** "weekly-grid" periods (daily & weekly) show M-F toggle columns per row */
+  /** "weekly-grid" periods (daily & weekly) show Sat–Fri toggle columns per row */
   gridType: "weekly-grid" | "period-cell";
 }
 
@@ -54,19 +54,44 @@ export interface ChecklistTemplateResponse extends ChecklistTemplateRequest {
   id: number;
 }
 
-// ---- Weekly-grid records (daily & weekly periods): rows with M-F day cells ----
+// ---- Weekly-grid records (daily & weekly periods): rows with Sat–Fri day cells ----
 
-export type DayCode = "M" | "T" | "W" | "Th" | "F";
+export type DayCode = "Sa" | "Su" | "M" | "T" | "W" | "Th" | "F";
 
-export const DAY_CODES: DayCode[] = ["M", "T", "W", "Th", "F"];
+export const DAY_CODES: DayCode[] = ["Sa", "Su", "M", "T", "W", "Th", "F"];
 
 export const DAY_LABELS: Record<DayCode, string> = {
+  Sa: "Sat",
+  Su: "Sun",
   M: "Mon",
   T: "Tue",
   W: "Wed",
   Th: "Thu",
   F: "Fri",
 };
+
+/** Alternate API keys that map onto the 7-day week-ending-Friday codes. */
+export const DAY_CODE_ALIASES: Record<DayCode, string[]> = {
+  Sa: ["Sa", "SA", "SAT", "Sat", "Saturday"],
+  Su: ["Su", "SU", "SUN", "Sun", "Sunday"],
+  M: ["M", "MON", "Mon", "Monday"],
+  T: ["T", "TUE", "Tue", "Tuesday"],
+  W: ["W", "WED", "Wed", "Wednesday"],
+  Th: ["Th", "TH", "THU", "Thu", "Thursday"],
+  F: ["F", "FRI", "Fri", "Friday"],
+};
+
+export function pickDayCell<T>(
+  days: Partial<Record<string, T>> | undefined,
+  day: DayCode,
+): T | undefined {
+  if (!days) return undefined;
+  for (const key of DAY_CODE_ALIASES[day]) {
+    const cell = days[key];
+    if (cell != null) return cell;
+  }
+  return undefined;
+}
 
 export interface WeeklyChecklistDayCell {
   detailId: number | null;
@@ -81,7 +106,7 @@ export interface WeeklyChecklistRow {
   sortOrder?: number;
   workTitle: string;
   time?: string;
-  /** Present when API returns M–F cells (daily + updated weekly). */
+  /** Present when API returns Sat–Fri cells (daily + updated weekly). */
   days?: Record<DayCode, WeeklyChecklistDayCell>;
   /** Legacy weekly: single cell for the template's scheduled weekday. */
   cell?: WeeklyChecklistDayCell;

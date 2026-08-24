@@ -100,7 +100,7 @@ export default function ChecklistWeeklyGrid({ period }: Props) {
         showBackButton
         icon="checkbox"
         title={config.title}
-        subtitle="Track duties completed for each weekday."
+        subtitle="Track duties completed for each day of the week."
       />
 
       <View className="flex-row items-center justify-between px-1 mb-3">
