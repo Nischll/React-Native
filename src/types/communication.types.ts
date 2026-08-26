@@ -78,3 +78,17 @@ export const EVERYONE_GROUP: CommunicationGroup = {
 
 export const COMMUNICATION_PAGE_SIZE = 10;
 export const COMMUNICATION_GROUP_LIMIT = 10;
+
+export function isEveryoneBroadcast(
+  item: Pick<CommunicationItem, "buildingIds">,
+) {
+  return (item.buildingIds ?? []).length === 0;
+}
+
+export function matchesCommunicationGroup(
+  item: Pick<CommunicationItem, "buildingIds">,
+  groupId: CommunicationGroup["id"],
+) {
+  if (groupId === "everyone") return isEveryoneBroadcast(item);
+  return (item.buildingIds ?? []).includes(groupId);
+}

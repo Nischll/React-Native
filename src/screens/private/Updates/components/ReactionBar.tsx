@@ -1,4 +1,5 @@
 import { useToggleReactionWithRefresh } from "@/src/api/communication.api";
+import AppIcon from "@/src/components/ui/AppIcon";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Reaction } from "@/src/types/communication.types";
 import { useRef, useState } from "react";
@@ -6,6 +7,7 @@ import {
   Animated,
   Modal,
   Pressable,
+  StyleSheet,
   Text,
   TouchableWithoutFeedback,
   View,
@@ -300,11 +302,13 @@ export function ReactionBar({
 // ─── Picker ───────────────────────────────────────────────────────────────────
 
 interface ReactionPickerProps {
+  visible: boolean;
   communicationId: number;
   onClose: () => void;
 }
 
 export function ReactionPicker({
+  visible,
   communicationId,
   onClose,
 }: ReactionPickerProps) {
@@ -321,36 +325,59 @@ export function ReactionPicker({
   };
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-        padding: 12,
-        marginTop: 8,
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#DDD6FE",
-      }}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
     >
-      {EMOJI_OPTIONS.map((emoji) => (
+      <View className="flex-1 items-center justify-center px-6 bg-black/50">
         <Pressable
-          key={emoji}
-          onPress={() => handlePick(emoji)}
-          style={({ pressed }) => ({
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            backgroundColor: pressed ? "#EFE9FF" : "#F8FAFC",
-            alignItems: "center",
-            justifyContent: "center",
-            transform: [{ scale: pressed ? 1.15 : 1 }],
-          })}
-        >
-          <Text style={{ fontSize: 22 }}>{emoji}</Text>
-        </Pressable>
-      ))}
-    </View>
+          accessibilityRole="button"
+          accessibilityLabel="Close reaction picker"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View className="w-full rounded-2xl bg-white p-5">
+          <View className="mb-4 flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-lg font-bold text-textPrimary">React</Text>
+              <Text className="mt-0.5 text-xs text-textSecondary">
+                Choose an emoji
+              </Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              className="h-9 w-9 items-center justify-center rounded-full bg-surfaceMuted"
+              hitSlop={8}
+            >
+              <AppIcon name="close" size={18} color="#453956" />
+            </Pressable>
+          </View>
+          <View className="flex-row flex-wrap gap-2">
+            {EMOJI_OPTIONS.map((emoji) => (
+              <Pressable
+                key={emoji}
+                onPress={() => handlePick(emoji)}
+                style={({ pressed }) => ({
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  backgroundColor: pressed ? "#EFE9FF" : "#F8FAFC",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: pressed ? "#DDD6FE" : "#E2E8F0",
+                })}
+              >
+                <Text style={{ fontSize: 24 }}>{emoji}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }

@@ -91,8 +91,8 @@ function GroupRow({
           </View>
           <Text className="mt-0.5 text-xs text-textSecondary" numberOfLines={1}>
             {isEveryone
-              ? "Tap to view all buildings"
-              : "Tap to view this building"}
+              ? "Broadcasts only"
+              : "This building only"}
           </Text>
         </View>
         <AppIcon

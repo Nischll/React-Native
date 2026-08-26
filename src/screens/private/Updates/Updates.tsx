@@ -19,6 +19,7 @@ import {
   CommunicationItem,
   EVERYONE_GROUP,
   SeenStatus,
+  matchesCommunicationGroup,
 } from "@/src/types/communication.types";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -133,7 +134,13 @@ export default function Updates() {
     selectedGroup != null,
   );
 
-  const notices = data?.data?.data ?? [];
+  const notices = useMemo(() => {
+    const rows = data?.data?.data ?? [];
+    if (!selectedGroup) return [];
+    return rows.filter((item) =>
+      matchesCommunicationGroup(item, selectedGroup.id),
+    );
+  }, [data?.data?.data, selectedGroup]);
   const total = data?.data?.total ?? 0;
   const unseenCount = data?.data?.unseenCount ?? 0;
   const seenCount = data?.data?.seenCount ?? 0;
@@ -221,8 +228,8 @@ export default function Updates() {
             </Text>
             <Text className="text-[11px] text-textSecondary" numberOfLines={1}>
               {isEveryoneGroup
-                ? "All buildings you manage"
-                : "Building group"}
+                ? "Broadcasts with no building selected"
+                : "This building only"}
             </Text>
           </View>
         </View>

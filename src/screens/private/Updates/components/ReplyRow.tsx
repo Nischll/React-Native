@@ -212,7 +212,7 @@ export function ReplyRow({
                 <Text style={{ fontSize: 11, color: actionColor }}>Reply</Text>
               </Pressable>
               <Pressable
-                onPress={() => setShowReactionPicker((open) => !open)}
+                onPress={() => setShowReactionPicker(true)}
                 style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
               >
                 <AppIcon name="happy-outline" size={12} color={actionColor} />
@@ -242,14 +242,13 @@ export function ReplyRow({
             <ReactionBar
               communicationId={item.id}
               reactions={item.reactions ?? []}
-              onOpenPicker={() => setShowReactionPicker((open) => !open)}
+              onOpenPicker={() => setShowReactionPicker(true)}
             />
-            {showReactionPicker ? (
-              <ReactionPicker
-                communicationId={item.id}
-                onClose={() => setShowReactionPicker(false)}
-              />
-            ) : null}
+            <ReactionPicker
+              visible={showReactionPicker}
+              communicationId={item.id}
+              onClose={() => setShowReactionPicker(false)}
+            />
           </View>
 
           {isReplying &&

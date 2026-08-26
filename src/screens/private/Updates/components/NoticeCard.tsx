@@ -413,14 +413,13 @@ export function NoticeCard({
             <ReactionBar
               communicationId={item.id}
               reactions={item.reactions ?? []}
-              onOpenPicker={() => setShowReactionPicker((open) => !open)}
+              onOpenPicker={() => setShowReactionPicker(true)}
             />
-            {showReactionPicker ? (
-              <ReactionPicker
-                communicationId={item.id}
-                onClose={() => setShowReactionPicker(false)}
-              />
-            ) : null}
+            <ReactionPicker
+              visible={showReactionPicker}
+              communicationId={item.id}
+              onClose={() => setShowReactionPicker(false)}
+            />
 
             <View
               style={{

@@ -1,20 +1,120 @@
 import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { apiService } from "./client";
-import { useApiMutation } from "../hooks/api/useApiMutation";
-import { useApiQuery } from "../hooks/api/useApiQuery";
+import { useAuth } from "../providers/AuthProvider";
+import { UserData } from "../types/auth.types";
 import {
   CommunicationItem,
   CommunicationListResponse,
   CreateCommunicationPayload,
   ReactionPayload,
+  ReactionUser,
   SeenStatus,
   UpdateCommunicationPayload,
 } from "../types/communication.types";
+import { useApiMutation } from "../hooks/api/useApiMutation";
+import { useApiQuery } from "../hooks/api/useApiQuery";
+import { apiService } from "./client";
 
 // ─── Query Key ────────────────────────────────────────────────────────────────
 
 export const COMMUNICATION_KEY = "/communication";
 export const COMMUNICATION_UNSEEN_SUMMARY_KEY = "unseen-summary";
+
+function isCommunicationListQueryKey(queryKey: readonly unknown[]) {
+  return queryKey[0] === COMMUNICATION_KEY && queryKey[1] !== COMMUNICATION_UNSEEN_SUMMARY_KEY;
+}
+
+function toReactionUser(user: UserData): ReactionUser {
+  return {
+    userId: user.userId,
+    firstName: user.firstName,
+    middleName: user.middleName ?? null,
+    lastName: user.lastName,
+    email: user.email,
+    fullName: user.fullName,
+  };
+}
+
+function toggleReactionOnItem(
+  item: CommunicationItem,
+  communicationId: number,
+  reactionType: string,
+  actor: ReactionUser,
+): CommunicationItem {
+  const replies = (item.replies ?? []).map((reply) =>
+    toggleReactionOnItem(reply, communicationId, reactionType, actor),
+  );
+
+  if (item.id !== communicationId) {
+    return replies === item.replies ? item : { ...item, replies };
+  }
+
+  const groups = [...(item.reactions ?? [])];
+  const index = groups.findIndex((group) => group.reactionType === reactionType);
+
+  if (index === -1) {
+    groups.push({
+      reactionType,
+      count: 1,
+      users: [actor],
+    });
+  } else {
+    const group = groups[index];
+    const alreadyReacted = (group.users ?? []).some(
+      (user) => user.userId === actor.userId,
+    );
+    if (alreadyReacted) {
+      const users = (group.users ?? []).filter(
+        (user) => user.userId !== actor.userId,
+      );
+      if (users.length === 0) {
+        groups.splice(index, 1);
+      } else {
+        groups[index] = { ...group, count: users.length, users };
+      }
+    } else {
+      const users = [...(group.users ?? []), actor];
+      groups[index] = { ...group, count: users.length, users };
+    }
+  }
+
+  return { ...item, reactions: groups, replies };
+}
+
+function patchCommunicationReactions(
+  qc: ReturnType<typeof useQueryClient>,
+  payload: ReactionPayload,
+  user: UserData,
+) {
+  const actor = toReactionUser(user);
+  qc.setQueriesData<CommunicationListResponse>(
+    { predicate: (query) => isCommunicationListQueryKey(query.queryKey) },
+    (current) => {
+      const rows = current?.data?.data;
+      if (!Array.isArray(rows)) return current;
+      return {
+        ...current,
+        data: {
+          ...current.data,
+          data: rows.map((row) =>
+            toggleReactionOnItem(
+              row,
+              payload.communicationId,
+              payload.reactionType,
+              actor,
+            ),
+          ),
+        },
+      };
+    },
+  );
+}
+
+function refreshCommunicationLists(qc: ReturnType<typeof useQueryClient>) {
+  return qc.invalidateQueries({
+    predicate: (query) => isCommunicationListQueryKey(query.queryKey),
+    refetchType: "active",
+  });
+}
 
 function unseenSummaryParams(buildingId?: number) {
   return {
@@ -47,6 +147,7 @@ export function useGetCommunications(
   return useApiQuery<CommunicationListResponse>(COMMUNICATION_KEY, {
     enabled,
     retry: 0,
+    axiosConfig: { skipGlobalLoading: true },
     queryParams: {
       page,
       limit,
@@ -225,6 +326,7 @@ export function useDeleteCommunicationWithRefresh() {
 
 export function useToggleReactionWithRefresh() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const mutation = useApiMutation<ReactionPayload>(
     "post",
@@ -236,14 +338,20 @@ export function useToggleReactionWithRefresh() {
     payload: ReactionPayload,
     opts?: Parameters<typeof mutation.mutate>[1],
   ) => {
+    if (user?.userId) {
+      patchCommunicationReactions(qc, payload, user);
+    }
+
     mutation.mutate(payload, {
       ...opts,
+      onError: (...args) => {
+        if (user?.userId) {
+          patchCommunicationReactions(qc, payload, user);
+        }
+        opts?.onError?.(...args);
+      },
       onSuccess: (...args) => {
-        qc.invalidateQueries({
-          queryKey: [COMMUNICATION_KEY],
-          exact: false,
-        });
-
+        void refreshCommunicationLists(qc);
         opts?.onSuccess?.(...args);
       },
     });

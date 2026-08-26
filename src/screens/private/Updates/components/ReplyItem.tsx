@@ -8,7 +8,7 @@ import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useState } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
 import { ReplyComposer } from "./ReplyComposer";
@@ -221,31 +221,11 @@ export function ReplyItem({ item, depth = 0 }: ReplyItemProps) {
         </View>
       </View>
 
-      {/* Reaction Picker Modal */}
-      <Modal
+      <ReactionPicker
         visible={showReactionPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowReactionPicker(false)}
-        statusBarTranslucent
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            padding: 32,
-          }}
-          onPress={() => setShowReactionPicker(false)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <ReactionPicker
-              communicationId={item.id}
-              onClose={() => setShowReactionPicker(false)}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        communicationId={item.id}
+        onClose={() => setShowReactionPicker(false)}
+      />
 
       <ConfirmModal
         visible={showDeleteModal}
