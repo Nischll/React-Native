@@ -12,8 +12,6 @@ import { ReactionBar, ReactionPicker } from "./ReactionBar";
 interface ReplyRowProps {
   item: CommunicationItem;
   depth?: number;
-  openSwipeId: number | null;
-  onSwipeOpen: (id: number | null) => void;
   onRequestDelete: (id: number) => void;
   onEdit: (item: CommunicationItem) => void;
   onReply: (item: CommunicationItem) => void;
@@ -282,8 +280,6 @@ export function ReplyRow({
               key={child.id}
               item={child}
               depth={depth + 1}
-              openSwipeId={openSwipeId}
-              onSwipeOpen={onSwipeOpen}
               onRequestDelete={onRequestDelete}
               onEdit={onEdit}
               onReply={onReply}

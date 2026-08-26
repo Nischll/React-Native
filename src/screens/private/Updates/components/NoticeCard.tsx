@@ -526,8 +526,6 @@ export function NoticeCard({
             <ReplyRow
               key={child.id}
               item={child}
-              openSwipeId={openSwipeId}
-              onSwipeOpen={onSwipeOpen}
               onRequestDelete={(id) => deleteMsg(id)}
               onEdit={onEdit}
               onReply={onReplyStart}

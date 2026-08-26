@@ -68,7 +68,6 @@ export function ReplySheet() {
 
   const [replyText, setReplyText] = useState("");
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
-  const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
   const [editingReply, setEditingReply] = useState<CommunicationItem | null>(
     null,
   );
@@ -120,7 +119,6 @@ export function ReplySheet() {
     deleteMsg(deleteTargetId, {
       onSuccess: () => {
         setDeleteTargetId(null);
-        setOpenSwipeId(null);
       },
     });
   };
@@ -194,12 +192,9 @@ export function ReplySheet() {
             flexGrow: 1,
           }}
           showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={() => setOpenSwipeId(null)}
           renderItem={({ item }) => (
             <ReplyRow
               item={item}
-              openSwipeId={openSwipeId}
-              onSwipeOpen={setOpenSwipeId}
               onRequestDelete={setDeleteTargetId}
               currentUserEmail={user?.email}
               onEdit={(r) => {
@@ -365,7 +360,6 @@ export function ReplySheet() {
         onConfirm={handleDelete}
         onCancel={() => {
           setDeleteTargetId(null);
-          setOpenSwipeId(null);
         }}
       />
     </SafeAreaView>
