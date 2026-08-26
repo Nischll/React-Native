@@ -56,6 +56,9 @@ export function MessageText({
 }) {
   const segments = parseMessageWithMentions(text);
   const normalizedUserEmail = currentUserEmail?.trim().toLowerCase() ?? null;
+  const onDark =
+    typeof textStyle?.color === "string" &&
+    textStyle.color.replace(/\s/g, "").toLowerCase() === "#ffffff";
 
   return (
     <Text
@@ -74,13 +77,17 @@ export function MessageText({
           <Text
             key={`mention-${i}-${segment.email}`}
             style={{
-              color: isCurrentUser
-                ? "#6D28D9"
-                : textStyle?.color
-                  ? "rgba(255,255,255,0.9)"
+              color: onDark
+                ? "#FFFFFF"
+                : isCurrentUser
+                  ? "#6D28D9"
                   : "#0369A1",
               fontWeight: "700",
-              backgroundColor: isCurrentUser ? "#EDE9FE" : "#E0F2FE",
+              backgroundColor: onDark
+                ? "rgba(255,255,255,0.18)"
+                : isCurrentUser
+                  ? "#EDE9FE"
+                  : "#E0F2FE",
             }}
           >
             {segment.value}

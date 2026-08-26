@@ -4,7 +4,6 @@ import {
   useDeleteCommunicationWithRefresh,
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
-import Card from "@/src/components/ui/Card";
 import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
@@ -153,6 +152,9 @@ export function NoticeCard({
     });
   };
 
+  const accentColor = isOwn ? "#453956" : isNew ? "#F59E0B" : "#CBD5E1";
+  const cardBg = isOwn ? "#F8F5FF" : "#FFFFFF";
+
   return (
     <View
       style={{ paddingHorizontal: CARD_PADDING, paddingVertical: CARD_PADDING }}
@@ -163,8 +165,8 @@ export function NoticeCard({
             position: "absolute",
             right: CARD_PADDING,
             top: CARD_PADDING,
-            bottom: CARD_PADDING,
             width: DELETE_REVEAL_WIDTH,
+            height: 88,
             backgroundColor: "#FEE2E2",
             borderTopRightRadius: 16,
             borderBottomRightRadius: 16,
@@ -209,22 +211,18 @@ export function NoticeCard({
         className="shadow-md"
         {...(isOwn ? panResponder.panHandlers : {})}
       >
-        <Card
+        <View
           style={{
-            borderWidth: isNew ? 1.5 : 1,
-            borderColor: isNew ? "#7C3AED" : "#E2E8F0",
-            backgroundColor: "#fff",
+            backgroundColor: cardBg,
             borderRadius: 16,
-            shadowColor: "#64748B",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
+            borderWidth: 1,
+            borderColor: isOwn ? "#DDD6FE" : isNew ? "#F59E0B" : "#E2E8F0",
+            overflow: "hidden",
+            flexDirection: "row",
           }}
         >
-          {isNew && <View style={{ height: 3, backgroundColor: "#7C3AED" }} />}
-
-          <View style={{ padding: 14 }}>
+          <View style={{ width: 4, backgroundColor: accentColor }} />
+          <View style={{ flex: 1, padding: 14 }}>
             <View
               style={{
                 flexDirection: "row",
@@ -255,28 +253,34 @@ export function NoticeCard({
                     }}
                     numberOfLines={1}
                   >
-                    {item.createdByFullName}
+                    {isOwn ? "You" : item.createdByFullName}
                   </Text>
-                  {!isOwn ? (
-                    <View
+                  <View
+                    style={{
+                      borderRadius: 99,
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      backgroundColor: isOwn
+                        ? "#EDE9FE"
+                        : item.seen
+                          ? "#D1FAE5"
+                          : "#FEF3C7",
+                    }}
+                  >
+                    <Text
                       style={{
-                        borderRadius: 99,
-                        paddingHorizontal: 7,
-                        paddingVertical: 2,
-                        backgroundColor: item.seen ? "#D1FAE5" : "#FEF3C7",
+                        fontSize: 10,
+                        fontWeight: "700",
+                        color: isOwn
+                          ? "#5B21B6"
+                          : item.seen
+                            ? "#047857"
+                            : "#B45309",
                       }}
                     >
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          fontWeight: "700",
-                          color: item.seen ? "#047857" : "#B45309",
-                        }}
-                      >
-                        {item.seen ? "Seen" : "Unseen"}
-                      </Text>
-                    </View>
-                  ) : null}
+                      {isOwn ? "Sent" : item.seen ? "Received" : "New"}
+                    </Text>
+                  </View>
                   {hasUnseenReplies ? (
                     <View
                       style={{
@@ -338,13 +342,21 @@ export function NoticeCard({
               </View>
 
               {isOwn && (
-                <Pressable
-                  onPress={() => onEdit(item)}
-                  hitSlop={8}
-                  style={{ paddingTop: 2 }}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                    paddingTop: 2,
+                  }}
                 >
-                  <AppIcon name="pencil-outline" size={16} color="#94A3B8" />
-                </Pressable>
+                  <Pressable onPress={() => onEdit(item)} hitSlop={8}>
+                    <AppIcon name="pencil-outline" size={16} color="#64748B" />
+                  </Pressable>
+                  <Pressable onPress={handleDelete} hitSlop={8}>
+                    <AppIcon name="trash-outline" size={16} color="#EF4444" />
+                  </Pressable>
+                </View>
               )}
             </View>
 
@@ -432,7 +444,7 @@ export function NoticeCard({
                 marginTop: 12,
                 paddingTop: 10,
                 borderTopWidth: 1,
-                borderTopColor: "#F1F5F9",
+                borderTopColor: "#EDE9FE",
                 gap: 16,
               }}
             >
@@ -457,29 +469,48 @@ export function NoticeCard({
                     : "Reply"}
                 </Text>
               </Pressable>
-
-              {isOwn && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    marginLeft: "auto",
-                  }}
-                >
-                  <AppIcon
-                    name="arrow-back-outline"
-                    size={11}
-                    color="#CBD5E1"
-                  />
-                  <Text style={{ fontSize: 11, color: "#CBD5E1" }}>
-                    Swipe to delete
-                  </Text>
-                </View>
-              )}
             </View>
+          </View>
+        </View>
+      </Animated.View>
 
-            {isReplying ? (
+      {replies.length > 0 || isReplying ? (
+        <View
+          style={{
+            marginTop: 8,
+            marginLeft: 8,
+            backgroundColor: "#F8FAFC",
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "#E2E8F0",
+            paddingHorizontal: 10,
+            paddingTop: 10,
+            paddingBottom: 6,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: 10,
+              paddingBottom: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: "#E2E8F0",
+            }}
+          >
+            <AppIcon name="return-down-forward" size={14} color="#7C3AED" />
+            <Text
+              style={{ fontSize: 12, fontWeight: "700", color: "#5B21B6" }}
+            >
+              {replyCount > 0
+                ? `Replies · ${replyCount}`
+                : "Write a reply"}
+            </Text>
+          </View>
+
+          {isReplying ? (
+            <View style={{ marginBottom: replies.length > 0 ? 10 : 4 }}>
               <InlineReplyComposer
                 value={replyMessage}
                 onChange={onReplyMessageChange}
@@ -488,21 +519,9 @@ export function NoticeCard({
                 sending={sendingReply}
                 mentionBuildingId={mentionBuildingId}
               />
-            ) : null}
-          </View>
-        </Card>
-      </Animated.View>
+            </View>
+          ) : null}
 
-      {replies.length > 0 ? (
-        <View
-          style={{
-            marginTop: 4,
-            marginLeft: 12,
-            paddingLeft: 10,
-            borderLeftWidth: 2,
-            borderLeftColor: "#DDD6FE",
-          }}
-        >
           {replies.map((child) => (
             <ReplyRow
               key={child.id}
