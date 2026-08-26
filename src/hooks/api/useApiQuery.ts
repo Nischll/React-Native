@@ -5,11 +5,12 @@ import { AxiosRequestConfig } from "axios";
 interface UseApiQueryConfig<TData = unknown> {
   queryParams?: Record<string, any>;
   enabled?: boolean;
-  axiosConfig?: AxiosRequestConfig;
+  axiosConfig?: AxiosRequestConfig & { skipGlobalLoading?: boolean };
   responseType?: AxiosRequestConfig["responseType"];
   staleTime?: number;
-  refetchOnMount?: boolean;
+  refetchOnMount?: boolean | "always";
   refetchOnReconnect?: boolean;
+  refetchInterval?: number | false;
   select?: UseQueryOptions<TData, Error>["select"];
   retry?: UseQueryOptions<TData, Error>["retry"];
 }
@@ -26,6 +27,7 @@ export const useApiQuery = <T>(
     staleTime = 0,
     refetchOnMount = true,
     refetchOnReconnect = true,
+    refetchInterval,
     select,
     retry,
   } = config || {};
@@ -43,6 +45,7 @@ export const useApiQuery = <T>(
     staleTime,
     refetchOnMount,
     refetchOnReconnect,
+    refetchInterval,
     select,
     retry,
     queryFn: async () => {

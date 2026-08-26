@@ -30,7 +30,7 @@ export const MentionTextInput = forwardRef<TextInput, MentionTextInputProps>(
     const handleChangeText = (text: string) => {
       onChangeText?.(text);
 
-      const match = text.match(/(?:^|\s)@([a-zA-Z0-9._-]*)$/);
+      const match = text.match(/@([\w.@-]*)$/);
 
       if (match) {
         const atIndex = text.lastIndexOf("@");
@@ -67,6 +67,7 @@ interface MentionSuggestionsProps {
   direction?: "above" | "below";
   containerStyle?: StyleProp<ViewStyle>;
   onMentionSelect?: (id: string) => void;
+  buildingId?: number | null;
 }
 
 export function MentionSuggestions({
@@ -77,11 +78,18 @@ export function MentionSuggestions({
   direction = "below",
   containerStyle,
   onMentionSelect,
+  buildingId: buildingIdProp,
 }: MentionSuggestionsProps) {
   const { user, selectedBuilding } = useAuth();
-  const buildingId = selectedBuilding?.value
+  const fromAuth = selectedBuilding?.value
     ? Number(selectedBuilding.value)
     : null;
+  const buildingId =
+    buildingIdProp != null && Number.isFinite(buildingIdProp)
+      ? buildingIdProp
+      : Number.isFinite(fromAuth)
+        ? fromAuth
+        : null;
   const { employees, isLoading } = useEmployeeByBuildingOptions(
     Number.isFinite(buildingId) ? buildingId : null,
   );
@@ -108,10 +116,7 @@ export function MentionSuggestions({
   if (!isLoading && filtered.length === 0) return null;
 
   const handleSelect = (emp: any) => {
-    const updated = value.replace(/(?:^|\s)@([a-zA-Z0-9._-]*)$/, (m) => {
-      const leading = m.startsWith(" ") ? " " : "";
-      return `${leading}@${emp.email} `;
-    });
+    const updated = value.replace(/@([\w.@-]*)$/, `@${emp.email} `);
 
     onChangeText(updated);
     onMentionSelect?.(emp.value);

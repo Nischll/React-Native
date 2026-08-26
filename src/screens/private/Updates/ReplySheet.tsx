@@ -15,6 +15,7 @@ import {
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -37,6 +38,7 @@ export function ReplySheet() {
     message?: string;
   }>();
   const parentId = Number(parentIdParam);
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const subscribe = useCallback(
@@ -199,6 +201,7 @@ export function ReplySheet() {
               openSwipeId={openSwipeId}
               onSwipeOpen={setOpenSwipeId}
               onRequestDelete={setDeleteTargetId}
+              currentUserEmail={user?.email}
               onEdit={(r) => {
                 setReplyingTo(null);
                 setEditingReply(r);

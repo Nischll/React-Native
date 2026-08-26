@@ -1,4 +1,7 @@
-import { useGetCommunications } from "@/src/api/communication.api";
+import {
+  communicationUnseenTotal,
+  useGetCommunicationUnseenSummary,
+} from "@/src/api/communication.api";
 import { useGetPrivateInbox } from "@/src/api/privateMessage.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { hasModuleCode } from "@/src/helper/flattenModules";
@@ -11,21 +14,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const { refreshing } = useGlobalRefresh();
-  const { user, buildingId } = useAuth();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const canMessage = hasModuleCode(user?.moduleList ?? [], "D");
 
-  const { data: communicationCountData } = useGetCommunications(
-    1,
-    1,
-    "all",
-    buildingId ?? undefined,
+  const { data: communicationCountData } = useGetCommunicationUnseenSummary(
+    undefined,
     canMessage,
   );
   const { data: privateCountData } = useGetPrivateInbox(1, 1, canMessage);
 
-  const communicationUnseen = communicationCountData?.data?.unseenCount ?? 0;
+  const communicationUnseen = communicationUnseenTotal(
+    communicationCountData?.data?.unseenCount,
+    communicationCountData?.data?.replyUnseenCount,
+  );
   const privateUnseen =
     privateCountData?.data?.unreadConversationCount ?? 0;
 

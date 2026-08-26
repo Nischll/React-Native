@@ -5,7 +5,13 @@ import Updates from "@/src/screens/private/Updates/Updates";
 export default function UpdatesPage() {
   const { screenRefreshKey } = useGlobalRefresh();
   return (
-    <ScreenContainer key="static-container" virtualized refreshable={false}>
+    <ScreenContainer
+      key="static-container"
+      virtualized
+      refreshable={false}
+      padded={false}
+      safeBottom={false}
+    >
       <Updates key={screenRefreshKey} />
     </ScreenContainer>
   );

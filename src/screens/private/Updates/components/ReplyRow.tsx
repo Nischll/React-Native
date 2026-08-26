@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
+import InlineReplyComposer from "./InlineReplyComposer";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
 
 const DELETE_WIDTH = 80;
@@ -42,6 +43,14 @@ interface ReplyRowProps {
   onRequestDelete: (id: number) => void;
   onEdit: (item: CommunicationItem) => void;
   onReply: (item: CommunicationItem) => void;
+  currentUserEmail?: string | null;
+  mentionBuildingId?: number | null;
+  replyingToId?: number | null;
+  replyMessage?: string;
+  sendingReply?: boolean;
+  onReplyMessageChange?: (value: string) => void;
+  onReplySubmit?: (parentId: number) => void;
+  onReplyCancel?: () => void;
 }
 
 export function ReplyRow({
@@ -52,11 +61,20 @@ export function ReplyRow({
   onRequestDelete,
   onEdit,
   onReply,
+  currentUserEmail,
+  mentionBuildingId,
+  replyingToId = null,
+  replyMessage = "",
+  sendingReply = false,
+  onReplyMessageChange,
+  onReplySubmit,
+  onReplyCancel,
 }: ReplyRowProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false && !isOwn;
   const C = isOwn ? OWN : OTHER;
+  const isReplying = replyingToId === item.id;
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -247,7 +265,10 @@ export function ReplyRow({
                 )}
 
                 {/* Message */}
-                <MessageText text={displayText} />
+                <MessageText
+                  text={displayText}
+                  currentUserEmail={currentUserEmail}
+                />
                 {isLong && (
                   <Pressable
                     onPress={() => setExpanded((v) => !v)}
@@ -327,6 +348,17 @@ export function ReplyRow({
             </Animated.View>
           </View>
 
+          {isReplying && onReplySubmit && onReplyCancel && onReplyMessageChange ? (
+            <InlineReplyComposer
+              value={replyMessage}
+              onChange={onReplyMessageChange}
+              onSubmit={() => onReplySubmit(item.id)}
+              onCancel={onReplyCancel}
+              sending={sendingReply}
+              mentionBuildingId={mentionBuildingId}
+            />
+          ) : null}
+
           {(item.reactions ?? []).length > 0 && (
             <View
               style={{
@@ -364,6 +396,14 @@ export function ReplyRow({
               onRequestDelete={onRequestDelete}
               onEdit={onEdit}
               onReply={onReply}
+              currentUserEmail={currentUserEmail}
+              mentionBuildingId={mentionBuildingId}
+              replyingToId={replyingToId}
+              replyMessage={replyMessage}
+              sendingReply={sendingReply}
+              onReplyMessageChange={onReplyMessageChange}
+              onReplySubmit={onReplySubmit}
+              onReplyCancel={onReplyCancel}
             />
           ))}
         </View>

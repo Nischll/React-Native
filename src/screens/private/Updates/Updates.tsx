@@ -1,296 +1,399 @@
-import { useGetCommunications } from "@/src/api/communication.api";
+import {
+  communicationUnseenTotal,
+  useCreateCommunicationWithRefresh,
+  useGetCommunications,
+} from "@/src/api/communication.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
+import ListPager from "@/src/components/layout/ListPager";
 import PageHeader from "@/src/components/layout/PageHeader";
+import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { useAuth } from "@/src/providers/AuthProvider";
+import CommunicationSeenFilter from "@/src/screens/private/Updates/components/CommunicationSeenFilter";
+import GroupList from "@/src/screens/private/Updates/components/GroupList";
 import { NoticeCard } from "@/src/screens/private/Updates/components/NoticeCard";
 import { NoticeComposer } from "@/src/screens/private/Updates/components/NoticeComposer";
-import { CommunicationItem, SeenStatus } from "@/src/types/communication.types";
-import { useEffect, useRef, useState } from "react";
+import {
+  COMMUNICATION_GROUP_LIMIT,
+  COMMUNICATION_PAGE_SIZE,
+  CommunicationGroup,
+  CommunicationItem,
+  EVERYONE_GROUP,
+  SeenStatus,
+} from "@/src/types/communication.types";
+import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
-const TABS: { label: string; value: SeenStatus }[] = [
-  { label: "All", value: "all" },
-  { label: "Unseen", value: "unseen" },
-  { label: "Seen", value: "seen" },
-];
-
-const LIMIT = 10;
+function matchesSearchQuery(query: string, ...values: Array<string | undefined>) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return values.some((value) => (value ?? "").toLowerCase().includes(q));
+}
 
 export default function Updates() {
-  const { selectedBuilding } = useAuth();
-  const buildingId = selectedBuilding
-    ? Number(selectedBuilding.value)
-    : undefined;
-
-  const [activeTab, setActiveTab] = useState<SeenStatus>("all");
-  const [page, setPage] = useState(1);
-  const [allNotices, setAllNotices] = useState<CommunicationItem[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
+  const { user, buildingId } = useAuth();
+  const { width } = useWindowDimensions();
+  const split = width >= 720;
   const { setUnseenUpdatesCount } = useGlobalRefresh();
 
-  const isResetRef = useRef(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState<CommunicationGroup | null>(
+    null,
+  );
+  const [groupPage, setGroupPage] = useState(1);
+  const [page, setPage] = useState(1);
+  const [seenStatus, setSeenStatus] = useState<SeenStatus>("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<CommunicationItem | null>(
+    null,
+  );
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+
+  const managedBuildings = user?.buildingList ?? [];
+  const buildingGroups = useMemo<CommunicationGroup[]>(
+    () =>
+      managedBuildings
+        .map((building) => ({
+          id: Number(building.value),
+          name: building.label,
+        }))
+        .filter(
+          (group): group is CommunicationGroup & { id: number } =>
+            typeof group.id === "number" &&
+            Number.isFinite(group.id) &&
+            group.id > 0,
+        ),
+    [managedBuildings],
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setGroupPage(1);
+  }, [debouncedSearch]);
+
+  const everyoneVisible =
+    !debouncedSearch ||
+    matchesSearchQuery(debouncedSearch, EVERYONE_GROUP.name, "all buildings");
+
+  const filteredBuildingGroups = useMemo(() => {
+    if (!debouncedSearch) return buildingGroups;
+    return buildingGroups.filter((group) =>
+      matchesSearchQuery(debouncedSearch, group.name),
+    );
+  }, [buildingGroups, debouncedSearch]);
+
+  const sidebarGroups = useMemo(
+    () =>
+      everyoneVisible
+        ? [EVERYONE_GROUP, ...filteredBuildingGroups]
+        : filteredBuildingGroups,
+    [everyoneVisible, filteredBuildingGroups],
+  );
+
+  const groupTotalPages = Math.max(
+    1,
+    Math.ceil(sidebarGroups.length / COMMUNICATION_GROUP_LIMIT) || 1,
+  );
+  const pagedGroups = useMemo(() => {
+    const start = (groupPage - 1) * COMMUNICATION_GROUP_LIMIT;
+    return sidebarGroups.slice(start, start + COMMUNICATION_GROUP_LIMIT);
+  }, [sidebarGroups, groupPage]);
+
+  useEffect(() => {
+    if (groupPage > groupTotalPages) setGroupPage(groupTotalPages);
+  }, [groupPage, groupTotalPages]);
+
+  const isEveryoneGroup = selectedGroup?.id === "everyone";
+  const activeBuildingId =
+    typeof selectedGroup?.id === "number" ? selectedGroup.id : undefined;
+  const mentionBuildingId =
+    activeBuildingId ??
+    buildingId ??
+    (typeof buildingGroups[0]?.id === "number" ? buildingGroups[0].id : null);
 
   const { data, isLoading, isFetching, refetch } = useGetCommunications(
     page,
-    LIMIT,
-    activeTab,
-    buildingId,
+    COMMUNICATION_PAGE_SIZE,
+    seenStatus,
+    activeBuildingId,
+    selectedGroup != null,
   );
+  const { mutate: createReply, isPending: sendingReply } =
+    useCreateCommunicationWithRefresh();
 
   const notices = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
   const unseenCount = data?.data?.unseenCount ?? 0;
   const seenCount = data?.data?.seenCount ?? 0;
-
-  const activeTabTotal =
-    activeTab === "unseen"
-      ? unseenCount
-      : activeTab === "seen"
-        ? seenCount
-        : total;
+  const replyUnseenCount = data?.data?.replyUnseenCount ?? 0;
+  const totalUnseen = communicationUnseenTotal(unseenCount, replyUnseenCount);
+  const totalAll = seenCount + unseenCount;
 
   useEffect(() => {
-    setUnseenUpdatesCount(unseenCount);
-  }, [unseenCount]);
+    setUnseenUpdatesCount(totalUnseen);
+  }, [totalUnseen, setUnseenUpdatesCount]);
 
   useEffect(() => {
-    if (notices.length === 0 && page === 1) {
-      setAllNotices([]);
-      return;
-    }
-    if (page === 1 || isResetRef.current) {
-      setAllNotices(notices);
-      isResetRef.current = false;
-    } else {
-      setAllNotices((prev) => {
-        const existingIds = new Set(prev.map((n) => n.id));
-        const fresh = notices.filter((n) => !existingIds.has(n.id));
-        return [...prev, ...fresh];
-      });
-    }
-  }, [notices]);
-
-  const hasMore =
-    !isLoading &&
-    !isFetching &&
-    allNotices.length > 0 &&
-    allNotices.length < activeTabTotal;
-
-  const handleTabChange = (tab: SeenStatus) => {
-    if (tab === activeTab) return;
-    setActiveTab(tab);
     setPage(1);
-    setAllNotices([]);
-    isResetRef.current = true;
-  };
+    setReplyingToId(null);
+    setReplyMessage("");
+    setOpenSwipeId(null);
+  }, [selectedGroup?.id]);
+
+  useEffect(() => {
+    if (isFetching) return;
+    if (notices.length === 0 && page > 1) {
+      setPage((p) => Math.max(1, p - 1));
+    }
+  }, [isFetching, notices.length, page]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     setOpenSwipeId(null);
-    isResetRef.current = true;
-    if (page !== 1) {
-      setPage(1);
-    } else {
-      await refetch();
-    }
+    await refetch();
     setRefreshing(false);
   };
 
-  return (
+  const openComposer = (item: CommunicationItem | null = null) => {
+    setEditingItem(item);
+    setComposerOpen(true);
+  };
+
+  const listPane = (
+    <View
+      className={`${split ? "w-[38%] border-r border-slate-200" : "flex-1"} bg-white`}
+    >
+      <GroupList
+        groups={pagedGroups}
+        selectedGroupId={selectedGroup?.id ?? null}
+        search={search}
+        page={groupPage}
+        total={sidebarGroups.length}
+        onSearch={setSearch}
+        onSelect={setSelectedGroup}
+        onPageChange={setGroupPage}
+      />
+    </View>
+  );
+
+  const feedPane = selectedGroup ? (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={{ flex: 1 }}>
-        <PageHeader
-          icon="chatbubbles"
-          title="Communications"
-          subtitle={
-            unseenCount > 0
-              ? `${unseenCount} new update${unseenCount > 1 ? "s" : ""}`
-              : "Stay in the loop with your team"
-          }
-        />
-
-        <NoticeComposer />
-
-        {/* ── Seen status tabs ── */}
-        <View
-          style={{
-            flexDirection: "row",
-            borderBottomWidth: 1,
-            borderBottomColor: "#E2E8F0",
-            backgroundColor: "#fff",
-            paddingHorizontal: 16,
-          }}
-        >
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.value;
-            return (
-              <Pressable
-                key={tab.value}
-                onPress={() => handleTabChange(tab.value)}
-                style={{
-                  marginRight: 20,
-                  paddingVertical: 6,
-                  borderBottomWidth: 2,
-                  borderBottomColor: isActive ? "#7C3AED" : "transparent",
-                }}
-              >
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: isActive ? "#7C3AED" : "#94A3B8",
-                    }}
-                  >
-                    {tab.label}
-                  </Text>
-                  {/* Show unseen badge on the Unseen tab */}
-                  {tab.value === "unseen" && unseenCount > 0 && (
-                    <View
-                      style={{
-                        backgroundColor: "#7C3AED",
-                        borderRadius: 99,
-                        paddingHorizontal: 5,
-                        paddingVertical: 1,
-                        minWidth: 16,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 9,
-                          color: "#fff",
-                          fontWeight: "700",
-                        }}
-                      >
-                        {unseenCount > 99 ? "99+" : unseenCount}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <FlatList
-          data={allNotices}
-          keyExtractor={(item) => String(item.id)}
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets
-          contentContainerStyle={{ paddingHorizontal: 6, paddingBottom: 6 }}
-          showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={() => setOpenSwipeId(null)}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-          }
-          ListEmptyComponent={
-            isLoading ? (
-              <View style={{ flex: 1 }}>
-                <ScrollView
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{
-                    paddingHorizontal: 12,
-                    paddingTop: 12,
-                    paddingBottom: 24,
-                    gap: 12,
-                  }}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <View
-                    style={{
-                      height: 56,
-                      borderRadius: 14,
-                      backgroundColor: "#F1F5F9",
-                      marginBottom: 4,
-                    }}
-                  />
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <SkeletonCard key={i} />
-                  ))}
-                </ScrollView>
-              </View>
+      <View className="flex-row items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
+        <View className="min-w-0 flex-1 flex-row items-center gap-2">
+          {!split ? (
+            <Pressable
+              onPress={() => setSelectedGroup(null)}
+              hitSlop={8}
+              className="h-8 w-8 items-center justify-center rounded-full bg-slate-100"
+            >
+              <AppIcon name="arrow-back" size={16} color="#453956" />
+            </Pressable>
+          ) : null}
+          <View
+            className={`h-9 w-9 items-center justify-center rounded-full ${
+              isEveryoneGroup ? "bg-sky-100" : "bg-violet-100"
+            }`}
+          >
+            {isEveryoneGroup ? (
+              <AppIcon name="people-outline" size={16} color="#0369A1" />
             ) : (
-              <View
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 48,
-                }}
-              >
-                <Text style={{ fontSize: 14, color: "#94A3B8" }}>
-                  {activeTab === "unseen"
-                    ? "You're all caught up!"
-                    : activeTab === "seen"
-                      ? "No read messages yet"
-                      : "No messages yet"}
-                </Text>
-              </View>
-            )
-          }
-          ListFooterComponent={
-            hasMore ? (
-              <Pressable
-                onPress={() => {
-                  if (!isFetching) setPage((p) => p + 1);
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  paddingVertical: 14,
-                }}
-              >
-                {isFetching ? (
-                  <Text style={{ fontSize: 13, color: "#7C3AED" }}>
-                    Loading…
-                  </Text>
-                ) : (
-                  <>
-                    <AppIcon name="chevron-down" size={14} color="#7C3AED" />
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: "#7C3AED",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Load more
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <NoticeCard
-              item={item}
-              openSwipeId={openSwipeId}
-              onSwipeOpen={setOpenSwipeId}
-            />
-          )}
+              <AppIcon name="business-outline" size={16} color="#6D28D9" />
+            )}
+          </View>
+          <View className="min-w-0 flex-1">
+            <Text
+              className="text-sm font-semibold text-textPrimary"
+              numberOfLines={1}
+            >
+              {selectedGroup.name}
+            </Text>
+            <Text className="text-[11px] text-textSecondary" numberOfLines={1}>
+              {isEveryoneGroup
+                ? "All buildings you manage"
+                : "Building group"}
+            </Text>
+          </View>
+        </View>
+        <View>
+          <AppButton
+            size="sm"
+            fullWidth={false}
+            leftIcon="add"
+            onPress={() => openComposer(null)}
+          >
+            Add message
+          </AppButton>
+        </View>
+      </View>
+
+      <View className="px-3 pt-3">
+        <CommunicationSeenFilter
+          value={seenStatus}
+          onChange={(next) => {
+            setSeenStatus(next);
+            setPage(1);
+          }}
+          totalCount={totalAll}
+          seenCount={seenCount}
+          unseenCount={totalUnseen}
+          replyUnseenCount={replyUnseenCount}
+          disabled={isLoading}
         />
       </View>
+
+      <FlatList
+        data={notices}
+        keyExtractor={(item) => String(item.id)}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ paddingHorizontal: 6, paddingBottom: 12, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => setOpenSwipeId(null)}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={{ paddingHorizontal: 12, paddingTop: 8, gap: 12 }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </View>
+          ) : (
+            <View className="flex-1 items-center justify-center px-6 py-16">
+              <AppIcon name="chatbubbles-outline" size={40} color="#CBD5E1" />
+              <Text className="mt-3 text-sm font-semibold text-textPrimary">
+                No threads yet
+              </Text>
+              <Text className="mt-1 text-center text-xs text-textSecondary">
+                Post a building-wide broadcast. Private chats stay in Private
+                Messages.
+              </Text>
+              <View className="mt-4">
+                <AppButton
+                  size="sm"
+                  fullWidth={false}
+                  leftIcon="add"
+                  onPress={() => openComposer(null)}
+                >
+                  Add message
+                </AppButton>
+              </View>
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <NoticeCard
+            item={item}
+            openSwipeId={openSwipeId}
+            onSwipeOpen={setOpenSwipeId}
+            onEdit={openComposer}
+            currentUserEmail={user?.email}
+            mentionBuildingId={mentionBuildingId}
+            replyingToId={replyingToId}
+            replyMessage={replyMessage}
+            sendingReply={sendingReply}
+            onReplyStart={(target) => {
+              setReplyingToId(target.id);
+              setReplyMessage("");
+            }}
+            onReplyCancel={() => {
+              setReplyingToId(null);
+              setReplyMessage("");
+            }}
+            onReplyMessageChange={setReplyMessage}
+            onReplySubmit={(parentId) => {
+              const trimmed = replyMessage.trim();
+              if (!trimmed) return;
+              createReply(
+                { message: trimmed, parentId },
+                {
+                  onSuccess: () => {
+                    setReplyMessage("");
+                    setReplyingToId(null);
+                  },
+                },
+              );
+            }}
+          />
+        )}
+      />
+
+      <ListPager
+        page={page}
+        pageSize={COMMUNICATION_PAGE_SIZE}
+        total={total}
+        onPageChange={setPage}
+      />
     </KeyboardAvoidingView>
+  ) : (
+    <View className="flex-1 items-center justify-center bg-slate-50 px-6">
+      <AppIcon name="chatbubbles-outline" size={48} color="#CBD5E1" />
+      <Text className="mt-3 text-sm font-semibold text-textPrimary">
+        Select a group to view messages
+      </Text>
+      <Text className="mt-1 max-w-sm text-center text-xs text-textSecondary">
+        Choose Everyone or one of your assigned buildings to filter this feed.
+      </Text>
+    </View>
+  );
+
+  return (
+    <View className="flex-1 bg-white">
+      {split || !selectedGroup ? (
+        <View className="px-4 pt-1">
+          <PageHeader
+            icon="chatbubbles"
+            title="Communications"
+            subtitle="Building-wide broadcasts. Private chats stay in Private Messages."
+          />
+        </View>
+      ) : null}
+
+      {split ? (
+        <View className="min-h-0 flex-1 flex-row">
+          {listPane}
+          {feedPane}
+        </View>
+      ) : selectedGroup ? (
+        <View className="min-h-0 flex-1">{feedPane}</View>
+      ) : (
+        <View className="min-h-0 flex-1">{listPane}</View>
+      )}
+
+      <NoticeComposer
+        visible={composerOpen}
+        selectedGroup={selectedGroup}
+        editingItem={editingItem}
+        mentionBuildingId={mentionBuildingId}
+        onSaved={() => setPage(1)}
+        onClose={() => {
+          setComposerOpen(false);
+          setEditingItem(null);
+        }}
+      />
+    </View>
   );
 }

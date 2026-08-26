@@ -1,7 +1,7 @@
 import {
+  buildReplyTree,
   getReplyCount,
   useDeleteCommunicationWithRefresh,
-  useUpdateCommunicationWithRefresh,
 } from "@/src/api/communication.api";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
@@ -9,8 +9,7 @@ import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
-import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -18,16 +17,27 @@ import {
   PanResponder,
   Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
+import InlineReplyComposer from "./InlineReplyComposer";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
+import { ReplyRow } from "./ReplyRow";
 
 interface NoticeCardProps {
   item: CommunicationItem;
   openSwipeId: number | null;
   onSwipeOpen: (id: number | null) => void;
+  onEdit: (item: CommunicationItem) => void;
+  currentUserEmail?: string | null;
+  mentionBuildingId?: number | null;
+  replyingToId: number | null;
+  replyMessage: string;
+  sendingReply?: boolean;
+  onReplyStart: (item: CommunicationItem) => void;
+  onReplyCancel: () => void;
+  onReplyMessageChange: (value: string) => void;
+  onReplySubmit: (parentId: number) => void;
 }
 
 const DELETE_REVEAL_WIDTH = 80;
@@ -38,21 +48,33 @@ export function NoticeCard({
   item,
   openSwipeId,
   onSwipeOpen,
+  onEdit,
+  currentUserEmail,
+  mentionBuildingId,
+  replyingToId,
+  replyMessage,
+  sendingReply = false,
+  onReplyStart,
+  onReplyCancel,
+  onReplyMessageChange,
+  onReplySubmit,
 }: NoticeCardProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false && !isOwn;
+  const isReplying = replyingToId === item.id;
 
   const hasUnseenReplies = (item.replyUnseenCount ?? 0) > 0;
   const unseenReplyCount = item.replyUnseenCount ?? 0;
   const replyCount = getReplyCount(item);
+  const replies = useMemo(
+    () => buildReplyTree(item.id, Array.isArray(item.replies) ? item.replies : []),
+    [item],
+  );
 
-  // buildingIds empty array = sent to all buildings
   const isAllBuildings = (item.buildingIds ?? []).length === 0;
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(item.message);
   const [expanded, setExpanded] = useState(false);
   const [deleteZoneVisible, setDeleteZoneVisible] = useState(false);
 
@@ -60,8 +82,6 @@ export function NoticeCard({
   const deleteScale = useRef(new Animated.Value(0.8)).current;
   const isSwipedRef = useRef(false);
 
-  const { mutate: updateMsg, isPending: updating } =
-    useUpdateCommunicationWithRefresh();
   const { mutate: deleteMsg, isPending: deleting } =
     useDeleteCommunicationWithRefresh();
 
@@ -131,28 +151,6 @@ export function NoticeCard({
       setDeleteZoneVisible(false);
       deleteMsg(item.id);
     });
-  };
-
-  const handleSaveEdit = () => {
-    const trimmed = editText.trim();
-    if (!trimmed) {
-      setEditing(false);
-      return;
-    }
-
-    updateMsg(
-      {
-        id: item.id,
-        message: trimmed,
-        parentId: null,
-        buildingIds: item.buildingIds,
-      },
-      {
-        onSuccess: () => {
-          setEditing(false);
-        },
-      },
-    );
   };
 
   return (
@@ -227,7 +225,6 @@ export function NoticeCard({
           {isNew && <View style={{ height: 3, backgroundColor: "#7C3AED" }} />}
 
           <View style={{ padding: 14 }}>
-            {/* Header */}
             <View
               style={{
                 flexDirection: "row",
@@ -241,39 +238,66 @@ export function NoticeCard({
                 fontSize={13}
               />
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 6,
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: 14,
                       fontWeight: "700",
                       color: "#1E293B",
-                      flex: 1,
+                      flexShrink: 1,
                     }}
                     numberOfLines={1}
                   >
                     {item.createdByFullName}
                   </Text>
-                  {isNew && (
+                  {!isOwn ? (
                     <View
                       style={{
-                        backgroundColor: "#7C3AED",
                         borderRadius: 99,
                         paddingHorizontal: 7,
                         paddingVertical: 2,
-                        marginLeft: 6,
+                        backgroundColor: item.seen ? "#D1FAE5" : "#FEF3C7",
                       }}
                     >
                       <Text
                         style={{
                           fontSize: 10,
-                          color: "#fff",
                           fontWeight: "700",
+                          color: item.seen ? "#047857" : "#B45309",
                         }}
                       >
-                        NEW
+                        {item.seen ? "Seen" : "Unseen"}
                       </Text>
                     </View>
-                  )}
+                  ) : null}
+                  {hasUnseenReplies ? (
+                    <View
+                      style={{
+                        borderRadius: 99,
+                        paddingHorizontal: 7,
+                        paddingVertical: 2,
+                        backgroundColor: "#FEF3C7",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: "700",
+                          color: "#B45309",
+                        }}
+                      >
+                        {unseenReplyCount} unseen{" "}
+                        {unseenReplyCount === 1 ? "reply" : "replies"}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <View
                   style={{
@@ -286,7 +310,6 @@ export function NoticeCard({
                   <Text style={{ fontSize: 12, color: "#94A3B8" }}>
                     {timeAgo(item.createdDate)}
                   </Text>
-                  {/* All Buildings badge */}
                   {isAllBuildings && (
                     <View
                       style={{
@@ -316,10 +339,7 @@ export function NoticeCard({
 
               {isOwn && (
                 <Pressable
-                  onPress={() => {
-                    setEditText(item.message);
-                    setEditing(true);
-                  }}
+                  onPress={() => onEdit(item)}
                   hitSlop={8}
                   style={{ paddingTop: 2 }}
                 >
@@ -328,132 +348,74 @@ export function NoticeCard({
               )}
             </View>
 
-            {/* Message */}
             <View style={{ marginTop: 12 }}>
-              {editing ? (
-                <View
-                  style={{
-                    borderWidth: 1.5,
-                    borderColor: "#7C3AED",
-                    borderRadius: 12,
-                    padding: 10,
-                    backgroundColor: "#FAFAF9",
-                  }}
+              <MessageText
+                text={displayText}
+                currentUserEmail={currentUserEmail}
+              />
+              {isLong && (
+                <Pressable
+                  onPress={() => setExpanded((v) => !v)}
+                  style={{ marginTop: 4 }}
                 >
-                  <TextInput
-                    value={editText}
-                    onChangeText={setEditText}
-                    multiline
-                    autoFocus
-                    style={{ fontSize: 14, color: "#1E293B", minHeight: 60 }}
-                  />
-
-                  <View
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      gap: 12,
-                      marginTop: 10,
-                      justifyContent: "flex-end",
+                      fontSize: 13,
+                      color: "#7C3AED",
+                      fontWeight: "600",
                     }}
                   >
-                    <Pressable
-                      onPress={() => {
-                        setEditing(false);
-                        setEditText(item.message);
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          color: "#94A3B8",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Cancel
-                      </Text>
-                    </Pressable>
-                    <Pressable onPress={handleSaveEdit} disabled={updating}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          color: "#7C3AED",
-                          fontWeight: "700",
-                        }}
-                      >
-                        {updating ? "Saving…" : "Save"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <>
-                  <MessageText text={displayText} />
-                  {isLong && (
-                    <Pressable
-                      onPress={() => setExpanded((v) => !v)}
-                      style={{ marginTop: 4 }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          color: "#7C3AED",
-                          fontWeight: "600",
-                        }}
-                      >
-                        {expanded ? "Show less" : "Read more"}
-                      </Text>
-                    </Pressable>
-                  )}
+                    {expanded ? "Show less" : "Read more"}
+                  </Text>
+                </Pressable>
+              )}
 
-                  {/* Building chips — only when specific buildings tagged (not all) */}
-                  {!isAllBuildings && (item.buildingIds ?? []).length > 0 && (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: 6,
-                        marginTop: 8,
-                      }}
-                    >
-                      {(item.buildingIds ?? []).map((id) => {
-                        const building = user?.buildingList.find(
-                          (b) => b.value === String(id),
-                        );
-                        if (!building) return null;
-                        return (
-                          <View
-                            key={id}
-                            style={{
-                              flexDirection: "row",
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                              gap: 4,
-                              backgroundColor: "#F0FDF4",
-                              borderRadius: 99,
-                              paddingHorizontal: 8,
-                              paddingVertical: 3,
-                            }}
-                          >
-                            <AppIcon
-                              name="business-outline"
-                              size={11}
-                              color="#16A34A"
-                            />
-                            <Text
-                              style={{
-                                fontSize: 12,
-                                color: "#16A34A",
-                                fontWeight: "600",
-                              }}
-                            >
-                              {building.label}
-                            </Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </>
+              {!isAllBuildings && (item.buildingIds ?? []).length > 0 && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginTop: 8,
+                  }}
+                >
+                  {(item.buildingIds ?? []).map((id) => {
+                    const building = user?.buildingList.find(
+                      (b) => b.value === String(id),
+                    );
+                    if (!building) return null;
+                    return (
+                      <View
+                        key={id}
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 4,
+                          backgroundColor: "#F0FDF4",
+                          borderRadius: 99,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                        }}
+                      >
+                        <AppIcon
+                          name="business-outline"
+                          size={11}
+                          color="#16A34A"
+                        />
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: "#16A34A",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {building.label}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               )}
             </View>
 
@@ -463,7 +425,6 @@ export function NoticeCard({
               onOpenPicker={() => setShowReactionPicker(true)}
             />
 
-            {/* Footer */}
             <View
               style={{
                 flexDirection: "row",
@@ -476,16 +437,7 @@ export function NoticeCard({
               }}
             >
               <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/(private)/(tabs)/(updates)/replies",
-                    params: {
-                      parentId: String(item.id),
-                      author: item.createdByFullName ?? "",
-                      message: (item.message ?? "").slice(0, 400),
-                    },
-                  })
-                }
+                onPress={() => onReplyStart(item)}
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
                 <AppIcon
@@ -504,30 +456,6 @@ export function NoticeCard({
                     ? `${replyCount} ${replyCount === 1 ? "reply" : "replies"}`
                     : "Reply"}
                 </Text>
-                {/* Use replyUnseenCount from API directly */}
-                {hasUnseenReplies && (
-                  <View
-                    style={{
-                      backgroundColor: "#7C3AED",
-                      borderRadius: 99,
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      minWidth: 18,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 10,
-                        color: "#fff",
-                        fontWeight: "700",
-                        lineHeight: 14,
-                      }}
-                    >
-                      {unseenReplyCount}
-                    </Text>
-                  </View>
-                )}
               </Pressable>
 
               {isOwn && (
@@ -550,9 +478,52 @@ export function NoticeCard({
                 </View>
               )}
             </View>
+
+            {isReplying ? (
+              <InlineReplyComposer
+                value={replyMessage}
+                onChange={onReplyMessageChange}
+                onSubmit={() => onReplySubmit(item.id)}
+                onCancel={onReplyCancel}
+                sending={sendingReply}
+                mentionBuildingId={mentionBuildingId}
+              />
+            ) : null}
           </View>
         </Card>
       </Animated.View>
+
+      {replies.length > 0 ? (
+        <View
+          style={{
+            marginTop: 4,
+            marginLeft: 12,
+            paddingLeft: 10,
+            borderLeftWidth: 2,
+            borderLeftColor: "#DDD6FE",
+          }}
+        >
+          {replies.map((child) => (
+            <ReplyRow
+              key={child.id}
+              item={child}
+              openSwipeId={openSwipeId}
+              onSwipeOpen={onSwipeOpen}
+              onRequestDelete={(id) => deleteMsg(id)}
+              onEdit={onEdit}
+              onReply={onReplyStart}
+              currentUserEmail={currentUserEmail}
+              mentionBuildingId={mentionBuildingId}
+              replyingToId={replyingToId}
+              replyMessage={replyMessage}
+              sendingReply={sendingReply}
+              onReplyMessageChange={onReplyMessageChange}
+              onReplySubmit={onReplySubmit}
+              onReplyCancel={onReplyCancel}
+            />
+          ))}
+        </View>
+      ) : null}
 
       <Modal
         visible={showReactionPicker}

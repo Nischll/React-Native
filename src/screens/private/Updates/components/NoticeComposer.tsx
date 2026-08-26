@@ -1,4 +1,8 @@
-import { useCreateCommunicationWithRefresh } from "@/src/api/communication.api";
+import {
+  useCreateCommunicationWithRefresh,
+  useUpdateCommunicationWithRefresh,
+} from "@/src/api/communication.api";
+import FormSheetModal from "@/src/components/domain/FormSheetModal";
 import AppIcon from "@/src/components/ui/AppIcon";
 import {
   MentionState,
@@ -6,35 +10,82 @@ import {
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+  CommunicationGroup,
+  CommunicationItem,
+} from "@/src/types/communication.types";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 
 type Audience = "everyone" | "buildings";
 
-export function NoticeComposer() {
+export function NoticeComposer({
+  visible,
+  onClose,
+  selectedGroup,
+  editingItem,
+  mentionBuildingId,
+  onSaved,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  selectedGroup: CommunicationGroup | null;
+  editingItem: CommunicationItem | null;
+  mentionBuildingId?: number | null;
+  onSaved?: () => void;
+}) {
   const [text, setText] = useState("");
-  const [expanded, setExpanded] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
   const [audience, setAudience] = useState<Audience>("buildings");
   const { user, selectedBuilding } = useAuth();
-  const { mutate: create, isPending } = useCreateCommunicationWithRefresh();
+  const { mutate: create, isPending: creating } =
+    useCreateCommunicationWithRefresh();
+  const { mutate: update, isPending: updating } =
+    useUpdateCommunicationWithRefresh();
 
   const buildingOptions = user?.buildingList ?? [];
-  const defaultBuildingId = selectedBuilding
-    ? Number(selectedBuilding.value)
-    : buildingOptions[0]
-      ? Number(buildingOptions[0].value)
-      : null;
+  const defaultBuildingId =
+    typeof selectedGroup?.id === "number"
+      ? selectedGroup.id
+      : selectedBuilding
+        ? Number(selectedBuilding.value)
+        : buildingOptions[0]
+          ? Number(buildingOptions[0].value)
+          : null;
 
-  const [buildingIds, setBuildingIds] = useState<number[]>(() =>
-    defaultBuildingId ? [defaultBuildingId] : [],
-  );
+  const [buildingIds, setBuildingIds] = useState<number[]>([]);
+  const isEditingReply =
+    editingItem != null &&
+    editingItem.parentId != null &&
+    editingItem.parentId !== undefined;
+  const saving = creating || updating;
+
+  useEffect(() => {
+    if (!visible) return;
+    setMentionState(null);
+    if (editingItem) {
+      setText(editingItem.message || "");
+      if (isEditingReply) {
+        setAudience("buildings");
+        setBuildingIds([]);
+        return;
+      }
+      const ids = (editingItem.buildingIds ?? []).filter(
+        (id): id is number => typeof id === "number",
+      );
+      setAudience(ids.length === 0 ? "everyone" : "buildings");
+      setBuildingIds(ids);
+      return;
+    }
+    setText("");
+    if (selectedGroup?.id === "everyone") {
+      setAudience("everyone");
+      setBuildingIds([]);
+      return;
+    }
+    setAudience("buildings");
+    setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
+  }, [visible, editingItem, selectedGroup, defaultBuildingId, isEditingReply]);
 
   const selectedLabels = useMemo(() => {
     return buildingOptions
@@ -44,35 +95,46 @@ export function NoticeComposer() {
 
   const canSend =
     text.trim().length > 0 &&
-    (audience === "everyone" || buildingIds.length > 0);
+    (isEditingReply || audience === "everyone" || buildingIds.length > 0);
 
-  const handleSend = () => {
+  const handleClose = () => {
+    setText("");
+    setMentionState(null);
+    onClose();
+  };
+
+  const handleSaved = () => {
+    onSaved?.();
+    handleClose();
+  };
+
+  const handleSave = () => {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    if (audience === "buildings" && buildingIds.length === 0) return;
+    if (!trimmed || !canSend) return;
+
+    if (editingItem?.id) {
+      update(
+        {
+          id: editingItem.id,
+          message: trimmed,
+          parentId: editingItem.parentId ?? null,
+          ...(isEditingReply
+            ? {}
+            : audience === "everyone"
+              ? { buildingIds: undefined }
+              : { buildingIds }),
+        },
+        { onSuccess: handleSaved },
+      );
+      return;
+    }
 
     create(
       audience === "everyone"
         ? { message: trimmed }
         : { message: trimmed, buildingIds },
-      {
-        onSuccess: () => {
-          setText("");
-          setExpanded(false);
-          setMentionState(null);
-          setAudience("buildings");
-          setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
-        },
-      },
+      { onSuccess: handleSaved },
     );
-  };
-
-  const handleCancel = () => {
-    setText("");
-    setExpanded(false);
-    setMentionState(null);
-    setAudience("buildings");
-    setBuildingIds(defaultBuildingId ? [defaultBuildingId] : []);
   };
 
   const toggleBuilding = (id: number) => {
@@ -81,278 +143,144 @@ export function NoticeComposer() {
     );
   };
 
+  const title = editingItem
+    ? isEditingReply
+      ? "Edit reply"
+      : "Edit message"
+    : "Add message";
+
   return (
-    <View style={{ marginHorizontal: 6, marginBottom: 12 }}>
-      <View
+    <FormSheetModal
+      visible={visible}
+      title={title}
+      submitLabel={editingItem ? "Update" : "Post"}
+      loading={saving}
+      submitDisabled={!canSend || saving}
+      onClose={handleClose}
+      onSubmit={handleSave}
+    >
+      <Text className="mb-2 text-sm font-semibold text-textPrimary">
+        Message
+      </Text>
+      <MentionTextInput
+        value={text}
+        onChangeText={setText}
+        onMentionStateChange={setMentionState}
+        placeholder="Enter message… Type @ to mention someone"
+        placeholderTextColor="#CBD5E1"
+        multiline
+        editable={isEditingReply || audience === "everyone" || buildingIds.length > 0}
         style={{
-          borderRadius: 16,
-          borderWidth: expanded ? 1.5 : 1,
-          borderColor: expanded ? "#7C3AED" : "#E2E8F0",
+          fontSize: 14,
+          color: "#1E293B",
+          minHeight: 120,
+          maxHeight: 200,
+          lineHeight: 22,
+          borderWidth: 1,
+          borderColor: "#E2E8F0",
+          borderRadius: 12,
+          padding: 12,
           backgroundColor: "#fff",
-          shadowColor: "#64748B",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 2,
         }}
-      >
-        <Pressable
-          onPress={() => setExpanded(true)}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            paddingHorizontal: 14,
-            paddingTop: 14,
-            paddingBottom: expanded ? 6 : 14,
-          }}
-        >
-          <AppIcon name="megaphone-outline" size={16} color="#7C3AED" />
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "700",
-              color: "#7C3AED",
-              letterSpacing: 0.3,
+      />
+      {mentionState ? (
+        <MentionSuggestions
+          mentionState={mentionState}
+          value={text}
+          onChangeText={setText}
+          onDismiss={() => setMentionState(null)}
+          buildingId={mentionBuildingId}
+          direction="below"
+        />
+      ) : null}
+
+      {!isEditingReply ? (
+        <View className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <View className="mb-3 flex-row items-center gap-2">
+            <AppIcon name="business-outline" size={16} color="#7C3AED" />
+            <Text className="text-sm font-semibold text-textPrimary">
+              Audience
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => {
+              setAudience("everyone");
+              setBuildingIds([]);
             }}
+            className={`mb-2 flex-row items-start gap-3 rounded-lg border bg-white px-3 py-3 ${
+              audience === "everyone" ? "border-primary" : "border-slate-200"
+            }`}
           >
-            POST A MESSAGE
-          </Text>
-        </Pressable>
-
-        {(expanded || text.trim().length > 0) && (
-          <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
-              <TouchableOpacity
-                onPress={() => setAudience("everyone")}
-                activeOpacity={0.7}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 99,
-                  borderWidth: 1.5,
-                  borderColor: audience === "everyone" ? "#7C3AED" : "#E2E8F0",
-                  backgroundColor:
-                    audience === "everyone" ? "#F5F3FF" : "#FAFAFA",
-                }}
-              >
-                <AppIcon
-                  name="globe-outline"
-                  size={14}
-                  color={audience === "everyone" ? "#7C3AED" : "#64748B"}
-                />
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: audience === "everyone" ? "#7C3AED" : "#64748B",
-                  }}
-                >
-                  Everyone
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setAudience("buildings")}
-                activeOpacity={0.7}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 99,
-                  borderWidth: 1.5,
-                  borderColor: audience === "buildings" ? "#7C3AED" : "#E2E8F0",
-                  backgroundColor:
-                    audience === "buildings" ? "#F5F3FF" : "#FAFAFA",
-                }}
-              >
-                <AppIcon
-                  name="business-outline"
-                  size={14}
-                  color={audience === "buildings" ? "#7C3AED" : "#64748B"}
-                />
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: audience === "buildings" ? "#7C3AED" : "#64748B",
-                  }}
-                >
-                  Selected buildings
-                </Text>
-              </TouchableOpacity>
+            <View
+              className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${
+                audience === "everyone"
+                  ? "border-primary bg-primary"
+                  : "border-slate-300"
+              }`}
+            >
+              {audience === "everyone" ? (
+                <AppIcon name="checkmark" size={12} color="#fff" />
+              ) : null}
             </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-textPrimary">
+                Everyone
+              </Text>
+              <Text className="mt-0.5 text-xs text-textSecondary">
+                Broadcast this message across every building you manage.
+              </Text>
+            </View>
+          </Pressable>
 
-            {audience === "buildings" ? (
-              <View
-                style={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginBottom: 10,
-                }}
-              >
+          {audience !== "everyone" ? (
+            <>
+              <Text className="mb-2 text-xs text-textSecondary">
+                Choose one or more buildings. Leave Everyone unchecked to post
+                only to those buildings.
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
                 {buildingOptions.map((b) => {
                   const id = Number(b.value);
                   const on = buildingIds.includes(id);
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={b.value}
                       onPress={() => toggleBuilding(id)}
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        borderRadius: 99,
-                        borderWidth: 1,
-                        borderColor: on ? "#16A34A" : "#E2E8F0",
-                        backgroundColor: on ? "#F0FDF4" : "#fff",
-                      }}
+                      className={`rounded-full border px-2.5 py-1.5 ${
+                        on
+                          ? "border-green-600 bg-green-50"
+                          : "border-slate-200 bg-white"
+                      }`}
                     >
                       <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: "600",
-                          color: on ? "#16A34A" : "#64748B",
-                        }}
+                        className={`text-xs font-semibold ${
+                          on ? "text-green-700" : "text-slate-500"
+                        }`}
                       >
                         {b.label.split("(")[0]?.trim() || b.label}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })}
               </View>
-            ) : null}
-
-            <MentionTextInput
-              value={text}
-              onChangeText={setText}
-              onMentionStateChange={setMentionState}
-              placeholder={
-                audience === "everyone"
-                  ? "Broadcast a notice to everyone…  Type @ to mention"
-                  : "Share an update for the selected buildings…  Type @ to mention"
-              }
-              placeholderTextColor="#CBD5E1"
-              multiline
-              autoFocus={expanded}
-              style={{
-                fontSize: 14,
-                color: "#1E293B",
-                minHeight: 72,
-                maxHeight: 160,
-                lineHeight: 22,
-                marginBottom: 10,
-              }}
-            />
-
-            {mentionState ? (
-              <MentionSuggestions
-                mentionState={mentionState}
-                value={text}
-                onChangeText={setText}
-                onDismiss={() => setMentionState(null)}
-                direction="below"
-              />
-            ) : null}
-
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 8,
-              }}
-            >
-              <AppIcon
-                name={audience === "everyone" ? "globe-outline" : "business-outline"}
-                size={12}
-                color="#94A3B8"
-              />
-              <Text style={{ fontSize: 11, color: "#94A3B8" }}>
-                {audience === "everyone"
-                  ? "Sending to everyone"
-                  : selectedLabels.length
-                    ? `Sending to ${selectedLabels.join(", ")}`
-                    : "Pick at least one building"}
-              </Text>
-            </View>
-
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: 8,
-                paddingTop: 4,
-              }}
-            >
-              <Pressable
-                onPress={handleCancel}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  borderRadius: 10,
-                  backgroundColor: "#F1F5F9",
-                }}
-              >
-                <Text
-                  style={{ fontSize: 13, fontWeight: "600", color: "#64748B" }}
-                >
-                  Cancel
+              {buildingIds.length === 0 ? (
+                <Text className="mt-2 text-xs font-medium text-amber-800">
+                  Select at least one building, or check Everyone.
                 </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleSend}
-                disabled={!canSend || isPending}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  paddingHorizontal: 16,
-                  paddingVertical: 7,
-                  borderRadius: 10,
-                  backgroundColor: !canSend || isPending ? "#E2E8F0" : "#7C3AED",
-                }}
-              >
-                {isPending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <AppIcon
-                    name="send"
-                    size={14}
-                    color={!canSend ? "#94A3B8" : "#fff"}
-                  />
-                )}
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "700",
-                    color: !canSend || isPending ? "#94A3B8" : "#fff",
-                  }}
-                >
-                  {isPending ? "Posting…" : "Post"}
+              ) : (
+                <Text className="mt-2 text-xs text-slate-400">
+                  Sending to {selectedLabels.join(", ")}
                 </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {!expanded && text.trim().length === 0 && (
-          <Pressable
-            onPress={() => setExpanded(true)}
-            style={{ paddingHorizontal: 14, paddingBottom: 14 }}
-          >
-            <Text style={{ fontSize: 14, color: "#CBD5E1" }}>
-              Share an update with the team…
+              )}
+            </>
+          ) : (
+            <Text className="rounded-lg bg-violet-50 px-3 py-2.5 text-xs text-violet-900">
+              This message will be visible to staff across all buildings.
             </Text>
-          </Pressable>
-        )}
-      </View>
-    </View>
+          )}
+        </View>
+      ) : null}
+    </FormSheetModal>
   );
 }

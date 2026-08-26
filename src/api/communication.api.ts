@@ -35,6 +35,33 @@ export function useGetCommunications(
   });
 }
 
+export function useGetCommunicationUnseenSummary(
+  buildingId?: number,
+  enabled = true,
+) {
+  return useApiQuery<CommunicationListResponse>(COMMUNICATION_KEY, {
+    enabled,
+    retry: 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 10_000,
+    axiosConfig: { skipGlobalLoading: true },
+    queryParams: {
+      page: 1,
+      limit: 1,
+      seenStatus: "all",
+      ...(buildingId ? { buildingId } : {}),
+    },
+  });
+}
+
+export function communicationUnseenTotal(
+  unseenCount?: number,
+  replyUnseenCount?: number,
+) {
+  return (unseenCount ?? 0) + (replyUnseenCount ?? 0);
+}
+
 // ─── POST: create notice or reply ────────────────────────────────────────────
 
 export function useCreateCommunication() {

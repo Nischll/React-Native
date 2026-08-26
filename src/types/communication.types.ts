@@ -65,3 +65,16 @@ export interface ReactionPayload {
 }
 
 export type SeenStatus = "all" | "unseen" | "seen";
+
+export type CommunicationGroup = {
+  id: number | "everyone";
+  name: string;
+};
+
+export const EVERYONE_GROUP: CommunicationGroup = {
+  id: "everyone",
+  name: "Everyone",
+};
+
+export const COMMUNICATION_PAGE_SIZE = 10;
+export const COMMUNICATION_GROUP_LIMIT = 10;

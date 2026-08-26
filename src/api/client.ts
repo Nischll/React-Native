@@ -19,7 +19,12 @@ let failedAuthRefreshAttempts = 0;
 
 type RequestConfigWithRetry = InternalAxiosRequestConfig & {
   _retry?: boolean;
+  skipGlobalLoading?: boolean;
 };
+
+function shouldTrackLoading(config?: InternalAxiosRequestConfig) {
+  return !(config as RequestConfigWithRetry | undefined)?.skipGlobalLoading;
+}
 
 function isAuthRefreshUrl(
   config: InternalAxiosRequestConfig | undefined,
@@ -28,12 +33,14 @@ function isAuthRefreshUrl(
   return u.includes("auth/refresh");
 }
 
-function increaseRequestCount() {
+function increaseRequestCount(config?: InternalAxiosRequestConfig) {
+  if (!shouldTrackLoading(config)) return;
   requestCount += 1;
   startGlobalLoading();
 }
 
-function decreaseRequestCount() {
+function decreaseRequestCount(config?: InternalAxiosRequestConfig) {
+  if (!shouldTrackLoading(config)) return;
   requestCount = Math.max(0, requestCount - 1);
   if (requestCount === 0) {
     stopGlobalLoading();
@@ -51,7 +58,7 @@ export function resetAuthRefreshAttempts(): void {
 // ------------------- Request Interceptor -------------------
 apiService.interceptors.request.use(
   async (config) => {
-    increaseRequestCount();
+    increaseRequestCount(config);
 
     const isFormData =
       config.data instanceof FormData ||
@@ -119,7 +126,7 @@ apiService.interceptors.request.use(
     return config;
   },
   (error) => {
-    decreaseRequestCount();
+    decreaseRequestCount(error?.config);
 
     if (ENABLE_DEBUG_LOGS) {
       console.log("❌ REQUEST SETUP ERROR", error);
@@ -132,7 +139,7 @@ apiService.interceptors.request.use(
 // ------------------- Response Interceptor -------------------
 apiService.interceptors.response.use(
   async (response) => {
-    decreaseRequestCount();
+    decreaseRequestCount(response.config);
 
     if (ENABLE_DEBUG_LOGS) {
       console.log("✅ API RESPONSE");
@@ -152,7 +159,7 @@ apiService.interceptors.response.use(
     return response;
   },
   async (error) => {
-    decreaseRequestCount();
+    decreaseRequestCount(error?.config);
 
     if (ENABLE_DEBUG_LOGS) {
       console.log("❌ API ERROR");
