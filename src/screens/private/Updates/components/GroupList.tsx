@@ -4,13 +4,14 @@ import {
 } from "@/src/api/communication.api";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import ListPager from "@/src/components/layout/ListPager";
+import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import AppInput from "@/src/components/ui/AppInput";
 import {
   CommunicationGroup,
   COMMUNICATION_GROUP_LIMIT,
 } from "@/src/types/communication.types";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -33,58 +34,74 @@ function GroupRow({
   const unseen = communicationUnseenTotal(data?.data?.unseenCount);
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={() => onSelect(group)}
-      className={`mx-2 mb-1 flex-row items-center gap-3 rounded-xl px-2.5 py-2.5 ${
-        selected ? "bg-primary/10" : "bg-white"
-      }`}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${group.name}`}
+      android_ripple={{ color: "#EDE9FE" }}
+      className="mx-3 mb-2"
     >
       <View
-        className={`h-9 w-9 items-center justify-center rounded-full ${
+        className={`flex-row items-center gap-3 rounded-2xl border px-3 py-3.5 ${
           selected
-            ? "bg-primary"
-            : isEveryone
-              ? "bg-sky-100"
-              : "bg-violet-100"
+            ? "border-primary bg-primary/10"
+            : "border-slate-200 bg-white"
         }`}
       >
-        {isEveryone ? (
-          <AppIcon
-            name="people-outline"
-            size={16}
-            color={selected ? "#fff" : "#0369A1"}
-          />
-        ) : (
-          <Text
-            className={`text-xs font-bold ${
-              selected ? "text-white" : "text-violet-800"
-            }`}
-          >
-            {initials(group.name)}
-          </Text>
-        )}
-      </View>
-      <View className="min-w-0 flex-1">
-        <View className="flex-row items-center justify-between gap-2">
-          <Text
-            className="flex-1 text-sm font-semibold text-textPrimary"
-            numberOfLines={1}
-          >
-            {group.name}
-          </Text>
-          {unseen > 0 ? (
-            <View className="min-w-[18px] items-center rounded-full bg-amber-500 px-1.5 py-0.5">
-              <Text className="text-[10px] font-bold text-amber-950">
-                {unseen > 99 ? "99+" : unseen}
-              </Text>
-            </View>
-          ) : null}
+        <View
+          className={`h-11 w-11 items-center justify-center rounded-full ${
+            selected
+              ? "bg-primary"
+              : isEveryone
+                ? "bg-sky-100"
+                : "bg-violet-100"
+          }`}
+        >
+          {isEveryone ? (
+            <AppIcon
+              name="people-outline"
+              size={18}
+              color={selected ? "#fff" : "#0369A1"}
+            />
+          ) : (
+            <Text
+              className={`text-sm font-bold ${
+                selected ? "text-white" : "text-violet-800"
+              }`}
+            >
+              {initials(group.name)}
+            </Text>
+          )}
         </View>
-        <Text className="mt-0.5 text-xs text-textSecondary" numberOfLines={1}>
-          {isEveryone ? "All buildings you manage" : "Building group"}
-        </Text>
+        <View className="min-w-0 flex-1">
+          <View className="flex-row items-center justify-between gap-2">
+            <Text
+              className="flex-1 text-[15px] font-bold text-textPrimary"
+              numberOfLines={1}
+            >
+              {group.name}
+            </Text>
+            {unseen > 0 ? (
+              <View className="min-w-[20px] items-center rounded-full bg-amber-500 px-1.5 py-0.5">
+                <Text className="text-[10px] font-bold text-amber-950">
+                  {unseen > 99 ? "99+" : unseen}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <Text className="mt-0.5 text-xs text-textSecondary" numberOfLines={1}>
+            {isEveryone
+              ? "Tap to view all buildings"
+              : "Tap to view this building"}
+          </Text>
+        </View>
+        <AppIcon
+          name="chevron-forward"
+          size={18}
+          color={selected ? "#453956" : "#94A3B8"}
+        />
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -131,7 +148,7 @@ export default function GroupList({
           className="flex-1"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
-          contentContainerStyle={{ paddingVertical: 8, flexGrow: 1 }}
+          contentContainerStyle={{ paddingVertical: 10, flexGrow: 1 }}
         >
           {groups.map((group) => (
             <GroupRow

@@ -1,6 +1,6 @@
 import {
-  communicationUnseenTotal,
-  useGetCommunicationUnseenSummary,
+  parseManagedBuildingIds,
+  useCommunicationUnseenTotals,
 } from "@/src/api/communication.api";
 import { useGetPrivateInbox } from "@/src/api/privateMessage.api";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -18,16 +18,12 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const canMessage = hasModuleCode(user?.moduleList ?? [], "D");
-
-  const { data: communicationCountData } = useGetCommunicationUnseenSummary(
-    undefined,
+  const buildingIds = parseManagedBuildingIds(user?.buildingList);
+  const { homeTotal: communicationUnseen } = useCommunicationUnseenTotals(
+    buildingIds,
     canMessage,
   );
   const { data: privateCountData } = useGetPrivateInbox(1, 1, canMessage);
-
-  const communicationUnseen = communicationUnseenTotal(
-    communicationCountData?.data?.unseenCount,
-  );
   const privateUnseen =
     privateCountData?.data?.unreadConversationCount ?? 0;
 

@@ -31,7 +31,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ReplyRow } from "./components/ReplyRow";
 
 export function ReplySheet() {
@@ -49,6 +49,7 @@ export function ReplySheet() {
   const parentId = Number(parentIdParam);
   const mentionBuildingId = Number(mentionBuildingIdParam);
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
 
   const subscribe = useCallback(
@@ -136,7 +137,7 @@ export function ReplySheet() {
 
   return (
     <SafeAreaView
-      edges={["top", "left", "right", "bottom"]}
+      edges={["top", "left", "right"]}
       className="flex-1 bg-white"
     >
       <StatusBar
@@ -147,7 +148,9 @@ export function ReplySheet() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
+      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
       <PageHeader
         title={`${replyCount <= 1 ? "Reply" : "Replies"}${replyCount > 0 ? ` (${replyCount})` : ""}`}
         subtitle=""
@@ -162,7 +165,7 @@ export function ReplySheet() {
         }}
       />
 
-      <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+      <View style={{ marginBottom: 4 }}>
         <View
           style={{
             padding: 12,
@@ -219,6 +222,7 @@ export function ReplySheet() {
           />
         </View>
       </View>
+      </View>
 
       <View style={{ flex: 1 }}>
         <FlatList
@@ -229,9 +233,10 @@ export function ReplySheet() {
           initialNumToRender={8}
           windowSize={5}
           contentContainerStyle={{
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            gap: 8,
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 16,
+            gap: 10,
             flexGrow: 1,
           }}
           showsVerticalScrollIndicator={false}
@@ -286,7 +291,7 @@ export function ReplySheet() {
       {editingReply && (
         <View
           style={{
-            paddingHorizontal: 12,
+            paddingHorizontal: 16,
             paddingBottom: 6,
             flexDirection: "row",
             justifyContent: "space-between",
@@ -311,7 +316,7 @@ export function ReplySheet() {
       {!editingReply && replyingTo && (
         <View
           style={{
-            paddingHorizontal: 12,
+            paddingHorizontal: 16,
             paddingBottom: 6,
             flexDirection: "row",
             justifyContent: "space-between",
@@ -339,8 +344,9 @@ export function ReplySheet() {
 
       <View
         style={{
-          paddingHorizontal: 12,
-          paddingVertical: 10,
+          paddingHorizontal: 16,
+          paddingTop: 10,
+          paddingBottom: Math.max(insets.bottom, 12),
           borderTopWidth: 1,
           borderTopColor: "#E2E8F0",
           backgroundColor: "#fff",

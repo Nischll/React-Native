@@ -1,4 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { apiService } from "./client";
 import { useApiMutation } from "../hooks/api/useApiMutation";
 import { useApiQuery } from "../hooks/api/useApiQuery";
 import {
@@ -14,6 +15,25 @@ import {
 
 export const COMMUNICATION_KEY = "/communication";
 export const COMMUNICATION_UNSEEN_SUMMARY_KEY = "unseen-summary";
+
+function unseenSummaryParams(buildingId?: number) {
+  return {
+    page: 1,
+    limit: 1,
+    seenStatus: "all" as const,
+    ...(buildingId ? { buildingId } : {}),
+  };
+}
+
+export function parseManagedBuildingIds(
+  buildingList?: Array<{ value: string }> | null,
+) {
+  return [...new Set(
+    (buildingList ?? [])
+      .map((building) => Number(building.value))
+      .filter((id) => Number.isFinite(id) && id > 0),
+  )];
+}
 
 // ─── GET: list ────────────────────────────────────────────────────────────────
 
@@ -49,12 +69,7 @@ export function useGetCommunicationUnseenSummary(
       refetchOnMount: "always",
       refetchInterval: 10_000,
       axiosConfig: { skipGlobalLoading: true },
-      queryParams: {
-        page: 1,
-        limit: 1,
-        seenStatus: "all",
-        ...(buildingId ? { buildingId } : {}),
-      },
+      queryParams: unseenSummaryParams(buildingId),
     },
   );
 }
@@ -62,6 +77,57 @@ export function useGetCommunicationUnseenSummary(
 /** Unseen thread count from the API. Do not add replyUnseenCount — those threads are already included. */
 export function communicationUnseenTotal(unseenCount?: number) {
   return unseenCount ?? 0;
+}
+
+/**
+ * Everyone count + each building count.
+ * Home / tab badge = sum of those group badges.
+ */
+export function useCommunicationUnseenTotals(
+  buildingIds: number[],
+  enabled = true,
+) {
+  const ids = [...new Set(buildingIds.filter((id) => Number.isFinite(id) && id > 0))];
+  const scopes: Array<number | undefined> = [undefined, ...ids];
+
+  const queries = useQueries({
+    queries: scopes.map((buildingId) => ({
+      queryKey: [
+        COMMUNICATION_KEY,
+        COMMUNICATION_UNSEEN_SUMMARY_KEY,
+        JSON.stringify(unseenSummaryParams(buildingId)),
+      ],
+      enabled,
+      retry: 0,
+      staleTime: 0,
+      refetchOnMount: "always" as const,
+      refetchInterval: 10_000,
+      queryFn: async () => {
+        const response = await apiService.get<CommunicationListResponse>(
+          COMMUNICATION_KEY,
+          {
+            params: unseenSummaryParams(buildingId),
+            skipGlobalLoading: true,
+          } as any,
+        );
+        return response.data;
+      },
+    })),
+  });
+
+  const everyoneCount = communicationUnseenTotal(
+    queries[0]?.data?.data?.unseenCount,
+  );
+  const buildingCounts = ids.map((id, index) => ({
+    buildingId: id,
+    count: communicationUnseenTotal(
+      queries[index + 1]?.data?.data?.unseenCount,
+    ),
+  }));
+  const homeTotal =
+    everyoneCount + buildingCounts.reduce((sum, row) => sum + row.count, 0);
+
+  return { everyoneCount, buildingCounts, homeTotal };
 }
 
 // ─── POST: create notice or reply ────────────────────────────────────────────

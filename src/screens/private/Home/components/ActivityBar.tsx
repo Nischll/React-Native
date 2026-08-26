@@ -1,7 +1,7 @@
 import { useGetNotice, useGetReminders } from "@/src/api/activity.api";
 import {
-  communicationUnseenTotal,
-  useGetCommunicationUnseenSummary,
+  parseManagedBuildingIds,
+  useCommunicationUnseenTotals,
 } from "@/src/api/communication.api";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
@@ -78,10 +78,11 @@ function ActivityPill({
 export function ActivityBar() {
   const { buildingId, user } = useAuth();
   const canMessage = hasModuleCode(user?.moduleList ?? [], "D");
+  const buildingIds = parseManagedBuildingIds(user?.buildingList);
 
   const { data: noticeData } = useGetNotice(1, 1, "all");
-  const { data: communicationSummary } = useGetCommunicationUnseenSummary(
-    undefined,
+  const { homeTotal: communicationUnseen } = useCommunicationUnseenTotals(
+    buildingIds,
     canMessage,
   );
   const { data: remindersData } = useGetReminders(
@@ -90,9 +91,6 @@ export function ActivityBar() {
   );
 
   const unseenCount = noticeData?.data?.unseenCount ?? 0;
-  const communicationUnseen = communicationUnseenTotal(
-    communicationSummary?.data?.unseenCount,
-  );
 
   const reminderCount = useMemo(() => {
     const reminders = remindersData?.data;
