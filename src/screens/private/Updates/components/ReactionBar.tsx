@@ -45,9 +45,10 @@ export function ReactionBar({
   });
   const tooltipAnim = useRef(new Animated.Value(0)).current;
 
+  const groups = reactions ?? [];
   const myReactions = new Set(
-    reactions.flatMap((r) =>
-      r.users
+    groups.flatMap((r) =>
+      (r.users ?? [])
         .filter((u) => u.userId === user?.userId)
         .map(() => r.reactionType),
     ),
@@ -77,11 +78,11 @@ export function ReactionBar({
   };
 
   const handleReact = (emoji: string) => {
-    if (!user?.userId) return;
-    toggleReaction(
-      { communicationId, reactionType: emoji, userId: user.userId },
-      { onError: (err) => console.log(err) },
-    );
+    toggleReaction({
+      communicationId,
+      reactionType: emoji,
+      userId: user?.userId,
+    });
   };
 
   return (
@@ -94,7 +95,7 @@ export function ReactionBar({
           marginTop: 8,
         }}
       >
-        {reactions.map((r) => {
+        {groups.map((r) => {
           const isMine = myReactions.has(r.reactionType);
           return (
             <Pressable
@@ -132,9 +133,9 @@ export function ReactionBar({
           );
         })}
 
-        {/* Add reaction button */}
         <Pressable
           onPress={onOpenPicker}
+          hitSlop={8}
           style={({ pressed }) => ({
             flexDirection: "row",
             alignItems: "center",
@@ -311,11 +312,12 @@ export function ReactionPicker({
   const { mutate: toggleReaction } = useToggleReactionWithRefresh();
 
   const handlePick = (emoji: string) => {
-    if (!user?.userId) return;
-    toggleReaction(
-      { communicationId, reactionType: emoji, userId: user.userId },
-      { onSuccess: () => onClose() },
-    );
+    onClose();
+    toggleReaction({
+      communicationId,
+      reactionType: emoji,
+      userId: user?.userId,
+    });
   };
 
   return (
@@ -324,11 +326,12 @@ export function ReactionPicker({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 8,
-        padding: 16,
+        padding: 12,
+        marginTop: 8,
         backgroundColor: "#fff",
-        borderRadius: 20,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#E2E8F0",
+        borderColor: "#DDD6FE",
       }}
     >
       {EMOJI_OPTIONS.map((emoji) => (

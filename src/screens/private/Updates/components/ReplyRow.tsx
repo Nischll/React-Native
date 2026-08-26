@@ -4,7 +4,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
 import InlineReplyComposer from "./InlineReplyComposer";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
@@ -212,7 +212,7 @@ export function ReplyRow({
                 <Text style={{ fontSize: 11, color: actionColor }}>Reply</Text>
               </Pressable>
               <Pressable
-                onPress={() => setShowReactionPicker(true)}
+                onPress={() => setShowReactionPicker((open) => !open)}
                 style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
               >
                 <AppIcon name="happy-outline" size={12} color={actionColor} />
@@ -233,20 +233,24 @@ export function ReplyRow({
             {timeAgo(item.createdDate)}
           </Text>
 
-          {(item.reactions ?? []).length > 0 && (
-            <View
-              style={{
-                marginTop: 2,
-                alignItems: isOwn ? "flex-end" : "flex-start",
-              }}
-            >
-              <ReactionBar
+          <View
+            style={{
+              marginTop: 2,
+              alignItems: isOwn ? "flex-end" : "flex-start",
+            }}
+          >
+            <ReactionBar
+              communicationId={item.id}
+              reactions={item.reactions ?? []}
+              onOpenPicker={() => setShowReactionPicker((open) => !open)}
+            />
+            {showReactionPicker ? (
+              <ReactionPicker
                 communicationId={item.id}
-                reactions={item.reactions}
-                onOpenPicker={() => setShowReactionPicker(true)}
+                onClose={() => setShowReactionPicker(false)}
               />
-            </View>
-          )}
+            ) : null}
+          </View>
 
           {isReplying &&
           onReplySubmit &&
@@ -295,31 +299,6 @@ export function ReplyRow({
           ))}
         </View>
       ) : null}
-
-      <Modal
-        visible={showReactionPicker}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setShowReactionPicker(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            padding: 32,
-          }}
-          onPress={() => setShowReactionPicker(false)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <ReactionPicker
-              communicationId={item.id}
-              onClose={() => setShowReactionPicker(false)}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }

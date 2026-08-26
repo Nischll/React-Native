@@ -12,7 +12,6 @@ import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   PanResponder,
   Pressable,
   Text,
@@ -97,7 +96,7 @@ export function NoticeCard({
       onStartShouldSetPanResponderCapture: () => isSwipedRef.current,
       onMoveShouldSetPanResponder: (_, g) => {
         if (!isOwn) return false;
-        return Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 5;
+        return Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 12;
       },
       onPanResponderMove: (_, g) => {
         if (!isOwn) return;
@@ -188,7 +187,6 @@ export function NoticeCard({
           overflow: "visible",
         }}
         className="shadow-md"
-        {...(isOwn ? panResponder.panHandlers : {})}
       >
         <View
           style={{
@@ -202,13 +200,14 @@ export function NoticeCard({
         >
           <View style={{ width: 4, backgroundColor: accentColor }} />
           <View style={{ flex: 1, padding: 14 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                gap: 10,
-              }}
-            >
+            <View {...(isOwn ? panResponder.panHandlers : {})}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 10,
+                }}
+              >
               <AuthorAvatar
                 fullName={item.createdByFullName}
                 size={38}
@@ -409,12 +408,19 @@ export function NoticeCard({
                 </View>
               )}
             </View>
+            </View>
 
             <ReactionBar
               communicationId={item.id}
-              reactions={item.reactions}
-              onOpenPicker={() => setShowReactionPicker(true)}
+              reactions={item.reactions ?? []}
+              onOpenPicker={() => setShowReactionPicker((open) => !open)}
             />
+            {showReactionPicker ? (
+              <ReactionPicker
+                communicationId={item.id}
+                onClose={() => setShowReactionPicker(false)}
+              />
+            ) : null}
 
             <View
               style={{
@@ -488,31 +494,6 @@ export function NoticeCard({
           </View>
         </View>
       </Animated.View>
-
-      <Modal
-        visible={showReactionPicker}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setShowReactionPicker(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            justifyContent: "center",
-            padding: 32,
-          }}
-          onPress={() => setShowReactionPicker(false)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <ReactionPicker
-              communicationId={item.id}
-              onClose={() => setShowReactionPicker(false)}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }

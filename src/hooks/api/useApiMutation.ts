@@ -15,6 +15,7 @@ interface UseApiMutationOptions {
   responseType?: ResponseMode;
   successMessage?: string;
   showSuccessToast?: boolean;
+  skipGlobalLoading?: boolean;
 }
 
 export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
@@ -22,13 +23,18 @@ export function useApiMutation<TBody = any, TJsonData = any, TPathVars = any>(
   endpoint: string | ((pathVars?: TPathVars) => string),
   options?: UseApiMutationOptions,
 ) {
-  const { params, responseType = "json" } = options ?? {};
+  const { params, responseType = "json", skipGlobalLoading } = options ?? {};
 
   const buildConfig = (): AxiosRequestConfig => {
+    const extra = skipGlobalLoading ? { skipGlobalLoading: true } : {};
     if (responseType === "blob" || responseType === "arraybuffer") {
-      return { params, responseType: responseType as "blob" | "arraybuffer" };
+      return {
+        params,
+        responseType: responseType as "blob" | "arraybuffer",
+        ...extra,
+      };
     }
-    return { params };
+    return { params, ...extra };
   };
 
   return useMutation<

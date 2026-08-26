@@ -61,7 +61,7 @@ export interface UpdateCommunicationPayload {
 export interface ReactionPayload {
   communicationId: number;
   reactionType: string;
-  userId: number;
+  userId?: number;
 }
 
 export type SeenStatus = "all" | "unseen" | "seen";

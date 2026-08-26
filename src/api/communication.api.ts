@@ -229,7 +229,7 @@ export function useToggleReactionWithRefresh() {
   const mutation = useApiMutation<ReactionPayload>(
     "post",
     "/communication-reaction",
-    { showSuccessToast: false },
+    { showSuccessToast: false, skipGlobalLoading: true },
   );
 
   const mutateWithRefresh = (
