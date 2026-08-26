@@ -30,10 +30,7 @@ function GroupRow({
   const isEveryone = group.id === "everyone";
   const buildingId = typeof group.id === "number" ? group.id : undefined;
   const { data } = useGetCommunicationUnseenSummary(buildingId, true);
-  const unseen = communicationUnseenTotal(
-    data?.data?.unseenCount,
-    data?.data?.replyUnseenCount,
-  );
+  const unseen = communicationUnseenTotal(data?.data?.unseenCount);
 
   return (
     <Pressable

@@ -1,6 +1,4 @@
 import {
-  communicationUnseenTotal,
-  useCreateCommunicationWithRefresh,
   useGetCommunications,
 } from "@/src/api/communication.api";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
@@ -60,8 +58,6 @@ export default function Updates() {
   const [editingItem, setEditingItem] = useState<CommunicationItem | null>(
     null,
   );
-  const [replyingToId, setReplyingToId] = useState<number | null>(null);
-  const [replyMessage, setReplyMessage] = useState("");
 
   const managedBuildings = user?.buildingList ?? [];
   const buildingGroups = useMemo<CommunicationGroup[]>(
@@ -136,25 +132,20 @@ export default function Updates() {
     activeBuildingId,
     selectedGroup != null,
   );
-  const { mutate: createReply, isPending: sendingReply } =
-    useCreateCommunicationWithRefresh();
 
   const notices = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
   const unseenCount = data?.data?.unseenCount ?? 0;
   const seenCount = data?.data?.seenCount ?? 0;
   const replyUnseenCount = data?.data?.replyUnseenCount ?? 0;
-  const totalUnseen = communicationUnseenTotal(unseenCount, replyUnseenCount);
   const totalAll = seenCount + unseenCount;
 
   useEffect(() => {
-    setUnseenUpdatesCount(totalUnseen);
-  }, [totalUnseen, setUnseenUpdatesCount]);
+    setUnseenUpdatesCount(unseenCount);
+  }, [unseenCount, setUnseenUpdatesCount]);
 
   useEffect(() => {
     setPage(1);
-    setReplyingToId(null);
-    setReplyMessage("");
     setOpenSwipeId(null);
   }, [selectedGroup?.id]);
 
@@ -256,7 +247,7 @@ export default function Updates() {
           }}
           totalCount={totalAll}
           seenCount={seenCount}
-          unseenCount={totalUnseen}
+          unseenCount={unseenCount}
           replyUnseenCount={replyUnseenCount}
           disabled={isLoading}
         />
@@ -312,31 +303,6 @@ export default function Updates() {
             onEdit={openComposer}
             currentUserEmail={user?.email}
             mentionBuildingId={mentionBuildingId}
-            replyingToId={replyingToId}
-            replyMessage={replyMessage}
-            sendingReply={sendingReply}
-            onReplyStart={(target) => {
-              setReplyingToId(target.id);
-              setReplyMessage("");
-            }}
-            onReplyCancel={() => {
-              setReplyingToId(null);
-              setReplyMessage("");
-            }}
-            onReplyMessageChange={setReplyMessage}
-            onReplySubmit={(parentId) => {
-              const trimmed = replyMessage.trim();
-              if (!trimmed) return;
-              createReply(
-                { message: trimmed, parentId },
-                {
-                  onSuccess: () => {
-                    setReplyMessage("");
-                    setReplyingToId(null);
-                  },
-                },
-              );
-            }}
           />
         )}
       />

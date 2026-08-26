@@ -32,12 +32,12 @@ export const useApiQuery = <T>(
     retry,
   } = config || {};
 
+  const path = Array.isArray(endpoint) ? endpoint[0] : endpoint;
+  const keyPrefix = Array.isArray(endpoint) ? endpoint : [path];
+
   const queryKey = queryParams
-    ? [
-        Array.isArray(endpoint) ? endpoint[0] : endpoint,
-        JSON.stringify(queryParams),
-      ]
-    : [Array.isArray(endpoint) ? endpoint[0] : endpoint];
+    ? [...keyPrefix, JSON.stringify(queryParams)]
+    : keyPrefix;
 
   const options: UseQueryOptions<T, Error, T, typeof queryKey> = {
     queryKey,
@@ -56,7 +56,7 @@ export const useApiQuery = <T>(
       };
 
       const response = await apiService.get<T>(
-        Array.isArray(endpoint) ? endpoint[0] : endpoint,
+        path,
         finalAxiosConfig,
       );
 

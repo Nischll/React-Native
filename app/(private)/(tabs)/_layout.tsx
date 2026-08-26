@@ -27,7 +27,6 @@ export default function TabsLayout() {
 
   const communicationUnseen = communicationUnseenTotal(
     communicationCountData?.data?.unseenCount,
-    communicationCountData?.data?.replyUnseenCount,
   );
   const privateUnseen =
     privateCountData?.data?.unreadConversationCount ?? 0;

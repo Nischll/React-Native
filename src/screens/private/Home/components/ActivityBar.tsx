@@ -1,6 +1,11 @@
 import { useGetNotice, useGetReminders } from "@/src/api/activity.api";
+import {
+  communicationUnseenTotal,
+  useGetCommunicationUnseenSummary,
+} from "@/src/api/communication.api";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
+import { hasModuleCode } from "@/src/helper/flattenModules";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
@@ -35,7 +40,7 @@ function ActivityPill({
   chevronColor: string;
 }) {
   return (
-    <AnimatedPressable className="flex-1 min-w-[30%]" onPress={onPress}>
+    <AnimatedPressable className="min-w-[46%] flex-1" onPress={onPress}>
       <View
         className={`flex-row items-center gap-1.5 rounded-xl px-2.5 py-2 border ${bgClass} ${borderClass}`}
       >
@@ -71,15 +76,23 @@ function ActivityPill({
 }
 
 export function ActivityBar() {
-  const { buildingId } = useAuth();
+  const { buildingId, user } = useAuth();
+  const canMessage = hasModuleCode(user?.moduleList ?? [], "D");
 
   const { data: noticeData } = useGetNotice(1, 1, "all");
+  const { data: communicationSummary } = useGetCommunicationUnseenSummary(
+    undefined,
+    canMessage,
+  );
   const { data: remindersData } = useGetReminders(
     buildingId ?? undefined,
     "today",
   );
 
   const unseenCount = noticeData?.data?.unseenCount ?? 0;
+  const communicationUnseen = communicationUnseenTotal(
+    communicationSummary?.data?.unseenCount,
+  );
 
   const reminderCount = useMemo(() => {
     const reminders = remindersData?.data;
@@ -121,17 +134,36 @@ export function ActivityBar() {
           badge={reminderCount}
           chevronColor="#185FA5"
         />
+        {canMessage ? (
+          <ActivityPill
+            onPress={() => router.push("/(private)/(tabs)/(updates)")}
+            icon="chatbubbles-outline"
+            iconColor="#7C3AED"
+            bgClass="bg-violet-50"
+            borderClass="border-violet-200"
+            titleClass="text-violet-700"
+            bodyClass="text-violet-900"
+            title="Communicate"
+            body={
+              communicationUnseen > 0
+                ? `${communicationUnseen} unread`
+                : "All caught up"
+            }
+            badge={communicationUnseen}
+            chevronColor="#7C3AED"
+          />
+        ) : null}
         <ActivityPill
           onPress={() => router.push("/(private)/home/recommendations")}
           icon="bulb-outline"
-          iconColor="#7C3AED"
-          bgClass="bg-violet-50"
-          borderClass="border-violet-200"
-          titleClass="text-violet-700"
-          bodyClass="text-violet-900"
+          iconColor="#059669"
+          bgClass="bg-emerald-50"
+          borderClass="border-emerald-200"
+          titleClass="text-emerald-700"
+          bodyClass="text-emerald-900"
           title="Ideas"
           body="Recommendations"
-          chevronColor="#7C3AED"
+          chevronColor="#059669"
         />
       </View>
     </View>

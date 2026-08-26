@@ -13,6 +13,7 @@ import {
 // ─── Query Key ────────────────────────────────────────────────────────────────
 
 export const COMMUNICATION_KEY = "/communication";
+export const COMMUNICATION_UNSEEN_SUMMARY_KEY = "unseen-summary";
 
 // ─── GET: list ────────────────────────────────────────────────────────────────
 
@@ -39,27 +40,28 @@ export function useGetCommunicationUnseenSummary(
   buildingId?: number,
   enabled = true,
 ) {
-  return useApiQuery<CommunicationListResponse>(COMMUNICATION_KEY, {
-    enabled,
-    retry: 0,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchInterval: 10_000,
-    axiosConfig: { skipGlobalLoading: true },
-    queryParams: {
-      page: 1,
-      limit: 1,
-      seenStatus: "all",
-      ...(buildingId ? { buildingId } : {}),
+  return useApiQuery<CommunicationListResponse>(
+    [COMMUNICATION_KEY, COMMUNICATION_UNSEEN_SUMMARY_KEY],
+    {
+      enabled,
+      retry: 0,
+      staleTime: 0,
+      refetchOnMount: "always",
+      refetchInterval: 10_000,
+      axiosConfig: { skipGlobalLoading: true },
+      queryParams: {
+        page: 1,
+        limit: 1,
+        seenStatus: "all",
+        ...(buildingId ? { buildingId } : {}),
+      },
     },
-  });
+  );
 }
 
-export function communicationUnseenTotal(
-  unseenCount?: number,
-  replyUnseenCount?: number,
-) {
-  return (unseenCount ?? 0) + (replyUnseenCount ?? 0);
+/** Unseen thread count from the API. Do not add replyUnseenCount — those threads are already included. */
+export function communicationUnseenTotal(unseenCount?: number) {
+  return unseenCount ?? 0;
 }
 
 // ─── POST: create notice or reply ────────────────────────────────────────────
@@ -193,7 +195,10 @@ export function findCommunicationInCache(
   const entries = qc.getQueriesData<CommunicationListResponse>({
     queryKey: [COMMUNICATION_KEY],
   });
-  for (const [, payload] of entries) {
+  for (const [key, payload] of entries) {
+    if (Array.isArray(key) && key[1] === COMMUNICATION_UNSEEN_SUMMARY_KEY) {
+      continue;
+    }
     const rows = payload?.data?.data;
     if (!Array.isArray(rows)) continue;
     for (const row of rows) {

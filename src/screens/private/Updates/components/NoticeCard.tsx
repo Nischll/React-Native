@@ -1,5 +1,4 @@
 import {
-  buildReplyTree,
   getReplyCount,
   useDeleteCommunicationWithRefresh,
 } from "@/src/api/communication.api";
@@ -8,7 +7,8 @@ import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
-import { useMemo, useRef, useState } from "react";
+import { router } from "expo-router";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -19,9 +19,7 @@ import {
   View,
 } from "react-native";
 import { AuthorAvatar } from "./AuthorAvatar";
-import InlineReplyComposer from "./InlineReplyComposer";
 import { ReactionBar, ReactionPicker } from "./ReactionBar";
-import { ReplyRow } from "./ReplyRow";
 
 interface NoticeCardProps {
   item: CommunicationItem;
@@ -30,13 +28,6 @@ interface NoticeCardProps {
   onEdit: (item: CommunicationItem) => void;
   currentUserEmail?: string | null;
   mentionBuildingId?: number | null;
-  replyingToId: number | null;
-  replyMessage: string;
-  sendingReply?: boolean;
-  onReplyStart: (item: CommunicationItem) => void;
-  onReplyCancel: () => void;
-  onReplyMessageChange: (value: string) => void;
-  onReplySubmit: (parentId: number) => void;
 }
 
 const DELETE_REVEAL_WIDTH = 80;
@@ -50,26 +41,14 @@ export function NoticeCard({
   onEdit,
   currentUserEmail,
   mentionBuildingId,
-  replyingToId,
-  replyMessage,
-  sendingReply = false,
-  onReplyStart,
-  onReplyCancel,
-  onReplyMessageChange,
-  onReplySubmit,
 }: NoticeCardProps) {
   const { user } = useAuth();
   const isOwn = user?.userId === item.createdBy;
   const isNew = item.seen === false && !isOwn;
-  const isReplying = replyingToId === item.id;
 
   const hasUnseenReplies = (item.replyUnseenCount ?? 0) > 0;
   const unseenReplyCount = item.replyUnseenCount ?? 0;
   const replyCount = getReplyCount(item);
-  const replies = useMemo(
-    () => buildReplyTree(item.id, Array.isArray(item.replies) ? item.replies : []),
-    [item],
-  );
 
   const isAllBuildings = (item.buildingIds ?? []).length === 0;
 
@@ -449,7 +428,20 @@ export function NoticeCard({
               }}
             >
               <Pressable
-                onPress={() => onReplyStart(item)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(private)/(tabs)/(updates)/replies",
+                    params: {
+                      parentId: String(item.id),
+                      author: item.createdByFullName ?? "",
+                      message: (item.message ?? "").slice(0, 400),
+                      mentionBuildingId:
+                        mentionBuildingId != null
+                          ? String(mentionBuildingId)
+                          : "",
+                    },
+                  })
+                }
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
                 <AppIcon
@@ -468,79 +460,34 @@ export function NoticeCard({
                     ? `${replyCount} ${replyCount === 1 ? "reply" : "replies"}`
                     : "Reply"}
                 </Text>
+                {hasUnseenReplies ? (
+                  <View
+                    style={{
+                      backgroundColor: "#7C3AED",
+                      borderRadius: 99,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      minWidth: 18,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: "#fff",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {unseenReplyCount}
+                    </Text>
+                  </View>
+                ) : null}
+                <AppIcon name="chevron-forward" size={14} color="#94A3B8" />
               </Pressable>
             </View>
           </View>
         </View>
       </Animated.View>
-
-      {replies.length > 0 || isReplying ? (
-        <View
-          style={{
-            marginTop: 8,
-            marginLeft: 8,
-            backgroundColor: "#F8FAFC",
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: "#E2E8F0",
-            paddingHorizontal: 10,
-            paddingTop: 10,
-            paddingBottom: 6,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              marginBottom: 10,
-              paddingBottom: 8,
-              borderBottomWidth: 1,
-              borderBottomColor: "#E2E8F0",
-            }}
-          >
-            <AppIcon name="return-down-forward" size={14} color="#7C3AED" />
-            <Text
-              style={{ fontSize: 12, fontWeight: "700", color: "#5B21B6" }}
-            >
-              {replyCount > 0
-                ? `Replies · ${replyCount}`
-                : "Write a reply"}
-            </Text>
-          </View>
-
-          {isReplying ? (
-            <View style={{ marginBottom: replies.length > 0 ? 10 : 4 }}>
-              <InlineReplyComposer
-                value={replyMessage}
-                onChange={onReplyMessageChange}
-                onSubmit={() => onReplySubmit(item.id)}
-                onCancel={onReplyCancel}
-                sending={sendingReply}
-                mentionBuildingId={mentionBuildingId}
-              />
-            </View>
-          ) : null}
-
-          {replies.map((child) => (
-            <ReplyRow
-              key={child.id}
-              item={child}
-              onRequestDelete={(id) => deleteMsg(id)}
-              onEdit={onEdit}
-              onReply={onReplyStart}
-              currentUserEmail={currentUserEmail}
-              mentionBuildingId={mentionBuildingId}
-              replyingToId={replyingToId}
-              replyMessage={replyMessage}
-              sendingReply={sendingReply}
-              onReplyMessageChange={onReplyMessageChange}
-              onReplySubmit={onReplySubmit}
-              onReplyCancel={onReplyCancel}
-            />
-          ))}
-        </View>
-      ) : null}
 
       <Modal
         visible={showReactionPicker}

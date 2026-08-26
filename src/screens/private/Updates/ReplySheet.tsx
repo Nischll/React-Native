@@ -15,6 +15,7 @@ import {
   MentionSuggestions,
   MentionTextInput,
 } from "@/src/helper/mentionTextInput";
+import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { CommunicationItem } from "@/src/types/communication.types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,8 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StatusBar,
   Text,
@@ -32,12 +35,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ReplyRow } from "./components/ReplyRow";
 
 export function ReplySheet() {
-  const { parentId: parentIdParam, author, message } = useLocalSearchParams<{
+  const {
+    parentId: parentIdParam,
+    author,
+    message,
+    mentionBuildingId: mentionBuildingIdParam,
+  } = useLocalSearchParams<{
     parentId?: string;
     author?: string;
     message?: string;
+    mentionBuildingId?: string;
   }>();
   const parentId = Number(parentIdParam);
+  const mentionBuildingId = Number(mentionBuildingIdParam);
   const { user } = useAuth();
   const qc = useQueryClient();
 
@@ -56,6 +66,7 @@ export function ReplySheet() {
 
   const parentAuthor = cachedParent?.createdByFullName || String(author ?? "");
   const parentMessage = cachedParent?.message || String(message ?? "");
+  const parentIsOwn = user?.userId != null && cachedParent?.createdBy === user.userId;
   const replies = useMemo(
     () =>
       buildReplyTree(
@@ -126,14 +137,17 @@ export function ReplySheet() {
   return (
     <SafeAreaView
       edges={["top", "left", "right", "bottom"]}
-      className="flex-1 bg-white p-4"
+      className="flex-1 bg-white"
     >
       <StatusBar
         translucent
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <PageHeader
         title={`${replyCount <= 1 ? "Reply" : "Replies"}${replyCount > 0 ? ` (${replyCount})` : ""}`}
         subtitle=""
@@ -148,32 +162,61 @@ export function ReplySheet() {
         }}
       />
 
-      <View style={{ paddingHorizontal: 12, marginBottom: 8 }}>
+      <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         <View
           style={{
             padding: 12,
-            backgroundColor: "#FAFAFA",
+            backgroundColor: parentIsOwn ? "#F8F5FF" : "#F8FAFC",
             borderRadius: 12,
-            borderLeftWidth: 3,
-            borderLeftColor: "#7C3AED",
+            borderWidth: 1,
+            borderColor: parentIsOwn ? "#DDD6FE" : "#E2E8F0",
+            borderLeftWidth: 4,
+            borderLeftColor: parentIsOwn ? "#453956" : "#94A3B8",
           }}
         >
-          <Text
+          <View
             style={{
-              fontSize: 12,
-              fontWeight: "700",
-              color: "#7C3AED",
-              marginBottom: 2,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: 4,
             }}
           >
-            {parentAuthor}
-          </Text>
-          <Text
-            style={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
-            numberOfLines={3}
-          >
-            {parentMessage}
-          </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: parentIsOwn ? "#5B21B6" : "#0F172A",
+                flexShrink: 1,
+              }}
+              numberOfLines={1}
+            >
+              {parentIsOwn ? "You" : parentAuthor}
+            </Text>
+            <View
+              style={{
+                borderRadius: 99,
+                paddingHorizontal: 6,
+                paddingVertical: 1,
+                backgroundColor: parentIsOwn ? "#EDE9FE" : "#E2E8F0",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9,
+                  fontWeight: "700",
+                  color: parentIsOwn ? "#5B21B6" : "#64748B",
+                }}
+              >
+                {parentIsOwn ? "ORIGINAL · SENT" : "ORIGINAL"}
+              </Text>
+            </View>
+          </View>
+          <MessageText
+            text={parentMessage}
+            currentUserEmail={user?.email}
+            textStyle={{ fontSize: 13, color: "#64748B", lineHeight: 18 }}
+          />
         </View>
       </View>
 
@@ -197,6 +240,9 @@ export function ReplySheet() {
               item={item}
               onRequestDelete={setDeleteTargetId}
               currentUserEmail={user?.email}
+              mentionBuildingId={
+                Number.isFinite(mentionBuildingId) ? mentionBuildingId : null
+              }
               onEdit={(r) => {
                 setReplyingTo(null);
                 setEditingReply(r);
@@ -232,6 +278,7 @@ export function ReplySheet() {
           value={replyText}
           onChangeText={setReplyText}
           onDismiss={() => setMentionState(null)}
+          buildingId={Number.isFinite(mentionBuildingId) ? mentionBuildingId : null}
           direction="above"
         />
       )}
@@ -362,6 +409,7 @@ export function ReplySheet() {
           setDeleteTargetId(null);
         }}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
