@@ -1,8 +1,12 @@
 import DatePickerField from "@/src/components/ui/DatePickerField";
 import AppInput from "@/src/components/ui/AppInput";
 import SelectField from "@/src/components/ui/SelectField";
+import { useGetTrades } from "@/src/api/tradeDirectory.api";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { TRACKING_ID_MAX } from "@/src/types/parcelManagement.types";
+import { TradeDirectoryResponse } from "@/src/types/tradeDirectory.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
+import { useMemo } from "react";
 import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
 
 interface TaskFilterModalProps {
@@ -27,6 +31,9 @@ interface TaskFilterModalProps {
   showResident?: boolean;
   /** Label for the unit select. Default "Unit". */
   residentLabel?: string;
+  showTrade?: boolean;
+  tradeName?: string;
+  setTradeName?: (value?: string) => void;
 }
 
 export const TaskFilterModal = ({
@@ -45,8 +52,35 @@ export const TaskFilterModal = ({
   showDateRange = true,
   showResident = true,
   residentLabel = "Unit",
+  showTrade = false,
+  tradeName,
+  setTradeName,
 }: TaskFilterModalProps) => {
   const { residences } = useResidencesForActiveBuilding();
+  const { data: tradesData } = useGetTrades(
+    { page: 1, limit: 1000 },
+    visible && showTrade,
+  );
+  const { items: trades } = extractPaginatedList<TradeDirectoryResponse>(
+    tradesData,
+  );
+  const tradeOptions = useMemo(() => {
+    const byName = new Map<string, { label: string; value: string }>();
+    for (const t of trades) {
+      const name = t.name?.trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (byName.has(key)) continue;
+      const meta = [t.company?.trim(), t.contact?.trim()]
+        .filter(Boolean)
+        .join(" · ");
+      byName.set(key, {
+        value: name,
+        label: meta ? `${name} — ${meta}` : name,
+      });
+    }
+    return Array.from(byName.values());
+  }, [trades]);
 
   const handleFromDateChange = (value: string) => {
     setFromDate(value.split("T")[0]);
@@ -86,6 +120,21 @@ export const TaskFilterModal = ({
                 ]}
                 placeholder="All units"
               />
+            )}
+
+            {showTrade && (
+              <View className={showResident ? "mt-3" : undefined}>
+                <SelectField
+                  label="Trade"
+                  value={tradeName ?? ""}
+                  onChange={(v) => setTradeName?.(v || undefined)}
+                  options={[
+                    { label: "All trades", value: "" },
+                    ...tradeOptions,
+                  ]}
+                  placeholder="All trades"
+                />
+              </View>
             )}
 
             {!!setTrackingId && (
@@ -159,6 +208,7 @@ export const TaskFilterModal = ({
                 className="flex-1 border border-gray-300 rounded-xl py-3"
                 onPress={() => {
                   setResidentId?.(undefined);
+                  setTradeName?.(undefined);
                   setTrackingId?.("");
                   if (showDateRange) applyPreset("month");
                 }}

@@ -3,7 +3,7 @@ import EmptyState from "@/src/components/feedback/EmptyState";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { formatDateTime } from "@/src/helper/formatDateTime";
-import { BookingResponse } from "@/src/types/booking.types";
+import { BookingResponse, bookingTypeLabel } from "@/src/types/booking.types";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -435,6 +435,12 @@ function BookingDayCard({ booking }: { booking: BookingResponse }) {
               {formatDateTime(booking.startDate)}
               {booking.endDate ? ` – ${formatDateTime(booking.endDate)}` : ""}
             </Text>
+
+            {bookingTypeLabel(booking.type) !== "—" ? (
+              <Text className="text-[11px] font-semibold text-violet-700 mt-1">
+                {bookingTypeLabel(booking.type)}
+              </Text>
+            ) : null}
 
             {booking.description ? (
               <Text

@@ -84,6 +84,7 @@ export const useGetTaskByStatusId = (
       enabled: enabled !== false && !!statusId,
       retry: 0,
       queryParams,
+      axiosConfig: { skipGlobalLoading: true },
     },
   );
 };

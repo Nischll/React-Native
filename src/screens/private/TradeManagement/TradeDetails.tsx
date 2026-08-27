@@ -87,7 +87,6 @@ export default function TradeDetails() {
           <Info label="Reason" value={trade.reasonForVisit} />
           <Info label="Location" value={trade.location} />
           <Info label="Unit" value={trade.residentUnit} />
-          <Info label="Work Order" value={trade.workOrderNumber} />
         </Card>
 
         {/* ---------------- CONTACT ---------------- */}

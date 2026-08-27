@@ -1,4 +1,7 @@
-import { useGetTradeVisits } from "@/src/api/tradeManagement.api";
+import {
+  useDeleteTradeVisit,
+  useGetTradeVisits,
+} from "@/src/api/tradeManagement.api";
 import {
   MobileColumn,
   MobileDataList,
@@ -9,6 +12,7 @@ import AnchoredPopupMenu, {
 } from "@/src/components/ui/AnchoredPopMenu";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
+import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { formatDateTime } from "@/src/helper/formatDateTime";
 import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -24,7 +28,9 @@ export default function TradeManagement() {
   const [page, setPage] = useState(1);
   const [lifecycle, setLifecycle] = useState<string | undefined>();
   const [residentId, setResidentId] = useState<number>();
+  const [tradeName, setTradeName] = useState<string | undefined>();
   const [filterVisible, setFilterVisible] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<TradeVisitResponse | null>(null);
   const {
     dateType,
     fromDate,
@@ -36,10 +42,11 @@ export default function TradeManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [fromDate, toDate, lifecycle, residentId]);
+  }, [fromDate, toDate, lifecycle, residentId, tradeName]);
 
   useEffect(() => {
     setResidentId(undefined);
+    setTradeName(undefined);
     setPage(1);
   }, [buildingId]);
 
@@ -50,11 +57,13 @@ export default function TradeManagement() {
       buildingId: buildingId ?? undefined,
       lifecycle,
       residentId,
+      tradeName,
       fromDate,
       toDate,
     },
     !!user?.userId,
   );
+  const { mutate: deleteMutate, isPending: isDeleting } = useDeleteTradeVisit();
 
   const tradeVisits = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
@@ -260,6 +269,13 @@ export default function TradeManagement() {
                     params: { id: row.id },
                   }),
               });
+
+              items.push({
+                label: "Delete",
+                icon: "trash",
+                danger: true,
+                onPress: () => setDeleteItem(row),
+              });
             }
 
             if (isPmApproved && !hasCheckedIn) {
@@ -311,6 +327,9 @@ export default function TradeManagement() {
         onClose={() => setFilterVisible(false)}
         residentId={residentId}
         setResidentId={setResidentId}
+        showTrade
+        tradeName={tradeName}
+        setTradeName={setTradeName}
         dateType={dateType}
         fromDate={fromDate}
         toDate={toDate}
@@ -318,6 +337,25 @@ export default function TradeManagement() {
         setToDate={setToDate}
         applyPreset={applyPreset}
         showResident
+      />
+
+      <ConfirmModal
+        visible={!!deleteItem}
+        title="Delete trade visit"
+        message={`Delete visit${deleteItem?.tradeName ? ` (${deleteItem.tradeName})` : ""}? It will no longer appear in the list.`}
+        confirmText="Delete"
+        destructive
+        loading={isDeleting}
+        onCancel={() => setDeleteItem(null)}
+        onConfirm={() => {
+          if (!deleteItem) return;
+          deleteMutate({ id: deleteItem.id } as any, {
+            onSuccess: () => {
+              setDeleteItem(null);
+              refetch();
+            },
+          });
+        }}
       />
     </View>
   );

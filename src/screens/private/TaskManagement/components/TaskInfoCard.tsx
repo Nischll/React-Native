@@ -1,4 +1,5 @@
 import { useUpdateTaskStatus } from "@/src/api/taskManagement.api";
+import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import SelectField from "@/src/components/ui/SelectField";
@@ -463,6 +464,63 @@ export default function TaskInformationCard({ task }: Props) {
           followUps={task.followUpResponsePojoList ?? []}
         />
       </View>
+
+      <Divider />
+      <SectionLabel label="Trade visit" />
+      <AnimatedPressable
+        onPress={() => {
+          if (task?.id == null) return;
+          router.push({
+            pathname: "/(private)/trade-management/trade-add-edit",
+            params: {
+              fromTaskId: String(task.id),
+              reasonForVisit: task.description ?? "",
+              location: task.location ?? "",
+            },
+          });
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Register trade visit"
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            borderWidth: 0.5,
+            borderColor: "#E2E8F0",
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 12,
+            backgroundColor: "#F8FAFC",
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: "#EEEDFE",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AppIcon name="construct-outline" size={18} color="#3C3489" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{ fontSize: 14, fontWeight: "600", color: "#1E293B" }}
+            >
+              Register trade visit
+            </Text>
+            <Text style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
+              Opens with this task's description and location. You can edit
+              before saving.
+            </Text>
+          </View>
+          <AppIcon name="chevron-forward" size={18} color="#94A3B8" />
+        </View>
+      </AnimatedPressable>
     </View>
   );
 }

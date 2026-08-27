@@ -15,7 +15,7 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { BookingResponse } from "@/src/types/booking.types";
+import { BookingResponse, bookingTypeLabel } from "@/src/types/booking.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -142,6 +142,13 @@ export default function BookingManagement() {
         <Text className={`font-semibold ${statusTone(String(value))}`}>
           {statusLabel(String(value))}
         </Text>
+      ),
+    },
+    {
+      key: "type",
+      label: "Type",
+      render: (_value, row) => (
+        <Text>{bookingTypeLabel(row.type)}</Text>
       ),
     },
   ];

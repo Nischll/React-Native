@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Text, TouchableWithoutFeedback, View } from "react-native";
 
 import PageHeader from "@/src/components/layout/PageHeader";
 
+import { useGetTaskById } from "@/src/api/taskManagement.api";
+import { useGetTrades } from "@/src/api/tradeDirectory.api";
 import {
   useCreateTradeVisit,
   useGetTradeVisitById,
@@ -19,18 +21,39 @@ import TextAreaField from "@/src/components/ui/TextAreaFeld";
 
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { TradeDirectoryResponse } from "@/src/types/tradeDirectory.types";
+import { extractPaginatedList } from "@/src/utils/listPagination";
+import { showToast } from "@/src/utils/toast";
 
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import {
   ENTRY_TYPE_OPTIONS,
+  TradeVisitCreatePojo,
   WORK_TYPE_OPTIONS,
 } from "@/src/types/tradeManagement.types";
 
+function firstParam(value?: string | string[]) {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
 export default function AddEditTrade() {
-  const { id } = useLocalSearchParams();
+  const {
+    id,
+    fromTaskId,
+    reasonForVisit: reasonParam,
+    location: locationParam,
+  } = useLocalSearchParams<{
+    id?: string;
+    fromTaskId?: string | string[];
+    reasonForVisit?: string | string[];
+    location?: string | string[];
+  }>();
   const isEdit = !!id;
   const idNum = Number(id);
+  const fromTaskIdNum = Number(firstParam(fromTaskId));
+  const isFromTask = !isEdit && Number.isFinite(fromTaskIdNum) && fromTaskIdNum > 0;
 
   const { buildingId } = useAuth();
   const { residences } = useResidencesForActiveBuilding();
@@ -38,65 +61,127 @@ export default function AddEditTrade() {
   const createMutation = useCreateTradeVisit();
   const updateMutation = useUpdateTradeVisit(idNum);
 
-  // ---------------- FORM STATE ----------------
+  const { data: tradesData } = useGetTrades(
+    { page: 1, limit: 1000 },
+    true,
+  );
+  const { items: trades } = extractPaginatedList<TradeDirectoryResponse>(
+    tradesData,
+  );
+
+  const tradeOptions = useMemo(
+    () =>
+      trades.map((t) => ({
+        value: String(t.id),
+        label: `${t.name}${t.company ? ` · ${t.company}` : ""}`,
+      })),
+    [trades],
+  );
+
   const [form, setForm] = useState({
     entryType: "",
     workType: "",
+    tradeId: "",
     tradeName: "",
     company: "",
-    workOrderNumber: "",
     phoneNumber: "",
-    reasonForVisit: "",
-    location: "",
+    reasonForVisit: firstParam(reasonParam),
+    location: firstParam(locationParam),
     residentId: "",
     scheduledAppointmentAt: "",
   });
+  const taskPrefillApplied = useRef(false);
 
   const updateField = (key: string, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  // ---------------- FETCH BY ID (edit only) ----------------
+  const applyTrade = (idValue: string) => {
+    const selected = trades.find((t) => String(t.id) === idValue);
+    setForm((prev) => ({
+      ...prev,
+      tradeId: idValue,
+      tradeName: selected?.name ?? "",
+      company: selected?.company ?? "",
+      phoneNumber: selected?.contact ?? "",
+    }));
+  };
+
   const { data: tradeData } = useGetTradeVisitById(
     isEdit ? idNum : undefined,
     isEdit,
   );
   const trade = tradeData?.data;
 
-  // ---------------- HYDRATE FORM ----------------
+  const { data: taskPrefillData } = useGetTaskById(
+    isFromTask ? fromTaskIdNum : undefined,
+    isFromTask,
+  );
+  const fromTask = taskPrefillData?.data?.data?.[0];
+
+  useEffect(() => {
+    if (!isFromTask || taskPrefillApplied.current || !fromTask) return;
+    setForm((prev) => ({
+      ...prev,
+      reasonForVisit: prev.reasonForVisit || fromTask.description || "",
+      location: prev.location || fromTask.location || "",
+    }));
+    taskPrefillApplied.current = true;
+  }, [isFromTask, fromTask]);
+
   useEffect(() => {
     if (!isEdit || !trade) return;
 
-    setForm({
+    setForm((prev) => ({
+      ...prev,
       entryType: trade.entryType ?? "",
       workType: trade.workType ?? "",
       tradeName: trade.tradeName ?? "",
       company: trade.company ?? "",
-      workOrderNumber: trade.workOrderNumber ?? "",
       phoneNumber: trade.phoneNumber ?? "",
       reasonForVisit: trade.reasonForVisit ?? "",
       location: trade.location ?? "",
       residentId: trade.residentId ? String(trade.residentId) : "",
       scheduledAppointmentAt: trade.scheduledAppointmentAt ?? "",
-    });
+    }));
   }, [trade, isEdit]);
 
-  // ---------------- CONDITIONS ----------------
+  useEffect(() => {
+    if (!isEdit || !trade || trades.length === 0) return;
+    const match =
+      trades.find(
+        (t) =>
+          t.name === trade.tradeName &&
+          (t.company ?? "") === (trade.company ?? "") &&
+          (t.contact ?? "") === (trade.phoneNumber ?? ""),
+      ) ?? trades.find((t) => t.name === trade.tradeName);
+    if (match) {
+      setForm((prev) =>
+        prev.tradeId === String(match.id)
+          ? prev
+          : { ...prev, tradeId: String(match.id) },
+      );
+    }
+  }, [isEdit, trade, trades]);
+
   const showDatePicker = form.entryType === "BOOKED";
   const showResident = form.workType === "INSUITE";
 
-  // ---------------- SUBMIT ----------------
   const handleSubmit = () => {
-    const payload: any = {
-      entryType: form.entryType,
-      workType: form.workType,
-      tradeName: form.tradeName,
-      company: form.company || undefined,
-      workOrderNumber: form.workOrderNumber || undefined,
-      phoneNumber: form.phoneNumber || undefined,
+    if (!form.tradeName.trim()) {
+      showToast("error", "Please select a trade");
+      return;
+    }
+
+    const payload: TradeVisitCreatePojo = {
+      entryType: form.entryType as TradeVisitCreatePojo["entryType"],
+      workType: form.workType as TradeVisitCreatePojo["workType"],
+      tradeName: form.tradeName.trim(),
+      company: form.company.trim() || undefined,
+      phoneNumber: form.phoneNumber.trim() || undefined,
       reasonForVisit: form.reasonForVisit || undefined,
       location: form.location || undefined,
-      buildingId,
+      buildingId: buildingId!,
       residentId: showResident
         ? form.residentId
           ? Number(form.residentId)
@@ -121,7 +206,13 @@ export default function AddEditTrade() {
   return (
     <View className="flex-1">
       <PageHeader
-        title={isEdit ? "Edit Trade Visit" : "Add Trade Visit"}
+        title={
+          isEdit
+            ? "Edit Trade Visit"
+            : isFromTask
+              ? "Register Trade Visit"
+              : "Add Trade Visit"
+        }
         subtitle="Manage contractor visit"
         icon="construct"
         showBackButton
@@ -136,7 +227,6 @@ export default function AddEditTrade() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* VISIT TYPE */}
           <Card className="p-4 mb-4">
             <Text className="font-semibold mb-3">Visit Type & Schedule</Text>
 
@@ -170,29 +260,41 @@ export default function AddEditTrade() {
             )}
           </Card>
 
-          {/* TRADE */}
           <Card className="p-4 mb-4">
             <Text className="font-semibold mb-3">Trade & Contractor</Text>
 
-            <AppInput
-              placeholder="Trade / Technician Name"
-              value={form.tradeName}
-              onChangeText={(v) => updateField("tradeName", v)}
+            <SelectField
+              label="Trade"
+              placeholder="Select trade"
+              value={form.tradeId}
+              options={tradeOptions}
+              onChange={applyTrade}
             />
 
             <View className="mt-3">
               <AppInput
-                placeholder="Company"
-                value={form.company}
-                onChangeText={(v) => updateField("company", v)}
+                label="Trade / technician name"
+                placeholder="Select a trade"
+                value={form.tradeName}
+                editable={false}
               />
             </View>
 
             <View className="mt-3">
               <AppInput
-                placeholder="Work Order (optional)"
-                value={form.workOrderNumber}
-                onChangeText={(v) => updateField("workOrderNumber", v)}
+                label="Company"
+                placeholder="—"
+                value={form.company}
+                editable={false}
+              />
+            </View>
+
+            <View className="mt-3">
+              <AppInput
+                label="Contact number"
+                placeholder="—"
+                value={form.phoneNumber}
+                editable={false}
               />
             </View>
 
@@ -209,39 +311,26 @@ export default function AddEditTrade() {
             )}
           </Card>
 
-          {/* CONTACT */}
-          <Card className="p-4 mb-4">
-            <Text className="font-semibold mb-3">Contact</Text>
-
-            <AppInput
-              placeholder="Contact Number"
-              value={form.phoneNumber}
-              onChangeText={(v) => updateField("phoneNumber", v)}
-              keyboardType="phone-pad"
-              maxLength={15}
-            />
-          </Card>
-
-          {/* WORK DETAILS */}
           <Card className="p-4 mb-4">
             <Text className="font-semibold mb-3">Work Details</Text>
 
             <TextAreaField
-              placeholder="Reason for visit"
+              label="Reason for visit"
+              placeholder="Brief description of work"
               value={form.reasonForVisit}
               onChangeText={(v: string) => updateField("reasonForVisit", v)}
             />
 
             <View className="mt-3">
               <AppInput
-                placeholder="Location"
+                label="On-site location"
+                placeholder="e.g. Loading dock, lobby"
                 value={form.location}
                 onChangeText={(v) => updateField("location", v)}
               />
             </View>
           </Card>
 
-          {/* SUBMIT */}
           <View className="mb-6">
             <AppButton
               onPress={handleSubmit}

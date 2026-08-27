@@ -16,7 +16,7 @@ interface TaskStatusSectionProps {
   toDate?: string;
 }
 
-// Fetches a single page
+// Fetches a single page. Always enabled so tab counts load without clicking.
 function useTaskPage(
   statusId: number,
   page: number,
@@ -25,7 +25,6 @@ function useTaskPage(
   residentId: number | undefined,
   fromDate: string | undefined,
   toDate: string | undefined,
-  isVisible: boolean,
 ) {
   return useGetTaskByStatusId(
     statusId,
@@ -37,7 +36,7 @@ function useTaskPage(
     residentId,
     fromDate,
     toDate,
-    isVisible,
+    true,
   );
 }
 
@@ -59,7 +58,7 @@ export default function TaskStatusSection({
     setPage(1);
     setAllTasks([]);
     setHasMore(true);
-  }, [search, statusId, residentId, fromDate, toDate]);
+  }, [search, statusId, buildingId, residentId, fromDate, toDate]);
 
   const { data, isLoading, isFetching, isError } = useTaskPage(
     statusId,
@@ -69,7 +68,6 @@ export default function TaskStatusSection({
     residentId,
     fromDate,
     toDate,
-    isVisible,
   );
 
   useEffect(() => {
@@ -83,10 +81,8 @@ export default function TaskStatusSection({
       return updated;
     });
 
-    if (onCountResolved) {
-      onCountResolved(statusId, total);
-    }
-  }, [data, page]);
+    onCountResolved?.(statusId, total);
+  }, [data, page, statusId, onCountResolved]);
 
   const loadMore = () => {
     if (!isFetching && hasMore) {

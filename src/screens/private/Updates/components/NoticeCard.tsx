@@ -5,7 +5,7 @@ import {
 import AppIcon from "@/src/components/ui/AppIcon";
 import { MessageText } from "@/src/helper/messageDisplayText";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { CommunicationItem } from "@/src/types/communication.types";
+import { CommunicationItem, getCommunicationBuildingIds } from "@/src/types/communication.types";
 import { timeAgo } from "@/src/utils/timeAgo";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
@@ -49,7 +49,8 @@ export function NoticeCard({
   const unseenReplyCount = item.replyUnseenCount ?? 0;
   const replyCount = getReplyCount(item);
 
-  const isAllBuildings = (item.buildingIds ?? []).length === 0;
+  const buildingIds = getCommunicationBuildingIds(item);
+  const isAllBuildings = buildingIds.length === 0;
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -360,7 +361,7 @@ export function NoticeCard({
                 </Pressable>
               )}
 
-              {!isAllBuildings && (item.buildingIds ?? []).length > 0 && (
+              {!isAllBuildings && buildingIds.length > 0 && (
                 <View
                   style={{
                     flexDirection: "row",
@@ -369,7 +370,7 @@ export function NoticeCard({
                     marginTop: 8,
                   }}
                 >
-                  {(item.buildingIds ?? []).map((id) => {
+                  {buildingIds.map((id) => {
                     const building = user?.buildingList.find(
                       (b) => b.value === String(id),
                     );

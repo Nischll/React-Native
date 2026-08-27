@@ -21,10 +21,12 @@ import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuildi
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   BOOKING_STATUS_OPTIONS,
+  BOOKING_TYPE_OPTIONS,
   BookingStatus,
   PAID_TYPE_OPTIONS,
   PaidType,
   normalizeBookingStatus,
+  normalizeBookingType,
 } from "@/src/types/booking.types";
 import { AmenityResponse } from "@/src/types/amenity.types";
 import { TowerResponse } from "@/src/types/tower.types";
@@ -49,6 +51,7 @@ interface FormValues {
   residentId: string;
   description: string;
   status: BookingStatus;
+  type: string;
   startDate: string;
   endDate: string;
 }
@@ -116,6 +119,7 @@ export default function AddEditBooking() {
       residentId: "",
       description: "",
       status: "PENDING",
+      type: "NONE",
       startDate: presetStart,
       endDate: presetEnd,
     },
@@ -139,6 +143,7 @@ export default function AddEditBooking() {
         residentId: String(booking.residentId ?? ""),
         description: booking.description ?? "",
         status: normalizeBookingStatus(booking.status),
+        type: normalizeBookingType(booking.type) ?? "NONE",
         startDate: booking.startDate ?? "",
         endDate: booking.endDate ?? "",
       });
@@ -264,6 +269,7 @@ export default function AddEditBooking() {
       startDate: values.startDate,
       endDate: values.endDate,
       status: normalizeBookingStatus(values.status),
+      type: normalizeBookingType(values.type),
     };
 
     if (isElevator && values.towerId) payload.towerId = Number(values.towerId);
@@ -388,6 +394,26 @@ export default function AddEditBooking() {
                   value={value}
                   onChangeText={onChange}
                   placeholder="Short description of the booking"
+                />
+              )}
+            />
+          </View>
+
+          <View className="mt-3">
+            <Controller
+              control={control}
+              name="type"
+              render={({ field: { onChange, value } }) => (
+                <SelectField
+                  label="Type"
+                  value={value}
+                  onChange={onChange}
+                  options={[
+                    { value: "NONE", label: "None" },
+                    ...BOOKING_TYPE_OPTIONS,
+                  ]}
+                  placeholder="None"
+                  mode="dropdown"
                 />
               )}
             />

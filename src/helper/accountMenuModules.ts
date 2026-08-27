@@ -44,12 +44,13 @@ const USER_MGMT_PATHS = new Set([
   "/building-management",
 ]);
 
-/** Category / Task Status / Amenity / Tower → Master Management */
+/** Category / Task Status / Amenity / Tower / Trade Directory → Master Management */
 const MASTER_MGMT_PATHS = new Set([
   "/category-management",
   "/task-status-management",
   "/amenity-management",
   "/tower-management",
+  "/trade-directory",
 ]);
 
 /** Daily / Weekly / Monthly / Annual / Overnight Concierge Patrol → Routine Checklist Template */

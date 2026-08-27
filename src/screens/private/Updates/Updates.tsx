@@ -19,6 +19,7 @@ import {
   CommunicationItem,
   EVERYONE_GROUP,
   SeenStatus,
+  getCommunicationBuildingIds,
   matchesCommunicationGroup,
 } from "@/src/types/communication.types";
 import { useEffect, useMemo, useState } from "react";
@@ -137,10 +138,14 @@ export default function Updates() {
   const notices = useMemo(() => {
     const rows = data?.data?.data ?? [];
     if (!selectedGroup) return [];
-    return rows.filter((item) =>
-      matchesCommunicationGroup(item, selectedGroup.id),
-    );
-  }, [data?.data?.data, selectedGroup]);
+    const groupId = selectedGroup.id;
+    return rows
+      .map((item) => ({
+        ...item,
+        buildingIds: getCommunicationBuildingIds(item),
+      }))
+      .filter((item) => matchesCommunicationGroup(item, groupId));
+  }, [data, selectedGroup]);
   const total = data?.data?.total ?? 0;
   const unseenCount = data?.data?.unseenCount ?? 0;
   const seenCount = data?.data?.seenCount ?? 0;
@@ -302,6 +307,7 @@ export default function Updates() {
             </View>
           )
         }
+        extraData={`${selectedGroup.id}-${notices.length}`}
         renderItem={({ item }) => (
           <NoticeCard
             item={item}

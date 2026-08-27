@@ -13,6 +13,7 @@ export const useGetTradeVisits = (
     limit?: number;
     buildingId?: number;
     residentId?: number;
+    tradeName?: string;
     lifecycle?: string;
     fromDate?: string;
     toDate?: string;
@@ -24,6 +25,7 @@ export const useGetTradeVisits = (
   if (params.limit != null) queryParams.limit = params.limit;
   if (params.buildingId != null) queryParams.buildingId = params.buildingId;
   if (params.residentId != null) queryParams.residentId = params.residentId;
+  if (params.tradeName?.trim()) queryParams.tradeName = params.tradeName.trim();
   if (params.lifecycle?.trim()) queryParams.lifecycle = params.lifecycle.trim();
   if (params.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
   if (params.toDate?.trim()) queryParams.toDate = params.toDate.trim();
@@ -52,6 +54,11 @@ export const useCreateTradeVisit = () =>
 
 export const useUpdateTradeVisit = (tradeId: number) =>
   useApiMutation<TradeVisitUpdatePojo>("put", `/trade-visit/${tradeId}`);
+
+export const useDeleteTradeVisit = () =>
+  useApiMutation("delete", "/trade-visit", {
+    successMessage: "Trade visit deleted",
+  });
 
 export const useUpdateTradeVisitPmApproval = (tradeId: number) =>
   useApiMutation<FormData>("post", `/trade-visit/${tradeId}/pm-approval`, {

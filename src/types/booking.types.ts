@@ -27,6 +27,31 @@ export function bookingStatusLabel(value?: string | null): string {
 
 export type PaidType = "CASH" | "CHEQUE" | "EFT" | "CARD" | "NONE";
 
+/** Optional booking purpose. Omit / null / empty = unset. */
+export type BookingType = "MOVE_IN" | "MOVE_OUT" | "FURNITURE";
+
+export const BOOKING_TYPE_OPTIONS: { value: BookingType; label: string }[] = [
+  { value: "MOVE_IN", label: "Move In" },
+  { value: "MOVE_OUT", label: "Move Out" },
+  { value: "FURNITURE", label: "Furniture" },
+];
+
+export function normalizeBookingType(
+  value?: string | null,
+): BookingType | null {
+  const raw = String(value ?? "").trim().toUpperCase();
+  if (raw === "MOVE_IN" || raw === "MOVE_OUT" || raw === "FURNITURE") {
+    return raw;
+  }
+  return null;
+}
+
+export function bookingTypeLabel(value?: string | null): string {
+  const type = normalizeBookingType(value);
+  if (!type) return "—";
+  return BOOKING_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? "—";
+}
+
 export const PAID_TYPE_OPTIONS: { value: PaidType; label: string }[] = [
   { value: "NONE", label: "None" },
   { value: "CASH", label: "Cash" },
@@ -72,6 +97,7 @@ export interface BookingRequestPojo {
   startDate: string;
   endDate: string;
   status: BookingStatus;
+  type?: BookingType | null;
   revenue?: BookingRevenueRequestPojo;
 }
 
@@ -95,5 +121,6 @@ export interface BookingResponse {
   startDate: string;
   endDate: string;
   status: BookingStatus | string;
+  type?: BookingType | string | null;
   revenue?: BookingRevenueResponse;
 }

@@ -13,6 +13,7 @@ import {
   BookingRevenueResponse,
   BookingResponse,
   bookingStatusLabel,
+  bookingTypeLabel,
   normalizeBookingStatus,
   paidTypeLabel,
 } from "@/src/types/booking.types";
@@ -257,13 +258,11 @@ export default function BookingDetailsScreen() {
             </InfoRow>
           ) : null}
           <InfoRow>
-            <InfoField
-              label="Start"
-              value={formatDateTime(booking.startDate)}
-            />
+            <InfoField label="Start" value={formatDateTime(booking.startDate)} />
             <InfoField label="End" value={formatDateTime(booking.endDate)} />
           </InfoRow>
           <InfoRow>
+            <InfoField label="Type" value={bookingTypeLabel(booking.type)} />
             <InfoField label="Description" value={booking.description} />
           </InfoRow>
           <InfoRow>
