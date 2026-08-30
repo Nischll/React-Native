@@ -13,6 +13,7 @@ import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   getRevenueAmount,
+  getRevenueReceiptNumber,
   getRevenueReference,
   isRevenuePaid,
   RevenueDetailItem,
@@ -71,6 +72,7 @@ export default function Purchases() {
   const [editItem, setEditItem] = useState<RevenueDetailItem | null>(null);
   const [typePickerVisible, setTypePickerVisible] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
+  const [receiptNumber, setReceiptNumber] = useState("");
   const {
     dateType,
     fromDate,
@@ -88,7 +90,7 @@ export default function Purchases() {
 
   useEffect(() => {
     setPage(1);
-  }, [fromDate, toDate, section, oneTimeTab]);
+  }, [fromDate, toDate, section, oneTimeTab, receiptNumber]);
 
   const { data, isLoading, refetch, isRefetching } = useGetPurchases(
     {
@@ -98,6 +100,7 @@ export default function Purchases() {
       type: apiType,
       fromDate,
       toDate,
+      receiptNumber: receiptNumber.trim() || undefined,
     },
     !!user?.userId && !!buildingId,
   );
@@ -168,8 +171,9 @@ export default function Purchases() {
       render: (_, row) => getRevenueReference(row),
     },
     {
-      key: "buildingName",
-      label: "Building",
+      key: "receiptNumber" as any,
+      label: "Receipt",
+      render: (_, row) => getRevenueReceiptNumber(row),
     },
     {
       key: "amount" as any,
@@ -299,6 +303,12 @@ export default function Purchases() {
                   ? "No one-time purchases found"
                   : "No purchases found"
             }
+            searchable
+            searchPlaceholder="Receipt #…"
+            onSearch={(value) => {
+              setPage(1);
+              setReceiptNumber(value);
+            }}
             onRefresh={refetch}
             onFilterPress={() => setFilterVisible(true)}
             pagination={{

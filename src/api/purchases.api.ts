@@ -25,6 +25,7 @@ export interface PurchaseQueryParams {
   residentId?: number;
   excludeFree?: boolean;
   isPaid?: boolean;
+  receiptNumber?: string;
 }
 
 export const useGetPurchases = (

@@ -15,6 +15,7 @@ import {
   getDepositAmount,
   getInspectionParamsFromRevenue,
   getRevenueAmount,
+  getRevenueReceiptNumber,
   getRevenueReference,
   getRevenueSubDetail,
   isRevenuePaid,
@@ -62,6 +63,7 @@ export default function RevenueDetails() {
   const [page, setPage] = useState(1);
   const [type, setType] = useState<string>("ALL");
   const [paidFilter, setPaidFilter] = useState<string>("ALL");
+  const [receiptNumber, setReceiptNumber] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
   const [actionItem, setActionItem] = useState<RevenueDetailItem | null>(null);
   const [actionMode, setActionMode] = useState<RevenueActionMode | null>(null);
@@ -70,7 +72,7 @@ export default function RevenueDetails() {
 
   useEffect(() => {
     setPage(1);
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, receiptNumber]);
 
   const { data, isLoading, refetch, isRefetching } = useGetRevenueDetails(
     {
@@ -87,6 +89,7 @@ export default function RevenueDetails() {
           : undefined,
       isPaid:
         paidFilter === "ALL" ? undefined : paidFilter === "true",
+      receiptNumber: receiptNumber.trim() || undefined,
     },
     !!user?.userId && !!buildingId,
   );
@@ -129,6 +132,11 @@ export default function RevenueDetails() {
         key: "reference" as any,
         label: "Reference",
         render: (_, row) => getRevenueReference(row),
+      },
+      {
+        key: "receiptNumber" as any,
+        label: "Receipt",
+        render: (_, row) => getRevenueReceiptNumber(row),
       },
     ];
 
@@ -289,6 +297,12 @@ export default function RevenueDetails() {
                 ? "No refundable booking deposits found."
                 : "No non-refundable fees found."
             }
+            searchable
+            searchPlaceholder="Receipt #…"
+            onSearch={(value) => {
+              setPage(1);
+              setReceiptNumber(value);
+            }}
             onRefresh={refetch}
             onFilterPress={() => setFilterVisible(true)}
             pagination={{

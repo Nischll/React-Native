@@ -50,6 +50,7 @@ interface MobileDataListProps<T> {
   pagination?: PaginationConfig;
 
   onSearch?: (search: string) => void;
+  searchPlaceholder?: string;
   onSort?: (field: keyof T, order: SortOrder) => void;
   onRefresh?: () => void;
 
@@ -87,6 +88,7 @@ export function MobileDataList<T>({
   backendMode = false,
   pagination,
   onSearch,
+  searchPlaceholder = "Search...",
   onSort,
   onRefresh,
   keyExtractor,
@@ -250,7 +252,7 @@ export function MobileDataList<T>({
           {searchable ? (
             <View className="flex-1">
               <AppInput
-                placeholder="Search..."
+                placeholder={searchPlaceholder}
                 value={search}
                 onChangeText={setSearch}
                 size="sm"

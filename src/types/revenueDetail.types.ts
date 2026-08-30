@@ -73,6 +73,7 @@ export interface RevenueDetailQueryParams {
   excludeFree?: boolean;
   refundable?: boolean;
   isPaid?: boolean;
+  receiptNumber?: string;
 }
 
 export const DEPOSIT_STATUS_OPTIONS: {
@@ -129,6 +130,19 @@ export function getInspectionParamsFromRevenue(
   if (amenityId != null) params.amenityId = String(amenityId);
   if (bookingDate) params.bookingDate = String(bookingDate).slice(0, 10);
   return params;
+}
+
+export function getRevenueReceiptNumber(item: RevenueDetailItem): string {
+  const d = getRevenueSubDetail(item);
+  const fee = (d?.receiptNumber || d?.receipt || "").trim();
+  const deposit = (d?.depositReceiptNumber || "").trim();
+  if (item.type === "BOOKING") {
+    const parts: string[] = [];
+    if (fee) parts.push(fee);
+    if (deposit) parts.push(`Deposit: ${deposit}`);
+    return parts.join("\n") || "—";
+  }
+  return fee || "—";
 }
 
 export function getRevenueReference(item: RevenueDetailItem): string {
