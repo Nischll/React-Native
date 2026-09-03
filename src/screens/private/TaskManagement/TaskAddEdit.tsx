@@ -43,6 +43,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AttachmentManager from "./components/AttachmentManager";
 import FollowUpTable from "./components/FollowUpTable";
+import TaskAiSuggestAction from "./components/TaskAiSuggestAction";
 import {
   appendFollowUpsToFormData,
   mapFollowUpsFromResponse,
@@ -241,6 +242,9 @@ export default function TaskAddEdit() {
 
   const selectedArea = watch("area");
   const selectedTaskType = watch("type");
+  const watchedTitle = watch("title");
+  const watchedDescription = watch("description");
+  const watchedLocation = watch("location");
 
   const prevTaskType = useRef<string>("");
 
@@ -617,18 +621,29 @@ export default function TaskAddEdit() {
           </View>
 
           <View className="mt-3">
+            <Text className="mb-2 text-base font-semibold text-slate-700">
+              Action Taken
+            </Text>
             <Controller
               control={control}
               name="actionTaken"
               render={({ field: { value, onChange } }) => (
-                <TextAreaField
-                  label="Action Taken"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Action taken"
-                  multiline
-                  numberOfLines={4}
-                />
+                <View>
+                  <TaskAiSuggestAction
+                    title={watchedTitle}
+                    description={watchedDescription}
+                    location={watchedLocation}
+                    buildingId={buildingId}
+                    onApply={onChange}
+                  />
+                  <TextAreaField
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Action taken"
+                    multiline
+                    numberOfLines={4}
+                  />
+                </View>
               )}
             />
           </View>

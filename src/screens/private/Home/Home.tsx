@@ -18,6 +18,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { resolveProfilePicture } from "../Profile/Profile";
 import { ActivityBar } from "./components/ActivityBar";
 import SearchBar from "./components/SearchBar";
+import TaskAiChatDock from "../TaskManagement/components/TaskAiChatDock";
 
 function isBottomNavModule(title: string) {
   const name = title.toLowerCase();
@@ -68,6 +69,7 @@ export default function Home() {
   );
 
   return (
+    <View className="flex-1">
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
@@ -201,5 +203,7 @@ export default function Home() {
         </View>
       </View>
     </KeyboardAwareScrollView>
+    <TaskAiChatDock />
+    </View>
   );
 }

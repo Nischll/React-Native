@@ -13,6 +13,7 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import BuildingHeader from "./components/BuildingHeader";
 import { TaskFilterModal } from "./components/TaskFilterModal";
 import TaskSearchBar from "./components/TaskSearchBar";
+import TaskAiChatDock from "./components/TaskAiChatDock";
 import TaskStatusSection from "./components/TaskStatusSection";
 import TaskStatusTabs from "./components/TaskStatusTabs";
 
@@ -249,6 +250,8 @@ export default function TaskManagement() {
         setToDate={setToDate}
         applyPreset={applyPreset}
       />
+
+      <TaskAiChatDock bottomReserve={88} />
     </View>
   );
 }
