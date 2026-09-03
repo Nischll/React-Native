@@ -5,7 +5,11 @@ import Home from "@/src/screens/private/Home/Home";
 export default function HomePage() {
   const { screenRefreshKey } = useGlobalRefresh();
   return (
-    <ScreenContainer key="static-container" padded={false}>
+    <ScreenContainer
+      key="static-container"
+      padded={false}
+      scrollable={false}
+    >
       <Home key={screenRefreshKey} />
     </ScreenContainer>
   );

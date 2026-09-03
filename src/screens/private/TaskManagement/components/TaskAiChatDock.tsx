@@ -23,12 +23,52 @@ import {
 import TaskAiTrainControls from "./TaskAiTrainControls";
 
 const POS_STORAGE_KEY = "task-ai-chat-dock-pos";
-const EDGE_PAD = 12;
+const EDGE_PAD = 16;
+const PANEL_GAP = 12;
 const DRAG_THRESHOLD = 6;
 const FAB_H = 48;
-const FAB_W = 118;
+const FAB_W = 112;
 
 type DockPos = { x: number; y: number };
+type Size = { w: number; h: number };
+
+function clampFab(
+  pos: DockPos,
+  bounds: Size,
+  fab: Size,
+): DockPos {
+  const maxX = Math.max(EDGE_PAD, bounds.w - fab.w - EDGE_PAD);
+  const maxY = Math.max(EDGE_PAD, bounds.h - fab.h - EDGE_PAD);
+  return {
+    x: Math.min(Math.max(EDGE_PAD, pos.x), maxX),
+    y: Math.min(Math.max(EDGE_PAD, pos.y), maxY),
+  };
+}
+
+function panelSize(bounds: Size) {
+  const panelW = Math.min(360, Math.max(0, bounds.w - EDGE_PAD * 2));
+  const maxPanelH = Math.max(200, bounds.h - FAB_H - PANEL_GAP - EDGE_PAD * 2);
+  const panelH = Math.min(maxPanelH, Math.min(420, bounds.h * 0.7));
+  return { panelW, panelH };
+}
+
+function placePanel(
+  fabPos: DockPos,
+  fab: Size,
+  bounds: Size,
+  panel: Size,
+) {
+  let left = fabPos.x + fab.w - panel.w;
+  let top = fabPos.y - PANEL_GAP - panel.h;
+  const maxLeft = Math.max(EDGE_PAD, bounds.w - panel.w - EDGE_PAD);
+  const maxTop = Math.max(EDGE_PAD, bounds.h - panel.h - EDGE_PAD);
+  left = Math.min(Math.max(EDGE_PAD, left), maxLeft);
+  if (top < EDGE_PAD) {
+    top = Math.min(fabPos.y + fab.h + PANEL_GAP, maxTop);
+  }
+  top = Math.min(Math.max(EDGE_PAD, top), maxTop);
+  return { left, top, width: panel.w, height: panel.h };
+}
 
 type ChatMessage = {
   id: string;
@@ -37,15 +77,6 @@ type ChatMessage = {
   rationale?: string | null;
   examples?: TaskAiSimilarExample[];
 };
-
-function clamp(pos: DockPos, bounds: { w: number; h: number }): DockPos {
-  const maxX = Math.max(EDGE_PAD, bounds.w - FAB_W - EDGE_PAD);
-  const maxY = Math.max(EDGE_PAD, bounds.h - FAB_H - EDGE_PAD);
-  return {
-    x: Math.min(Math.max(EDGE_PAD, pos.x), maxX),
-    y: Math.min(Math.max(EDGE_PAD, pos.y), maxY),
-  };
-}
 
 type Props = {
   /** Extra space reserved at the bottom (sibling FAB). */
@@ -62,6 +93,7 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pos, setPos] = useState<DockPos | null>(null);
   const [bounds, setBounds] = useState({ w: 0, h: 0 });
+  const [fabSize, setFabSize] = useState({ w: FAB_W, h: FAB_H });
   const [keyboardH, setKeyboardH] = useState(0);
 
   const listRef = useRef<ScrollView>(null);
@@ -74,6 +106,8 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
     moved: boolean;
   } | null>(null);
 
+  const fabSizeRef = useRef({ w: FAB_W, h: FAB_H });
+
   const usable = () => {
     const b = boundsRef.current;
     return {
@@ -83,7 +117,7 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
   };
 
   const applyPos = useCallback((next: DockPos, persist = false) => {
-    const clamped = clamp(next, usable());
+    const clamped = clampFab(next, usable(), fabSizeRef.current);
     posRef.current = clamped;
     setPos(clamped);
     if (persist) {
@@ -113,8 +147,19 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
     };
   }, []);
 
+  const onFabLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (width < 8 || height < 8) return;
+    const prev = fabSizeRef.current;
+    if (Math.abs(prev.w - width) < 1 && Math.abs(prev.h - height) < 1) return;
+    fabSizeRef.current = { w: width, h: height };
+    setFabSize({ w: width, h: height });
+    if (posRef.current) applyPos(posRef.current);
+  };
+
   const onOverlayLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
+    if (width < 8 || height < 8) return;
     boundsRef.current = { ...boundsRef.current, w: width, h: height };
     setBounds({ w: width, h: height });
     if (loadedRef.current) {
@@ -136,9 +181,10 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
         saved = null;
       }
       const area = usable();
+      const fab = fabSizeRef.current;
       const fallback: DockPos = {
-        x: Math.max(EDGE_PAD, area.w - FAB_W - EDGE_PAD),
-        y: Math.max(EDGE_PAD, area.h - FAB_H - EDGE_PAD),
+        x: Math.max(EDGE_PAD, area.w - fab.w - EDGE_PAD),
+        y: Math.max(EDGE_PAD, area.h - fab.h - EDGE_PAD),
       };
       applyPos(saved ?? fallback);
     })();
@@ -253,12 +299,10 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
   };
 
   const area = usable();
-  const panelW = Math.min(22 * 16, Math.max(280, area.w - 32));
-  const panelH = Math.min(32 * 16, Math.max(280, area.h * 0.72));
-  const panelShiftX =
-    pos != null
-      ? Math.min(0, area.w - EDGE_PAD - (pos.x + panelW))
-      : 0;
+  const { panelW, panelH } = panelSize(area);
+  const panel = pos
+    ? placePanel(pos, fabSize, area, { w: panelW, h: panelH })
+    : null;
 
   return (
     <View
@@ -270,33 +314,26 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
         top: 0,
         bottom: 0,
         zIndex: 40,
+        overflow: "visible",
       }}
       onLayout={onOverlayLayout}
     >
-      {pos ? (
+      {open && pos && panel ? (
         <View
-          pointerEvents="box-none"
+          className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
           style={{
             position: "absolute",
-            left: pos.x,
-            top: pos.y,
-            alignItems: "flex-end",
+            left: panel.left,
+            top: panel.top,
+            width: panel.width,
+            height: panel.height,
+            shadowColor: "#000",
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 8,
           }}
         >
-          {open ? (
-            <View
-              className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white"
-              style={{
-                width: panelW,
-                height: panelH,
-                transform: [{ translateX: panelShiftX }],
-                shadowColor: "#000",
-                shadowOpacity: 0.12,
-                shadowRadius: 12,
-                shadowOffset: { width: 0, height: 4 },
-                elevation: 8,
-              }}
-            >
               <View className="border-b border-slate-200 bg-slate-50">
                 <View
                   className="flex-row items-center justify-between gap-2 px-3 py-2.5"
@@ -444,7 +481,16 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
             </View>
           ) : null}
 
-          <View {...fabPan.panHandlers}>
+      {pos ? (
+          <View
+            {...fabPan.panHandlers}
+            onLayout={onFabLayout}
+            style={{
+              position: "absolute",
+              left: pos.x,
+              top: pos.y,
+            }}
+          >
             <View
               className="flex-row items-center justify-center gap-2 rounded-full bg-primary px-4"
               style={{
@@ -471,7 +517,6 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
               </Text>
             </View>
           </View>
-        </View>
       ) : null}
     </View>
   );
