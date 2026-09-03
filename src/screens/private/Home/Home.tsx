@@ -8,10 +8,11 @@ import { StatCard } from "@/src/helper/dashboardStatCard";
 import { flattenModules } from "@/src/helper/flattenModules";
 import { mapIcon } from "@/src/helper/mapIcon";
 import { mapToAppRoute } from "@/src/helper/mapToAppRoute";
+import { useGlobalRefresh } from "@/src/hooks/useGlobalRefresh";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { RefreshControl, Text, View } from "react-native";
 
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -32,6 +33,16 @@ function isBottomNavModule(title: string) {
 export default function Home() {
   const { user, buildingId, selectedBuilding, openBuildingSelectDialog } =
     useAuth();
+  const { triggerRefresh, refreshing, setRefreshing } = useGlobalRefresh();
+
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await triggerRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [setRefreshing, triggerRefresh]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
@@ -71,6 +82,7 @@ export default function Home() {
   return (
     <View className="flex-1">
     <KeyboardAwareScrollView
+      style={{ flex: 1 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
       enableOnAndroid
@@ -78,9 +90,12 @@ export default function Home() {
       extraScrollHeight={20}
       extraHeight={120}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 28 }}
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 96 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
-      <View className="flex-1">
+      <View>
         <View className="bg-primary px-4 pt-4 pb-8 rounded-b-3xl">
           <PageHeader
             variant="dashboard"

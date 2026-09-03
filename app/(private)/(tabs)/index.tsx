@@ -9,6 +9,7 @@ export default function HomePage() {
       key="static-container"
       padded={false}
       scrollable={false}
+      refreshable={false}
     >
       <Home key={screenRefreshKey} />
     </ScreenContainer>
