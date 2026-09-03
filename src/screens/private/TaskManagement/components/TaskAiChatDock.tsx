@@ -27,7 +27,7 @@ const EDGE_PAD = 16;
 const PANEL_GAP = 12;
 const DRAG_THRESHOLD = 6;
 const FAB_H = 48;
-const FAB_W = 112;
+const FAB_W = 120;
 
 type DockPos = { x: number; y: number };
 type Size = { w: number; h: number };
@@ -58,16 +58,29 @@ function placePanel(
   bounds: Size,
   panel: Size,
 ) {
-  let left = fabPos.x + fab.w - panel.w;
-  let top = fabPos.y - PANEL_GAP - panel.h;
   const maxLeft = Math.max(EDGE_PAD, bounds.w - panel.w - EDGE_PAD);
-  const maxTop = Math.max(EDGE_PAD, bounds.h - panel.h - EDGE_PAD);
-  left = Math.min(Math.max(EDGE_PAD, left), maxLeft);
-  if (top < EDGE_PAD) {
-    top = Math.min(fabPos.y + fab.h + PANEL_GAP, maxTop);
+  let left = Math.min(
+    Math.max(EDGE_PAD, fabPos.x + fab.w - panel.w),
+    maxLeft,
+  );
+
+  const aboveTop = fabPos.y - PANEL_GAP - panel.h;
+  const belowTop = fabPos.y + fab.h + PANEL_GAP;
+  let top = aboveTop;
+  let height = panel.h;
+
+  if (aboveTop < EDGE_PAD) {
+    if (belowTop + panel.h <= bounds.h - EDGE_PAD) {
+      top = belowTop;
+    } else {
+      height = Math.max(180, fabPos.y - PANEL_GAP - EDGE_PAD);
+      top = EDGE_PAD;
+    }
   }
+
+  const maxTop = Math.max(EDGE_PAD, bounds.h - height - EDGE_PAD);
   top = Math.min(Math.max(EDGE_PAD, top), maxTop);
-  return { left, top, width: panel.w, height: panel.h };
+  return { left, top, width: panel.w, height };
 }
 
 type ChatMessage = {
@@ -335,11 +348,11 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
           }}
         >
               <View className="border-b border-slate-200 bg-slate-50">
-                <View
-                  className="flex-row items-center justify-between gap-2 px-3 py-2.5"
-                  {...headerPan.panHandlers}
-                >
-                  <View className="min-w-0 flex-1">
+                <View className="flex-row items-center px-2 py-2">
+                  <View
+                    className="min-w-0 flex-1 px-1 py-0.5"
+                    {...headerPan.panHandlers}
+                  >
                     <View className="flex-row items-center gap-1.5">
                       <AppIcon name="menu-outline" size={16} color="#94A3B8" />
                       <AppIcon
@@ -347,7 +360,10 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
                         size={16}
                         color="#453956"
                       />
-                      <Text className="text-sm font-semibold text-slate-900">
+                      <Text
+                        className="flex-1 text-sm font-semibold text-slate-900"
+                        numberOfLines={1}
+                      >
                         Ask Task AI
                       </Text>
                     </View>
@@ -362,11 +378,20 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
                   </View>
                   <Pressable
                     onPress={() => setOpen(false)}
-                    hitSlop={8}
-                    className="h-8 w-8 items-center justify-center"
+                    hitSlop={10}
+                    accessibilityRole="button"
                     accessibilityLabel="Close chat"
+                    style={{
+                      height: 36,
+                      width: 36,
+                      marginLeft: 4,
+                      borderRadius: 18,
+                      backgroundColor: "#E2E8F0",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
-                    <AppIcon name="close" size={18} color="#64748B" />
+                    <AppIcon name="close" size={18} color="#453956" />
                   </Pressable>
                 </View>
                 <View className="border-t border-slate-100 bg-white px-3 py-2">
@@ -485,37 +510,41 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
           <View
             {...fabPan.panHandlers}
             onLayout={onFabLayout}
+            accessibilityRole="button"
+            accessibilityLabel={
+              open ? "Close Ask Task AI" : "Open Ask Task AI"
+            }
             style={{
               position: "absolute",
               left: pos.x,
               top: pos.y,
+              height: FAB_H,
+              width: FAB_W,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: FAB_H / 2,
+              backgroundColor: "#453956",
+              paddingHorizontal: 16,
+              shadowColor: "#000",
+              shadowOpacity: 0.16,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 6,
             }}
           >
-            <View
-              className="flex-row items-center justify-center gap-2 rounded-full bg-primary px-4"
-              style={{
-                height: FAB_H,
-                minWidth: FAB_W,
-                shadowColor: "#000",
-                shadowOpacity: 0.16,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 6,
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={
-                open ? "Close Ask Task AI" : "Open Ask Task AI"
-              }
-            >
               <AppIcon
                 name={open ? "close" : "chatbubble-ellipses-outline"}
                 size={20}
                 color="#fff"
               />
-              <Text className="pr-0.5 text-sm font-semibold text-white">
+              <Text
+                className="text-sm font-semibold text-white"
+                style={{ marginLeft: 8 }}
+                numberOfLines={1}
+              >
                 {open ? "Close" : "Ask AI"}
               </Text>
-            </View>
           </View>
       ) : null}
     </View>
