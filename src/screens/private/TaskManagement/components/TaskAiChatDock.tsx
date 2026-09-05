@@ -3,8 +3,10 @@ import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
+  TaskAiResourceResult,
   TaskAiSimilarExample,
   extractTaskAiChatData,
+  taskAiAssistantPrimaryText,
   taskAiErrorMessage,
 } from "@/src/types/taskAi.types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +22,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import TaskAiResourceMatches from "./TaskAiResourceMatches";
 import TaskAiTrainControls from "./TaskAiTrainControls";
 
 const POS_STORAGE_KEY = "task-ai-chat-dock-pos";
@@ -89,6 +92,8 @@ type ChatMessage = {
   text: string;
   rationale?: string | null;
   examples?: TaskAiSimilarExample[];
+  resources?: TaskAiResourceResult[];
+  resourceMessage?: string | null;
 };
 
 type Props = {
@@ -281,19 +286,23 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
       {
         onSuccess: (response) => {
           const data = extractTaskAiChatData(response);
-          const suggestion =
-            data?.suggestedActionTaken?.trim() ||
-            "No suggestion returned. Try rephrasing the issue.";
+          const resources = Array.isArray(data?.resourceResults)
+            ? data!.resourceResults!
+            : [];
+          const suggestion = data?.suggestedActionTaken?.trim();
+          const resourceMsg = data?.resourceMessage?.trim();
           setMessages((prev) => [
             ...prev,
             {
               id: `a-${Date.now()}`,
               role: "assistant",
-              text: suggestion,
-              rationale: data?.rationale,
+              text: taskAiAssistantPrimaryText(data),
+              rationale: suggestion || resourceMsg ? data?.rationale : null,
               examples: Array.isArray(data?.similarExamples)
                 ? data!.similarExamples!
                 : [],
+              resources,
+              resourceMessage: suggestion ? resourceMsg : null,
             },
           ]);
         },
@@ -438,6 +447,12 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
                           </Text>
                         ) : null}
                         {m.role === "assistant" &&
+                        m.resourceMessage?.trim() ? (
+                          <Text className="mt-1.5 text-[11px] font-medium text-slate-800">
+                            {m.resourceMessage}
+                          </Text>
+                        ) : null}
+                        {m.role === "assistant" &&
                         m.examples &&
                         m.examples.length > 0 ? (
                           <View className="mt-2 border-t border-slate-200 pt-2">
@@ -455,6 +470,11 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
                               </Text>
                             ))}
                           </View>
+                        ) : null}
+                        {m.role === "assistant" &&
+                        m.resources &&
+                        m.resources.length > 0 ? (
+                          <TaskAiResourceMatches resources={m.resources} />
                         ) : null}
                       </View>
                     </View>

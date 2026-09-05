@@ -2,6 +2,7 @@ import { useTaskAiChat, useTaskAiModelStatus } from "@/src/api/taskAi.api";
 import AppButton from "@/src/components/ui/AppButton";
 import {
   TaskAiChatResponseData,
+  TaskAiResourceResult,
   TaskAiSimilarExample,
   buildTaskAiQuestion,
   extractTaskAiChatData,
@@ -10,6 +11,7 @@ import {
 import { showToast } from "@/src/utils/toast";
 import { useState } from "react";
 import { Text, View } from "react-native";
+import TaskAiResourceMatches from "./TaskAiResourceMatches";
 
 type Props = {
   title?: string;
@@ -49,9 +51,19 @@ export default function TaskAiSuggestAction({
           const suggestion = data?.suggestedActionTaken?.trim();
           if (suggestion) {
             onApply(suggestion);
-          } else {
-            showToast("error", "The model did not return a suggested action");
+            return;
           }
+          const hasResources =
+            Array.isArray(data?.resourceResults) &&
+            data!.resourceResults!.length > 0;
+          showToast(
+            hasResources ? "success" : "error",
+            hasResources
+              ? data?.resourceMessage?.trim() ||
+                  "No matching past tasks — see related resources below."
+              : data?.rationale?.trim() ||
+                  "The model did not return a suggested action",
+          );
         },
         onError: (error) => {
           showToast("error", taskAiErrorMessage(error));
@@ -62,6 +74,11 @@ export default function TaskAiSuggestAction({
 
   const examples: TaskAiSimilarExample[] = Array.isArray(result?.similarExamples)
     ? result!.similarExamples!
+    : [];
+  const resources: TaskAiResourceResult[] = Array.isArray(
+    result?.resourceResults,
+  )
+    ? result!.resourceResults!
     : [];
 
   return (
@@ -115,6 +132,15 @@ export default function TaskAiSuggestAction({
               ) : null}
             </View>
           ))}
+        </View>
+      ) : null}
+
+      {resources.length > 0 ? (
+        <View className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <Text className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            {result?.resourceMessage?.trim() || "Related resources"}
+          </Text>
+          <TaskAiResourceMatches resources={resources} embedded />
         </View>
       ) : null}
     </View>
