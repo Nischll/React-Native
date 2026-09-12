@@ -1,10 +1,10 @@
-import { useGetAmenities } from "@/src/api/amenity.api";
-import { useGetTowers } from "@/src/api/tower.api";
 import {
   useAddBooking,
   useGetBookingById,
   useUpdateBooking,
 } from "@/src/api/booking.api";
+import { useGetBuildingById } from "@/src/api/building.api";
+import { useGetTowers } from "@/src/api/tower.api";
 import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
@@ -19,6 +19,7 @@ import {
 } from "@/src/helper/revenueAmountUtils";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { AmenityResponse } from "@/src/types/amenity.types";
 import {
   BOOKING_STATUS_OPTIONS,
   BOOKING_TYPE_OPTIONS,
@@ -28,7 +29,6 @@ import {
   normalizeBookingStatus,
   normalizeBookingType,
 } from "@/src/types/booking.types";
-import { AmenityResponse } from "@/src/types/amenity.types";
 import { TowerResponse } from "@/src/types/tower.types";
 import { extractPaginatedList } from "@/src/utils/listPagination";
 import { showToast } from "@/src/utils/toast";
@@ -69,16 +69,17 @@ export default function AddEditBooking() {
   const { buildingId } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: amenityData } = useGetAmenities();
+  const { data: amenityData } = useGetBuildingById(Number(buildingId));
   const { data: towerData } = useGetTowers();
-  const { items: amenityList } = extractPaginatedList<AmenityResponse>(amenityData);
+  const { items: amenityList } = extractPaginatedList<AmenityResponse>(
+    amenityData?.data?.amenities,
+  );
   const { items: towerList } = extractPaginatedList<TowerResponse>(towerData);
   const { residences } = useResidencesForActiveBuilding();
 
   const { data, isLoading } = useGetBookingById(id, editMode);
   const { mutate: addBooking, isPending: isAdding } = useAddBooking();
-  const { mutate: updateBooking, isPending: isUpdating } =
-    useUpdateBooking(id);
+  const { mutate: updateBooking, isPending: isUpdating } = useUpdateBooking(id);
 
   const [isPaid, setIsPaid] = useState(false);
   const [paidFee, setPaidFee] = useState("");
@@ -109,7 +110,8 @@ export default function AddEditBooking() {
     [towerList],
   );
 
-  const presetStart = typeof params.startDate === "string" ? params.startDate : "";
+  const presetStart =
+    typeof params.startDate === "string" ? params.startDate : "";
   const presetEnd = typeof params.endDate === "string" ? params.endDate : "";
 
   const { control, handleSubmit, watch, reset } = useForm<FormValues>({
@@ -127,9 +129,7 @@ export default function AddEditBooking() {
 
   const isElevator = useMemo(() => {
     const amenityId = watch("amenityId");
-    const amenity = amenityList.find(
-      (a) => String(a.id) === amenityId,
-    );
+    const amenity = amenityList.find((a) => String(a.id) === amenityId);
     return amenity?.name?.toLowerCase() === "elevator";
   }, [amenityList, watch("amenityId")]);
 
@@ -239,9 +239,7 @@ export default function AddEditBooking() {
   const onSubmit = (values: FormValues) => {
     if (!buildingId || !values.amenityId) return;
 
-    const amenity = amenityList.find(
-      (a) => String(a.id) === values.amenityId,
-    );
+    const amenity = amenityList.find((a) => String(a.id) === values.amenityId);
 
     if (isElevator && !values.towerId) {
       showToast("error", "Tower selection is required for elevator bookings");
@@ -317,9 +315,7 @@ export default function AddEditBooking() {
         showBackButton
         icon={editMode ? "create" : "add-circle"}
         title={editMode ? "Edit Booking" : "Add Booking"}
-        subtitle={
-          editMode ? "Update booking details" : "Create a new booking"
-        }
+        subtitle={editMode ? "Update booking details" : "Create a new booking"}
       />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
