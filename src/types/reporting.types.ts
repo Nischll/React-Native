@@ -26,3 +26,14 @@ export interface ReportPdfSignatures {
   generalManager: string;
   director: string;
 }
+
+export type MonthlyReportRole = "BUILDING_MANAGER" | "CONCIERGE" | "CARETAKER";
+
+export type MonthlyReportCoverOptions = {
+  reportRole: MonthlyReportRole;
+  preparedBy: string;
+  companyWebsite: string;
+};
+
+export type MonthlyReportPdfOptions = ReportPdfSignatures &
+  MonthlyReportCoverOptions;

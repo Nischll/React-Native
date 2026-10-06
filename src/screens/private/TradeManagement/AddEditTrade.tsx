@@ -21,7 +21,10 @@ import TextAreaField from "@/src/components/ui/TextAreaFeld";
 
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { TradeDirectoryResponse } from "@/src/types/tradeDirectory.types";
+import {
+  TradeDirectoryResponse,
+  tradesForBuilding,
+} from "@/src/types/tradeDirectory.types";
 import { extractPaginatedList } from "@/src/utils/listPagination";
 import { showToast } from "@/src/utils/toast";
 
@@ -62,12 +65,13 @@ export default function AddEditTrade() {
   const updateMutation = useUpdateTradeVisit(idNum);
 
   const { data: tradesData } = useGetTrades(
-    { page: 1, limit: 1000 },
-    true,
+    { page: 1, limit: 1000, buildingId: buildingId ?? undefined },
+    buildingId != null && buildingId > 0,
   );
-  const { items: trades } = extractPaginatedList<TradeDirectoryResponse>(
+  const { items: rawTrades } = extractPaginatedList<TradeDirectoryResponse>(
     tradesData,
   );
+  const trades = tradesForBuilding(rawTrades, buildingId);
 
   const tradeOptions = useMemo(
     () =>

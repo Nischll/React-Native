@@ -48,6 +48,7 @@ import {
   appendFollowUpsToFormData,
   mapFollowUpsFromResponse,
   prepareFollowUpsForSubmit,
+  todayTaskDateInput,
   toFollowUpDateInput,
 } from "./followUpFormData";
 import { toTaskAttachmentPart } from "./toTaskAttachmentPart";
@@ -65,6 +66,7 @@ interface FormValues {
   assignedTo: string;
   taskStatusId: string;
   priority: string;
+  createdDate: string;
   deadline: string;
   completedDate: string;
   actionTaken: string;
@@ -88,6 +90,7 @@ export default function TaskAddEdit() {
     mode?: string | string[];
     taskId?: string | string[];
     categoryId?: string | string[];
+    taskStatusId?: string | string[];
   }>();
   const modeParam = Array.isArray(rawParams.mode)
     ? rawParams.mode[0]
@@ -98,6 +101,9 @@ export default function TaskAddEdit() {
   const categoryIdParam = Array.isArray(rawParams.categoryId)
     ? rawParams.categoryId[0]
     : rawParams.categoryId;
+  const taskStatusIdParam = Array.isArray(rawParams.taskStatusId)
+    ? rawParams.taskStatusId[0]
+    : rawParams.taskStatusId;
 
   const isEditMode = modeParam === "edit";
   const parsedTaskId =
@@ -186,8 +192,9 @@ export default function TaskAddEdit() {
         title: "",
         description: "",
         assignedTo: "",
-        taskStatusId: "",
+        taskStatusId: taskStatusIdParam ?? "",
         priority: "",
+        createdDate: todayTaskDateInput(),
         deadline: "",
         completedDate: "",
         actionTaken: "",
@@ -222,6 +229,7 @@ export default function TaskAddEdit() {
             ? String(existingTask.taskStatusId)
             : "",
         priority: existingTask.priority ?? "",
+        createdDate: toFollowUpDateInput(existingTask.createdDate),
         deadline: toFollowUpDateInput(existingTask.deadline),
         completedDate: toFollowUpDateInput(existingTask.completedDate),
         actionTaken: existingTask.actionTaken ?? "",
@@ -299,6 +307,9 @@ export default function TaskAddEdit() {
     formData.append("taskStatusId", String(values.taskStatusId ?? ""));
     formData.append("buildingId", String(buildingId ?? ""));
     formData.append("priority", values.priority || "MEDIUM");
+    if (values.createdDate) {
+      formData.append("createdDate", toFollowUpDateInput(values.createdDate));
+    }
     if (values.deadline) {
       formData.append("deadline", toFollowUpDateInput(values.deadline));
     }
@@ -592,6 +603,19 @@ export default function TaskAddEdit() {
                 )}
               />
             </View>
+          </View>
+
+          <View className="mt-3">
+            <Text className="mb-2 text-base font-semibold text-slate-700">
+              Incident date
+            </Text>
+            <Controller
+              control={control}
+              name="createdDate"
+              render={({ field: { value, onChange } }) => (
+                <DatePickerField value={value} onChange={onChange} clearable />
+              )}
+            />
           </View>
 
           <View className="mt-3">

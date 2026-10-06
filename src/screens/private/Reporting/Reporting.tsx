@@ -1,28 +1,26 @@
-import { useGetMonthlyReport } from "@/src/api/reporting.api";
-import PdfClosingNamesSheet from "@/src/components/domain/PdfClosingNamesSheet";
+import {
+  fetchMonthlyReportPdf,
+  useGetMonthlyReport,
+} from "@/src/api/reporting.api";
+import MonthlyReportPdfSheet from "@/src/components/domain/MonthlyReportPdfSheet";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppIcon from "@/src/components/ui/AppIcon";
 import Card from "@/src/components/ui/Card";
+import { PickedFile } from "@/src/components/ui/FilePicker";
 import MonthYearPicker from "@/src/components/ui/MonthYearPicker";
-import { compactNameParams } from "@/src/helper/pdfClosingNames";
+import { saveMonthlyReportPdfOptions } from "@/src/helper/reportSignatures";
 import {
-  loadReportPdfSignatures,
-  REPORT_PDF_SIGNATURE_DEFAULTS,
-  saveReportPdfSignatures,
-} from "@/src/helper/reportSignatures";
-import {
-  downloadAuthenticatedPdf,
   saveAndSharePdf,
   waitForModalDismiss,
 } from "@/src/helper/savePdfFile";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
+  MonthlyReportPdfOptions,
   MonthlyReportResponse,
-  ReportPdfSignatures,
 } from "@/src/types/reporting.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
 function countOf(v: unknown): number {
@@ -247,18 +245,11 @@ function ReportSection({
 export default function Reporting() {
   const { buildingId, selectedBuilding } = useAuth();
   const [downloading, setDownloading] = useState(false);
-  const [namesVisible, setNamesVisible] = useState(false);
-  const [signatures, setSignatures] = useState<ReportPdfSignatures>({
-    ...REPORT_PDF_SIGNATURE_DEFAULTS,
-  });
+  const [sheetVisible, setSheetVisible] = useState(false);
   const [month, setMonth] = useState(() => {
     const n = new Date();
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
   });
-
-  useEffect(() => {
-    loadReportPdfSignatures().then(setSignatures);
-  }, []);
 
   const { data, isLoading, refetch, isRefetching } = useGetMonthlyReport(
     month,
@@ -281,7 +272,10 @@ export default function Reporting() {
     [report],
   );
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = async (
+    options: MonthlyReportPdfOptions,
+    logo: PickedFile | null,
+  ) => {
     if (!buildingId || !month || !/^\d{4}-\d{2}$/.test(month)) {
       Alert.alert(
         "Select month",
@@ -291,18 +285,15 @@ export default function Reporting() {
     }
     setDownloading(true);
     try {
-      const base64 = await downloadAuthenticatedPdf("/reporting/monthly/pdf", {
+      const base64 = await fetchMonthlyReportPdf(
         month,
         buildingId,
-        ...compactNameParams({
-          buildingManager: signatures.buildingManager,
-          operationsSupervisor: signatures.operationsSupervisor,
-          operationsManager: signatures.operationsManager,
-          generalManager: signatures.generalManager,
-          director: signatures.director,
-        }),
-      });
+        options,
+        logo,
+      );
       await saveAndSharePdf(`monthly-report-${month}.pdf`, base64);
+      setSheetVisible(false);
+      await waitForModalDismiss();
     } catch (e) {
       const message =
         e instanceof Error && e.message
@@ -322,14 +313,15 @@ export default function Reporting() {
       );
       return;
     }
-    setNamesVisible(true);
+    setSheetVisible(true);
   };
 
-  const handleConfirmDownload = async () => {
-    await saveReportPdfSignatures(signatures);
-    setNamesVisible(false);
-    await waitForModalDismiss();
-    await handleDownloadPdf();
+  const handleConfirmDownload = async (
+    options: MonthlyReportPdfOptions,
+    logo: PickedFile | null,
+  ) => {
+    await saveMonthlyReportPdfOptions(options);
+    await handleDownloadPdf(options, logo);
   };
 
   return (
@@ -444,29 +436,16 @@ export default function Reporting() {
         </View>
       )}
     </ScrollView>
-    <PdfClosingNamesSheet
-      visible={namesVisible}
-      title="PDF closing names"
-      subtitle="Printed on the last page exactly as written."
-      hint="Leave Building Manager blank for an empty signature line. Other blank names are omitted."
-      fields={[
-        {
-          key: "buildingManager",
-          label: "Building Manager",
-          placeholder: "Leave blank for an empty line",
-        },
-        { key: "operationsSupervisor", label: "Operations Supervisor" },
-        { key: "operationsManager", label: "Operations Manager" },
-        { key: "generalManager", label: "General Manager" },
-        { key: "director", label: "Director" },
-      ]}
-      value={signatures}
-      onChange={setSignatures}
-      submitLabel="Download PDF"
-      loading={downloading}
-      onClose={() => setNamesVisible(false)}
-      onSubmit={handleConfirmDownload}
-    />
+    {buildingId ? (
+      <MonthlyReportPdfSheet
+        visible={sheetVisible}
+        month={month}
+        buildingId={buildingId}
+        loading={downloading}
+        onClose={() => setSheetVisible(false)}
+        onSubmit={handleConfirmDownload}
+      />
+    ) : null}
     </>
   );
 }

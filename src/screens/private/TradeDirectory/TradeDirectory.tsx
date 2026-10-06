@@ -12,14 +12,17 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import ConfirmModal from "@/src/components/ui/ConfirmModal";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { TradeDirectoryResponse } from "@/src/types/tradeDirectory.types";
+import {
+  TradeDirectoryResponse,
+  tradesForBuilding,
+} from "@/src/types/tradeDirectory.types";
 import { PAGE_SIZE, extractPaginatedList } from "@/src/utils/listPagination";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 
 export default function TradeDirectory() {
-  const { user } = useAuth();
+  const { user, buildingId } = useAuth();
   const [deleteItem, setDeleteItem] = useState<TradeDirectoryResponse | null>(
     null,
   );
@@ -27,14 +30,23 @@ export default function TradeDirectory() {
   const [search, setSearch] = useState("");
 
   const { data, isLoading, refetch, isRefetching } = useGetTrades(
-    { page, limit: PAGE_SIZE, search: search || undefined },
-    !!user?.userId,
+    {
+      page,
+      limit: PAGE_SIZE,
+      search: search || undefined,
+      buildingId: buildingId ?? undefined,
+    },
+    !!user?.userId && buildingId != null && buildingId > 0,
   );
   const { mutate: deleteMutate, isPending } = useDeleteTrade();
-  const { items, total } = extractPaginatedList<TradeDirectoryResponse>(data, {
-    page,
-    limit: PAGE_SIZE,
-  });
+  const { items: rawItems, total } = extractPaginatedList<TradeDirectoryResponse>(
+    data,
+    {
+      page,
+      limit: PAGE_SIZE,
+    },
+  );
+  const items = tradesForBuilding(rawItems, buildingId);
 
   const columns: MobileColumn<TradeDirectoryResponse>[] = [
     { key: "name", label: "Name", primary: true, searchable: true },

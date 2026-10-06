@@ -3,8 +3,8 @@ import AppIcon from "@/src/components/ui/AppIcon";
 import { getMimeType } from "@/src/helper/getMimeType";
 import {
   TaskAiResourceResult,
+  formatTaskAiResourceMeta,
   taskAiResourceFilePath,
-  taskAiResourceLocationLabel,
 } from "@/src/types/taskAi.types";
 import { Buffer } from "buffer";
 import * as FileSystem from "expo-file-system/legacy";
@@ -82,17 +82,9 @@ export default function TaskAiResourceMatches({
 
   return (
     <View className={embedded ? undefined : "mt-2 border-t border-slate-200 pt-2"}>
-      {resources.slice(0, 5).map((r) => {
-        const key = `${r.attachmentId}-${r.chunkIndex ?? 0}-${r.snippet?.slice(0, 24) ?? ""}`;
-        const meta = [
-          r.resourceType?.trim(),
-          taskAiResourceLocationLabel(r),
-          r.similarity != null
-            ? `${Math.round(Number(r.similarity) * 100)}% match`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" · ");
+      {resources.map((r) => {
+        const key = `${r.attachmentId}-${r.chunkIndex ?? 0}-${r.lineStart ?? ""}-${r.pageStart ?? ""}`;
+        const meta = formatTaskAiResourceMeta(r);
         const canOpen = !!taskAiResourceFilePath(r);
         const loading = busyKey === key;
 

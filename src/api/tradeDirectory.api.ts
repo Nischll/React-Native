@@ -14,17 +14,32 @@ import {
 const TRADE_DIRECTORY_KEY = "/trade";
 
 export const useGetTrades = (
-  params: { page?: number; limit?: number; search?: string } = {},
+  params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    buildingId?: number | null;
+  } = {},
   enabled = true,
-) =>
-  useApiQuery<
+) => {
+  const queryParams = buildPageQuery({
+    page: params.page,
+    limit: params.limit,
+    search: params.search,
+    buildingId:
+      params.buildingId != null && params.buildingId > 0
+        ? params.buildingId
+        : undefined,
+  });
+  return useApiQuery<
     | ApiListResponse<ApiPaginatedData<TradeDirectoryResponse>>
     | ApiListResponseArray<TradeDirectoryResponse>
   >(TRADE_DIRECTORY_KEY, {
     enabled,
     retry: 0,
-    queryParams: buildPageQuery(params),
+    queryParams,
   });
+};
 
 export const useGetTradeById = (id?: number, enabled = true) =>
   useApiQuery<ApiListResponse<TradeDirectoryResponse>>(

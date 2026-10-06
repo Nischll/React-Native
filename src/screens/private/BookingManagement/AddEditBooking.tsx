@@ -22,6 +22,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { AmenityResponse } from "@/src/types/amenity.types";
 import {
   BOOKING_STATUS_OPTIONS,
+  amenityShowsBookingType,
   BOOKING_TYPE_OPTIONS,
   BookingStatus,
   PAID_TYPE_OPTIONS,
@@ -114,7 +115,7 @@ export default function AddEditBooking() {
     typeof params.startDate === "string" ? params.startDate : "";
   const presetEnd = typeof params.endDate === "string" ? params.endDate : "";
 
-  const { control, handleSubmit, watch, reset } = useForm<FormValues>({
+  const { control, handleSubmit, watch, reset, setValue } = useForm<FormValues>({
     defaultValues: {
       amenityId: "",
       towerId: "",
@@ -127,11 +128,18 @@ export default function AddEditBooking() {
     },
   });
 
-  const isElevator = useMemo(() => {
-    const amenityId = watch("amenityId");
-    const amenity = amenityList.find((a) => String(a.id) === amenityId);
-    return amenity?.name?.toLowerCase() === "elevator";
-  }, [amenityList, watch("amenityId")]);
+  const watchedAmenityId = watch("amenityId");
+  const selectedAmenity = useMemo(
+    () => amenityList.find((a) => String(a.id) === watchedAmenityId),
+    [amenityList, watchedAmenityId],
+  );
+  const isElevator = selectedAmenity?.name?.toLowerCase() === "elevator";
+  const showBookingType = amenityShowsBookingType(selectedAmenity?.name);
+
+  useEffect(() => {
+    if (!selectedAmenity) return;
+    if (!showBookingType) setValue("type", "NONE");
+  }, [selectedAmenity, showBookingType, setValue]);
 
   useEffect(() => {
     if (editMode && data?.data) {
@@ -267,7 +275,7 @@ export default function AddEditBooking() {
       startDate: values.startDate,
       endDate: values.endDate,
       status: normalizeBookingStatus(values.status),
-      type: normalizeBookingType(values.type),
+      type: showBookingType ? normalizeBookingType(values.type) : null,
     };
 
     if (isElevator && values.towerId) payload.towerId = Number(values.towerId);
@@ -395,25 +403,27 @@ export default function AddEditBooking() {
             />
           </View>
 
-          <View className="mt-3">
-            <Controller
-              control={control}
-              name="type"
-              render={({ field: { onChange, value } }) => (
-                <SelectField
-                  label="Type"
-                  value={value}
-                  onChange={onChange}
-                  options={[
-                    { value: "NONE", label: "None" },
-                    ...BOOKING_TYPE_OPTIONS,
-                  ]}
-                  placeholder="None"
-                  mode="dropdown"
-                />
-              )}
-            />
-          </View>
+          {showBookingType ? (
+            <View className="mt-3">
+              <Controller
+                control={control}
+                name="type"
+                render={({ field: { onChange, value } }) => (
+                  <SelectField
+                    label="Type"
+                    value={value}
+                    onChange={onChange}
+                    options={[
+                      { value: "NONE", label: "None" },
+                      ...BOOKING_TYPE_OPTIONS,
+                    ]}
+                    placeholder="None"
+                    mode="dropdown"
+                  />
+                )}
+              />
+            </View>
+          ) : null}
 
           <View className="mt-3">
             <Controller

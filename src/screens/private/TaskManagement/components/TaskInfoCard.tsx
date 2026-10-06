@@ -405,7 +405,7 @@ export default function TaskInformationCard({ task }: Props) {
         />
         <InfoItem
           icon="calendar-outline"
-          label="Created"
+          label="Incident date"
           value={formatDate(task.createdDate)}
         />
         <InfoItem

@@ -36,6 +36,11 @@ export function appendFollowUpsToFormData(
   });
 }
 
+/** Today's date as yyyy-MM-dd for task date inputs. */
+export function todayTaskDateInput(): string {
+  return toFollowUpDateInput(new Date().toISOString());
+}
+
 /** Normalize backend timestamp / ISO date to yyyy-MM-dd for the date picker / API. */
 export function toFollowUpDateInput(value: string | null | undefined): string {
   if (!value) return "";

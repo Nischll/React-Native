@@ -1,9 +1,11 @@
 import { useGetAllCategory } from "@/src/api/taskManagement.api";
+import FormSheetModal from "@/src/components/domain/FormSheetModal";
 import EmptyState from "@/src/components/feedback/EmptyState";
 import { SkeletonCard } from "@/src/components/feedback/SkeletonCard";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
+import SelectField from "@/src/components/ui/SelectField";
 import { getDatePresetRange } from "@/src/helper/formatDateTime";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -37,6 +39,9 @@ export default function TaskManagement() {
   >("month");
   const [fromDate, setFromDate] = useState<string>();
   const [toDate, setToDate] = useState<string>();
+  const [createConfirmOpen, setCreateConfirmOpen] = useState(false);
+  const [draftCategoryId, setDraftCategoryId] = useState<number | null>(null);
+  const [draftStatusId, setDraftStatusId] = useState<string>("");
 
   useEffect(() => {
     if (categories.length > 0 && selectedCategoryId === null) {
@@ -60,6 +65,59 @@ export default function TaskManagement() {
       setSelectedStatusValue("");
     }
   }, [filteredStatuses]);
+  const statusesForCategory = useCallback(
+    (id: number | null) => {
+      if (id == null) return taskStatus;
+      return taskStatus.filter((s) => s.categoryId === id);
+    },
+    [taskStatus],
+  );
+
+  const openCreateConfirm = () => {
+    const nextCategoryId = selectedCategoryId ?? categories[0]?.id ?? null;
+    const nextStatuses = statusesForCategory(nextCategoryId);
+    const currentInCategory = nextStatuses.some(
+      (s) => s.value === selectedStatusValue,
+    );
+    setDraftCategoryId(nextCategoryId);
+    setDraftStatusId(
+      currentInCategory
+        ? selectedStatusValue
+        : (nextStatuses[0]?.value ?? ""),
+    );
+    setCreateConfirmOpen(true);
+  };
+
+  const handleDraftCategoryChange = (value: string) => {
+    const nextCategoryId = Number(value);
+    const nextStatuses = statusesForCategory(
+      Number.isFinite(nextCategoryId) ? nextCategoryId : null,
+    );
+    setDraftCategoryId(Number.isFinite(nextCategoryId) ? nextCategoryId : null);
+    setDraftStatusId(nextStatuses[0]?.value ?? "");
+  };
+
+  const continueToCreate = () => {
+    if (draftCategoryId != null) setSelectedCategoryId(draftCategoryId);
+    setCreateConfirmOpen(false);
+    router.push({
+      pathname: "/(private)/task-management/task-add-edit",
+      params: {
+        mode: "create",
+        ...(draftCategoryId != null
+          ? { categoryId: String(draftCategoryId) }
+          : {}),
+        ...(draftStatusId ? { taskStatusId: draftStatusId } : {}),
+      },
+    });
+  };
+
+  const draftStatuses = statusesForCategory(draftCategoryId);
+  const selectedCategoryName =
+    categories.find((c) => c.id === draftCategoryId)?.name ?? "this category";
+  const selectedStatusName =
+    draftStatuses.find((s) => s.value === draftStatusId)?.label ?? null;
+
   const handleCountResolved = useCallback((statusId: number, count: number) => {
     setTaskCounts((prev) => {
       if (prev[String(statusId)] === count) return prev;
@@ -219,19 +277,7 @@ export default function TaskManagement() {
 
       {/* ── FAB — Add task ── */}
       <View className="absolute bottom-6 right-6 z-50">
-        <AnimatedPressable
-          onPress={() =>
-            router.push({
-              pathname: "/(private)/task-management/task-add-edit",
-              params: {
-                mode: "create",
-                ...(selectedCategoryId != null
-                  ? { categoryId: String(selectedCategoryId) }
-                  : {}),
-              },
-            })
-          }
-        >
+        <AnimatedPressable onPress={openCreateConfirm}>
           <View className="bg-primary rounded-full p-4 elevation-5">
             <AppIcon name="add" size={24} color="#fff" />
           </View>
@@ -252,6 +298,44 @@ export default function TaskManagement() {
       />
 
       <TaskAiChatDock bottomReserve={88} />
+
+      <FormSheetModal
+        visible={createConfirmOpen}
+        title="Create task"
+        subtitle={
+          selectedStatusName
+            ? `${selectedCategoryName} · ${selectedStatusName}`
+            : "Select a category and status to continue."
+        }
+        submitLabel="Create task"
+        submitDisabled={!draftStatusId}
+        onClose={() => setCreateConfirmOpen(false)}
+        onSubmit={continueToCreate}
+      >
+        <SelectField
+          label="Category"
+          value={draftCategoryId != null ? String(draftCategoryId) : ""}
+          onChange={handleDraftCategoryChange}
+          options={categories.map((c) => ({
+            label: c.name,
+            value: String(c.id),
+          }))}
+          placeholder="Select category"
+        />
+        <View className="mt-3">
+          <SelectField
+            label="Status"
+            value={draftStatusId}
+            onChange={setDraftStatusId}
+            options={draftStatuses}
+            placeholder={
+              draftStatuses.length === 0
+                ? "No statuses in this category"
+                : "Select status"
+            }
+          />
+        </View>
+      </FormSheetModal>
     </View>
   );
 }

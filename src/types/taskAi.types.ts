@@ -29,32 +29,49 @@ export type TaskAiResourceResult = {
   downloadUrl?: string | null;
 };
 
-/** File location for a resource hit (API `locationLabel`, else pages/lines/sheet). */
+/** Human-readable location for a resource match (label, sheet, pages, lines). */
 export function taskAiResourceLocationLabel(
   result: TaskAiResourceResult,
 ): string | null {
-  const labeled = result.locationLabel?.trim();
-  if (labeled) return labeled;
-  const sheet = result.sheetName?.trim();
-  if (result.pageStart != null || result.pageEnd != null) {
-    const start = result.pageStart ?? result.pageEnd;
-    const end = result.pageEnd ?? result.pageStart;
-    const pages =
-      start != null && end != null && start !== end
-        ? `pages ${start}–${end}`
-        : `page ${start}`;
-    return sheet ? `${sheet} · ${pages}` : pages;
+  if (result.locationLabel?.trim()) return result.locationLabel.trim();
+
+  const parts: string[] = [];
+  if (result.sheetName?.trim()) parts.push(`sheet ${result.sheetName.trim()}`);
+
+  if (result.pageStart != null && result.pageEnd != null) {
+    parts.push(
+      result.pageStart === result.pageEnd
+        ? `page ${result.pageStart}`
+        : `pages ${result.pageStart}–${result.pageEnd}`,
+    );
+  } else if (result.pageStart != null) {
+    parts.push(`page ${result.pageStart}`);
   }
-  if (result.lineStart != null || result.lineEnd != null) {
-    const start = result.lineStart ?? result.lineEnd;
-    const end = result.lineEnd ?? result.lineStart;
-    const lines =
-      start != null && end != null && start !== end
-        ? `lines ${start}–${end}`
-        : `line ${start}`;
-    return sheet ? `${sheet} · ${lines}` : lines;
+
+  if (result.lineStart != null && result.lineEnd != null) {
+    parts.push(
+      result.lineStart === result.lineEnd
+        ? `line ${result.lineStart}`
+        : `lines ${result.lineStart}–${result.lineEnd}`,
+    );
+  } else if (result.lineStart != null) {
+    parts.push(`line ${result.lineStart}`);
   }
-  return sheet || null;
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** Meta line under a resource file name (type, match %, location). */
+export function formatTaskAiResourceMeta(result: TaskAiResourceResult): string {
+  return [
+    result.resourceType?.trim() || null,
+    result.similarity != null
+      ? `${Math.round(Number(result.similarity) * 100)}% match`
+      : null,
+    taskAiResourceLocationLabel(result),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export type TaskAiChatResponseData = {

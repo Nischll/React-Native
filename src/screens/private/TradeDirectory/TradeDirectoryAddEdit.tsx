@@ -7,6 +7,9 @@ import LoadingState from "@/src/components/feedback/LoadingState";
 import PageHeader from "@/src/components/layout/PageHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
+import { useAuth } from "@/src/providers/AuthProvider";
+import { TradeDirectoryRequest } from "@/src/types/tradeDirectory.types";
+import { showToast } from "@/src/utils/toast";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -19,6 +22,7 @@ export default function TradeDirectoryAddEdit() {
   const { id: idParam } = useLocalSearchParams();
   const id = idParam ? Number(idParam) : undefined;
   const editMode = !!idParam;
+  const { buildingId } = useAuth();
   const { data, isLoading } = useGetTradeById(id, editMode);
   const { mutate: addMutate, isPending: adding } = useAddTrade();
   const { mutate: updateMutate, isPending: updating } = useUpdateTrade(id);
@@ -39,7 +43,13 @@ export default function TradeDirectoryAddEdit() {
   }, [editMode, data, reset]);
 
   const onSubmit = (values: FormValues) => {
-    const payload = {
+    if (buildingId == null || buildingId <= 0) {
+      showToast("error", "Select a building first");
+      return;
+    }
+    const payload: TradeDirectoryRequest = {
+      ...(editMode && id ? { id } : {}),
+      buildingId,
       name: values.name.trim(),
       company: values.company.trim() || undefined,
       contact: values.contact.trim() || undefined,

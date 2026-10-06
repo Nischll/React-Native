@@ -52,6 +52,18 @@ export function bookingTypeLabel(value?: string | null): string {
   return BOOKING_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? "—";
 }
 
+/**
+ * True when the amenity name refers to move-in or move-out in any spacing/punctuation
+ * (e.g. "Move In", "move-out", "MoveIn/MoveOut").
+ */
+export function amenityShowsBookingType(
+  name: string | null | undefined,
+): boolean {
+  if (!name?.trim()) return false;
+  const normalized = name.toLowerCase().replace(/[^a-z]/g, "");
+  return normalized.includes("movein") || normalized.includes("moveout");
+}
+
 export const PAID_TYPE_OPTIONS: { value: PaidType; label: string }[] = [
   { value: "NONE", label: "None" },
   { value: "CASH", label: "Cash" },

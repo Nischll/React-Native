@@ -4,7 +4,11 @@ import SelectField from "@/src/components/ui/SelectField";
 import { useGetTrades } from "@/src/api/tradeDirectory.api";
 import { useResidencesForActiveBuilding } from "@/src/hooks/useResidenceByBuilding";
 import { TRACKING_ID_MAX } from "@/src/types/parcelManagement.types";
-import { TradeDirectoryResponse } from "@/src/types/tradeDirectory.types";
+import { useAuth } from "@/src/providers/AuthProvider";
+import {
+  TradeDirectoryResponse,
+  tradesForBuilding,
+} from "@/src/types/tradeDirectory.types";
 import { extractPaginatedList } from "@/src/utils/listPagination";
 import { useMemo } from "react";
 import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
@@ -57,13 +61,15 @@ export const TaskFilterModal = ({
   setTradeName,
 }: TaskFilterModalProps) => {
   const { residences } = useResidencesForActiveBuilding();
+  const { buildingId } = useAuth();
   const { data: tradesData } = useGetTrades(
-    { page: 1, limit: 1000 },
-    visible && showTrade,
+    { page: 1, limit: 1000, buildingId: buildingId ?? undefined },
+    visible && showTrade && buildingId != null && buildingId > 0,
   );
-  const { items: trades } = extractPaginatedList<TradeDirectoryResponse>(
+  const { items: rawTrades } = extractPaginatedList<TradeDirectoryResponse>(
     tradesData,
   );
+  const trades = tradesForBuilding(rawTrades, buildingId);
   const tradeOptions = useMemo(() => {
     const byName = new Map<string, { label: string; value: string }>();
     for (const t of trades) {

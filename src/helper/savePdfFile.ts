@@ -140,6 +140,60 @@ export function waitForModalDismiss(ms = 400): Promise<void> {
  * file, and save it. Do not require a `%PDF` magic check — the browser never
  * does, and Android often wraps bytes in a Blob that fails that test.
  */
+export async function postAuthenticatedPdf(
+  path: string,
+  formData: FormData,
+): Promise<string> {
+  const response = await apiService.post(path, formData, {
+    responseType: "arraybuffer",
+    transformResponse: [(data: unknown) => data],
+    timeout: 120000,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    skipGlobalLoading: true,
+    headers: {
+      Accept: "application/pdf,*/*",
+    },
+  } as Record<string, unknown>);
+
+  const contentType = headerContentType(response.headers);
+  let base64 = await responseDataToBase64(response.data);
+  if (base64.length < 32) {
+    const raw = (response.request as { _response?: unknown } | undefined)
+      ?._response;
+    if (raw != null) {
+      const fromXhr = await responseDataToBase64(raw);
+      if (fromXhr.length > base64.length) base64 = fromXhr;
+    }
+  }
+
+  if (base64.length < 32) {
+    const blobResponse = await apiService.post(path, formData, {
+      responseType: "blob",
+      transformResponse: [(data: unknown) => data],
+      timeout: 120000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      skipGlobalLoading: true,
+      headers: {
+        Accept: "application/pdf,*/*",
+      },
+    } as Record<string, unknown>);
+    base64 = await responseDataToBase64(blobResponse.data);
+  }
+
+  const jsonError = jsonErrorFromPayload(response.data, contentType, base64);
+  if (jsonError) throw new Error(jsonError);
+
+  if (!base64 || base64.length < 32) {
+    throw new Error(
+      "Server did not return a valid PDF. Try again or check permissions.",
+    );
+  }
+
+  return base64;
+}
+
 export async function downloadAuthenticatedPdf(
   path: string,
   params: Record<string, string | number | undefined | null> = {},

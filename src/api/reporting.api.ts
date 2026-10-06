@@ -1,8 +1,9 @@
+import { PickedFile } from "../components/ui/FilePicker";
+import { buildMonthlyReportPdfFormData } from "../helper/reportSignatures";
+import { postAuthenticatedPdf } from "../helper/savePdfFile";
 import { useApiQuery } from "../hooks/api/useApiQuery";
-import { apiService } from "./client";
+import { MonthlyReportPdfOptions, MonthlyReportResponse } from "../types/reporting.types";
 import { ApiListResponse } from "./auth.api";
-import { compactNameParams, serializeQueryParams } from "../helper/pdfClosingNames";
-import { MonthlyReportResponse, ReportPdfSignatures } from "../types/reporting.types";
 
 export const useGetMonthlyReport = (
   month?: string,
@@ -24,33 +25,18 @@ export const useGetMonthlyReport = (
   );
 };
 
-/** Binary PDF fetch — same params as JSON report plus closing-page names. */
-export const fetchMonthlyReportPdf = (
+/** Binary PDF — POST multipart cover + signatures + optional logo. */
+export async function fetchMonthlyReportPdf(
   month: string,
   buildingId: number,
-  signatures?: ReportPdfSignatures,
-) =>
-  apiService.get("/reporting/monthly/pdf", {
-    params: {
-      month,
-      buildingId,
-      ...(signatures
-        ? compactNameParams({
-            buildingManager: signatures.buildingManager,
-            operationsSupervisor: signatures.operationsSupervisor,
-            operationsManager: signatures.operationsManager,
-            generalManager: signatures.generalManager,
-            director: signatures.director,
-          })
-        : {}),
-    },
-    paramsSerializer: serializeQueryParams,
-    responseType: "arraybuffer",
-    transformResponse: [(data) => data],
-    timeout: 120000,
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-    headers: {
-      Accept: "application/pdf,*/*",
-    },
-  });
+  options: MonthlyReportPdfOptions,
+  companyLogo?: PickedFile | null,
+): Promise<string> {
+  const formData = await buildMonthlyReportPdfFormData(
+    month,
+    buildingId,
+    options,
+    companyLogo,
+  );
+  return postAuthenticatedPdf("/reporting/monthly/pdf", formData);
+}
