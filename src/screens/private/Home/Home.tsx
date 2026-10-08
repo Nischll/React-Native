@@ -19,6 +19,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { resolveProfilePicture } from "../Profile/Profile";
 import { ActivityBar } from "./components/ActivityBar";
 import SearchBar from "./components/SearchBar";
+import { groupQuickActions } from "./quickActionGroups";
 
 function isBottomNavModule(title: string) {
   const name = title.toLowerCase();
@@ -68,10 +69,17 @@ export default function Home() {
     .map((mod) => {
       const route = mapToAppRoute(mod.path);
       if (!route) return null;
-      return { title: mod.name, icon: mapIcon(mod.icon), route };
+      return {
+        title: mod.name,
+        icon: mapIcon(mod.icon),
+        route,
+        path: mod.path ?? "",
+      };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .filter((item) => !isBottomNavModule(item.title));
+
+  const quickActionGroups = groupQuickActions(quickModules);
 
   const remoteAvatarUri = resolveProfilePicture(
     (user as any)?.profilePictureUrl,
@@ -192,28 +200,35 @@ export default function Home() {
             Quick Actions
           </Text>
 
-          <View className="flex-row flex-wrap justify-between">
-            {quickModules.map((item) => (
-              <AnimatedPressable
-                key={item.title}
-                onPress={() => router.push(item.route)}
-                className="mb-3 w-[48%]"
-              >
-                <Card className="flex-row items-center gap-2 p-3 min-h-[72px]">
-                  <View className="h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <AppIcon name={item.icon} size={20} color="#453956" />
-                  </View>
-                  <Text
-                    className="flex-1 text-xs font-semibold text-textPrimary"
-                    numberOfLines={3}
+          {quickActionGroups.map((group) => (
+            <View key={group.label} className="mb-4">
+              <Text className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                {group.label}
+              </Text>
+              <View className="flex-row flex-wrap justify-between">
+                {group.items.map((item) => (
+                  <AnimatedPressable
+                    key={item.path || item.title}
+                    onPress={() => router.push(item.route)}
+                    className="mb-3 w-[48%]"
                   >
-                    {item.title}
-                  </Text>
-                  <AppIcon name="chevron-forward" size={14} color="#94A3B8" />
-                </Card>
-              </AnimatedPressable>
-            ))}
-          </View>
+                    <Card className="flex-row items-center gap-2 p-3 min-h-[72px]">
+                      <View className="h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <AppIcon name={item.icon} size={20} color="#453956" />
+                      </View>
+                      <Text
+                        className="flex-1 text-xs font-semibold text-textPrimary"
+                        numberOfLines={3}
+                      >
+                        {item.title}
+                      </Text>
+                      <AppIcon name="chevron-forward" size={14} color="#94A3B8" />
+                    </Card>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            </View>
+          ))}
         </View>
       </View>
     </KeyboardAwareScrollView>

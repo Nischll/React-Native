@@ -22,19 +22,13 @@ const EXCLUDED_CODES = new Set([
   "V",
   "EC",
   "RENT",
-  /** Hidden on mobile — use web for these */
-  "TND",
+  /** Training template stays off the home screen */
   "TNDT",
-  "RFORM",
-  "RFORMF",
 ]);
 
 /** Paths hidden from Home Quick Actions on mobile */
 const HIDDEN_FROM_HOME_PATHS = new Set([
-  "/training-development",
   "/training-development-template",
-  "/resident-forms",
-  "/resident-form-forwards",
 ]);
 
 /** Employee / Role / Building → User Management */
@@ -153,10 +147,7 @@ function isHiddenMobileModulePath(path: string | null | undefined): boolean {
   const p = normalizeModulePath(path);
   if (!p) return false;
   if (HIDDEN_FROM_HOME_PATHS.has(p)) return true;
-  return (
-    p.startsWith("/training-development") ||
-    p.startsWith("/resident-form")
-  );
+  return p.includes("template");
 }
 
 /** Hide from Home Quick Actions (and any main nav equivalent) */
@@ -165,14 +156,7 @@ export function isHiddenFromHome(item: ModuleItem): boolean {
   if (isSettingsParentModule(item) || isAccountMenuModule(item)) return true;
   if (isSettingsManagedPath(item.path)) return true;
   if (isHiddenMobileModulePath(item.path)) return true;
-  const name = normalizeName(item.name);
-  if (
-    name.includes("training") ||
-    name.includes("resident form") ||
-    name.includes("forward resident")
-  ) {
-    return true;
-  }
+  if (normalizeName(item.name).includes("template")) return true;
   return false;
 }
 
