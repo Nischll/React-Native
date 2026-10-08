@@ -93,10 +93,7 @@ export default function DashboardShortcuts() {
           icon: "cube-outline",
           onPress: () =>
             closeAnd(() =>
-              router.push({
-                pathname: "/(private)/parcel-management/parcel-add-edit",
-                params: { mode: "create" },
-              } as Href),
+              router.push("/(private)/barcode-scanner" as Href),
             ),
         },
       ],

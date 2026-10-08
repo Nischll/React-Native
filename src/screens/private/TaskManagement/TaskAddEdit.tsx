@@ -175,7 +175,9 @@ export default function TaskAddEdit() {
 
   const taskStatus = useMemo(() => {
     if (categoryId == null) return allTaskStatus;
-    return allTaskStatus.filter((s) => s.categoryId === categoryId);
+    return allTaskStatus.filter(
+      (s) => Number(s.categoryId) === Number(categoryId),
+    );
   }, [allTaskStatus, categoryId]);
 
   // ── Form ──────────────────────────────────────────────────────────────────
@@ -563,7 +565,11 @@ export default function TaskAddEdit() {
               render={({ field: { value, onChange } }) => (
                 <SelectField
                   label="Task Status"
-                  value={value}
+                  value={
+                    taskStatus.some((status) => status.value === value)
+                      ? value
+                      : ""
+                  }
                   onChange={onChange}
                   options={taskStatus}
                   placeholder="Select Status"

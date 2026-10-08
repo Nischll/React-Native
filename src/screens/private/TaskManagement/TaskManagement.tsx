@@ -61,7 +61,9 @@ export default function TaskManagement() {
 
   const filteredStatuses = useMemo(() => {
     if (selectedCategoryId === null) return taskStatus;
-    return taskStatus.filter((s) => s.categoryId === selectedCategoryId);
+    return taskStatus.filter(
+      (s) => Number(s.categoryId) === Number(selectedCategoryId),
+    );
   }, [taskStatus, selectedCategoryId]);
 
   const hasStatuses = !statusLoading && filteredStatuses.length > 0;
@@ -76,7 +78,7 @@ export default function TaskManagement() {
   const statusesForCategory = useCallback(
     (id: number | null) => {
       if (id == null) return taskStatus;
-      return taskStatus.filter((s) => s.categoryId === id);
+      return taskStatus.filter((s) => Number(s.categoryId) === Number(id));
     },
     [taskStatus],
   );
@@ -120,32 +122,21 @@ export default function TaskManagement() {
   const firstCategoryId = categories[0]?.id ?? null;
 
   useEffect(() => {
-    if (
-      !createConfirmOpen ||
-      draftCategoryId != null ||
-      firstCategoryId == null
-    ) {
+    if (!createConfirmOpen) return;
+    if (draftCategoryId == null) {
+      if (firstCategoryId == null) return;
+      setDraftCategoryId(firstCategoryId);
       return;
     }
-    const nextStatuses = statusesForCategory(firstCategoryId);
-    setDraftCategoryId(firstCategoryId);
-    setDraftStatusId(nextStatuses[0]?.value ?? "");
+    const options = statusesForCategory(draftCategoryId);
+    if (options.length === 0) return;
+    if (options.some((status) => status.value === draftStatusId)) return;
+    setDraftStatusId(options[0].value);
   }, [
     createConfirmOpen,
     draftCategoryId,
-    firstCategoryId,
-    statusesForCategory,
-  ]);
-
-  useEffect(() => {
-    if (!createConfirmOpen || draftStatusId) return;
-    const firstStatus = statusesForCategory(draftCategoryId)[0]?.value ?? "";
-    if (!firstStatus) return;
-    setDraftStatusId(firstStatus);
-  }, [
-    createConfirmOpen,
     draftStatusId,
-    draftCategoryId,
+    firstCategoryId,
     statusesForCategory,
   ]);
 
@@ -362,9 +353,10 @@ export default function TaskManagement() {
         onClose={() => setCreateConfirmOpen(false)}
         onSubmit={continueToCreate}
       >
-        <SelectField
-          label="Category"
-          value={draftCategoryId != null ? String(draftCategoryId) : ""}
+          <SelectField
+            label="Category"
+            mode="inline"
+            value={draftCategoryId != null ? String(draftCategoryId) : ""}
           onChange={handleDraftCategoryChange}
           options={categories.map((c) => ({
             label: c.name,
@@ -375,7 +367,12 @@ export default function TaskManagement() {
         <View className="mt-3">
           <SelectField
             label="Status"
-            value={draftStatusId}
+            mode="inline"
+            value={
+              draftStatuses.some((status) => status.value === draftStatusId)
+                ? draftStatusId
+                : ""
+            }
             onChange={setDraftStatusId}
             options={draftStatuses}
             placeholder={
