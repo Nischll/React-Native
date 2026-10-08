@@ -9,15 +9,18 @@ import SelectField from "@/src/components/ui/SelectField";
 import { getDatePresetRange } from "@/src/helper/formatDateTime";
 import { useTaskStatusOptions } from "@/src/hooks/useTaskStatus";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import BuildingHeader from "./components/BuildingHeader";
 import { TaskFilterModal } from "./components/TaskFilterModal";
 import TaskSearchBar from "./components/TaskSearchBar";
-import TaskAiChatDock from "./components/TaskAiChatDock";
 import TaskStatusSection from "./components/TaskStatusSection";
 import TaskStatusTabs from "./components/TaskStatusTabs";
+
+function routeParam(value?: string | string[]) {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
 
 export default function TaskManagement() {
   const { selectedBuilding } = useAuth();
@@ -42,6 +45,11 @@ export default function TaskManagement() {
   const [createConfirmOpen, setCreateConfirmOpen] = useState(false);
   const [draftCategoryId, setDraftCategoryId] = useState<number | null>(null);
   const [draftStatusId, setDraftStatusId] = useState<string>("");
+  const shortcutParams = useLocalSearchParams<{
+    create?: string;
+    at?: string;
+  }>();
+  const handledShortcut = useRef<string | null>(null);
 
   useEffect(() => {
     if (categories.length > 0 && selectedCategoryId === null) {
@@ -96,6 +104,50 @@ export default function TaskManagement() {
     setDraftCategoryId(Number.isFinite(nextCategoryId) ? nextCategoryId : null);
     setDraftStatusId(nextStatuses[0]?.value ?? "");
   };
+
+  const openCreateConfirmRef = useRef(openCreateConfirm);
+  openCreateConfirmRef.current = openCreateConfirm;
+
+  useEffect(() => {
+    const token = routeParam(shortcutParams.at);
+    const create = routeParam(shortcutParams.create);
+    if (create !== "1" || !token || handledShortcut.current === token) return;
+    handledShortcut.current = token;
+    openCreateConfirmRef.current();
+    router.setParams({ create: "", at: "" });
+  }, [shortcutParams.at, shortcutParams.create]);
+
+  const firstCategoryId = categories[0]?.id ?? null;
+
+  useEffect(() => {
+    if (
+      !createConfirmOpen ||
+      draftCategoryId != null ||
+      firstCategoryId == null
+    ) {
+      return;
+    }
+    const nextStatuses = statusesForCategory(firstCategoryId);
+    setDraftCategoryId(firstCategoryId);
+    setDraftStatusId(nextStatuses[0]?.value ?? "");
+  }, [
+    createConfirmOpen,
+    draftCategoryId,
+    firstCategoryId,
+    statusesForCategory,
+  ]);
+
+  useEffect(() => {
+    if (!createConfirmOpen || draftStatusId) return;
+    const firstStatus = statusesForCategory(draftCategoryId)[0]?.value ?? "";
+    if (!firstStatus) return;
+    setDraftStatusId(firstStatus);
+  }, [
+    createConfirmOpen,
+    draftStatusId,
+    draftCategoryId,
+    statusesForCategory,
+  ]);
 
   const continueToCreate = () => {
     if (draftCategoryId != null) setSelectedCategoryId(draftCategoryId);
@@ -296,8 +348,6 @@ export default function TaskManagement() {
         setToDate={setToDate}
         applyPreset={applyPreset}
       />
-
-      <TaskAiChatDock bottomReserve={88} />
 
       <FormSheetModal
         visible={createConfirmOpen}

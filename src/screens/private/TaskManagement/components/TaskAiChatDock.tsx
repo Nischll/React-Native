@@ -22,6 +22,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import DashboardShortcuts from "./DashboardShortcuts";
 import TaskAiResourceMatches from "./TaskAiResourceMatches";
 import TaskAiTrainControls from "./TaskAiTrainControls";
 
@@ -30,7 +31,10 @@ const EDGE_PAD = 16;
 const PANEL_GAP = 12;
 const DRAG_THRESHOLD = 6;
 const FAB_H = 48;
-const FAB_W = 120;
+const PLUS_SIZE = 48;
+const CLUSTER_GAP = 8;
+const ASK_W = 120;
+const FAB_W = PLUS_SIZE + CLUSTER_GAP + ASK_W;
 
 type DockPos = { x: number; y: number };
 type Size = { w: number; h: number };
@@ -528,31 +532,41 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
 
       {pos ? (
           <View
-            {...fabPan.panHandlers}
             onLayout={onFabLayout}
-            accessibilityRole="button"
-            accessibilityLabel={
-              open ? "Close Ask Task AI" : "Open Ask Task AI"
-            }
+            pointerEvents="box-none"
             style={{
               position: "absolute",
               left: pos.x,
               top: pos.y,
               height: FAB_H,
-              width: FAB_W,
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: "center",
-              borderRadius: FAB_H / 2,
-              backgroundColor: "#453956",
-              paddingHorizontal: 16,
-              shadowColor: "#000",
-              shadowOpacity: 0.16,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 3 },
-              elevation: 6,
             }}
           >
+            <DashboardShortcuts />
+            <View
+              {...fabPan.panHandlers}
+              accessibilityRole="button"
+              accessibilityLabel={
+                open ? "Close Ask Task AI" : "Open Ask Task AI"
+              }
+              style={{
+                marginLeft: CLUSTER_GAP,
+                height: FAB_H,
+                width: ASK_W,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: FAB_H / 2,
+                backgroundColor: "#453956",
+                paddingHorizontal: 16,
+                shadowColor: "#000",
+                shadowOpacity: 0.16,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 3 },
+                elevation: 6,
+              }}
+            >
               <AppIcon
                 name={open ? "close" : "chatbubble-ellipses-outline"}
                 size={20}
@@ -565,6 +579,7 @@ export default function TaskAiChatDock({ bottomReserve = 0 }: Props) {
               >
                 {open ? "Close" : "Ask AI"}
               </Text>
+            </View>
           </View>
       ) : null}
     </View>

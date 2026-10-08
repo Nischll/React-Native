@@ -11,6 +11,7 @@ import AnimatedPressable from "@/src/components/ui/AnimatedPressable";
 import AppIcon from "@/src/components/ui/AppIcon";
 import { useDateRangeFilter } from "@/src/hooks/useDateRangeFilter";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   getRevenueAmount,
   getRevenueReceiptNumber,
@@ -19,7 +20,7 @@ import {
   RevenueDetailItem,
 } from "@/src/types/revenueDetail.types";
 import { PAGE_SIZE } from "@/src/utils/listPagination";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { TaskFilterModal } from "../TaskManagement/components/TaskFilterModal";
 import PurchaseFormModal from "./PurchaseFormModal";
@@ -61,8 +62,36 @@ const ONE_TIME_CREATE_TYPES = ALL_CREATE_TYPES.filter(
   (t) => t.value !== "RENTAL",
 );
 
+const SHORTCUT_CREATE: Record<
+  string,
+  { section: PurchaseSection; tab?: OneTimeTab; type: PurchaseType }
+> = {
+  filter: { section: "one-time", tab: "FILTER", type: "FILTER" },
+  "access-device": {
+    section: "one-time",
+    tab: "ACCESS_DEVICE",
+    type: "ACCESS_DEVICE",
+  },
+  rental: { section: "recurring", type: "RENTAL" },
+  "visitor-pass": {
+    section: "one-time",
+    tab: "VISITOR_PASS",
+    type: "VISITOR_PASS",
+  },
+  enterphone: { section: "one-time", tab: "ENTERPHONE", type: "ENTERPHONE" },
+};
+
+function routeParam(value?: string | string[]) {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
 export default function Purchases() {
   const { buildingId, user } = useAuth();
+  const shortcutParams = useLocalSearchParams<{
+    create?: string;
+    at?: string;
+  }>();
+  const handledShortcut = useRef<string | null>(null);
   const [page, setPage] = useState(1);
   const [section, setSection] = useState<PurchaseSection>("all");
   const [oneTimeTab, setOneTimeTab] = useState<OneTimeTab>("FILTER");
@@ -138,6 +167,19 @@ export default function Purchases() {
     setEditItem(null);
     setFormVisible(true);
   };
+
+  useEffect(() => {
+    const token = routeParam(shortcutParams.at);
+    const create = routeParam(shortcutParams.create);
+    if (!token || handledShortcut.current === token) return;
+    const mapped = SHORTCUT_CREATE[create];
+    if (!mapped) return;
+    handledShortcut.current = token;
+    setSection(mapped.section);
+    if (mapped.tab) setOneTimeTab(mapped.tab);
+    startCreate(mapped.type);
+    router.setParams({ create: "", at: "" });
+  }, [shortcutParams.at, shortcutParams.create]);
 
   const openEdit = (row: RevenueDetailItem) => {
     setFormMode("edit");
